@@ -32,9 +32,9 @@ func jsIsSpecial(r rune) bool {
 var (
 	htmlQuot = []byte("&#34;") // shorter than "&quot;"
 	htmlApos = []byte("&#39;") // shorter than "&apos;" and apos was not in HTML until HTML5
-	htmlAmp = []byte("&amp;")
-	htmlLt = []byte("&lt;")
-	htmlGt = []byte("&gt;")
+	htmlAmp  = []byte("&amp;")
+	htmlLt   = []byte("&lt;")
+	htmlGt   = []byte("&gt;")
 )
 
 // HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
@@ -67,13 +67,13 @@ func HTMLEscape(w io.Writer, b []byte) {
 
 var (
 	jsLowUni = []byte(`\u00`)
-	hex = []byte("0123456789ABCDEF")
+	hex      = []byte("0123456789ABCDEF")
 
 	jsBackslash = []byte(`\\`)
-	jsApos = []byte(`\'`)
-	jsQuot = []byte(`\"`)
-	jsLt = []byte(`\x3C`)
-	jsGt = []byte(`\x3E`)
+	jsApos      = []byte(`\'`)
+	jsQuot      = []byte(`\"`)
+	jsLt        = []byte(`\x3C`)
+	jsGt        = []byte(`\x3E`)
 )
 
 // JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
@@ -104,15 +104,15 @@ func JSEscape(w io.Writer, b []byte) {
 				w.Write(jsGt)
 			default:
 				w.Write(jsLowUni)
-				t, b := c >> 4, c & 0x0f
-				w.Write(hex[t : t + 1])
-				w.Write(hex[b : b + 1])
+				t, b := c>>4, c&0x0f
+				w.Write(hex[t : t+1])
+				w.Write(hex[b : b+1])
 			}
 		} else {
 			// Unicode rune.
 			r, size := utf8.DecodeRune(b[i:])
 			if unicode.IsPrint(r) {
-				w.Write(b[i : i + size])
+				w.Write(b[i : i+size])
 			} else {
 				fmt.Fprintf(w, "\\u%04X", r)
 			}

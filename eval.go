@@ -26,48 +26,78 @@ var (
 	rangerType = reflect.TypeOf((*Ranger)(nil)).Elem()
 	rendererType = reflect.TypeOf((*Renderer)(nil)).Elem()
 	dictionaryMap = reflect.TypeOf((map[string]interface{})(nil))
-	statePool = sync.Pool{
+	pool_State = sync.Pool{
 		New: func() interface{} {
-			return new(State)
+			return &State{scope: &scope{}}
 		},
 	}
 )
 
 type Renderer interface {
-	Render(State) error
+	Render(*State) error
 }
 
 type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
 }
 
-type AutoEscapee interface {
-	Writer(st *State) io.Writer
+type AutoEscapee func(node Node, contextualflags int, w io.Writer, b []byte) (flags int, count int, err error)
+
+type autoScapeWriter struct {
+	flags       int
+	node        Node
+	autoescapee AutoEscapee
+	Writer      io.Writer
+}
+
+func (w *autoScapeWriter) Write(b []byte) (count int, err error) {
+	if w.autoescapee != nil {
+		w.flags, count, err = w.autoescapee(w.node, w.flags, w.Writer, b)
+		return
+	}
+	return w.Writer.Write(b)
 }
 
 type State struct {
-	parent      *State
-	set         *Set
-	blocks      map[string]*BlockNode
-	variables   map[string]interface{}
-	context     reflect.Value
+	set     *Set
+	context reflect.Value
+	autoScapeWriter
+	*scope
+}
 
-	Writer      io.Writer
+func (st *State) newScope() {
+	st.scope = &scope{parent: st.scope, variables: make(Scope), blocks: st.blocks}
+}
+
+func (st *State) releaseScope() {
+	st.scope = st.scope.parent
+}
+
+type scope struct {
+	parent    *scope
+	variables Scope
+	blocks    map[string]*BlockNode
 }
 
 // YieldBlock yields a block in the current context, will panic if the context is not available
 func (st *State) YieldBlock(name string, context interface{}) {
 	block, has := st.getBlock(name)
+
 	if has == false {
 		panic(fmt.Errorf("Block %q was not found!!", name))
 	}
+
 	if context != nil {
-		st = st.NewScope(reflect.ValueOf(context))
+		current := st.context
+		st.context = reflect.ValueOf(context)
+		st.executeList(block.List)
+		st.context = current
 	}
+
 	st.executeList(block.List)
 }
 
-func (st *State) getBlock(name string) (block *BlockNode, has bool) {
+func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	block, has = st.blocks[name]
 	for !has && st.parent != nil {
 		st = st.parent
@@ -76,12 +106,13 @@ func (st *State) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
-func (st *State) YieldTemplate(name string, context interface{}) {
+func (st State) YieldTemplate(name string, context interface{}) {
 	t, exists := st.set.GetTemplate(name)
 	if !exists {
 		panic(fmt.Errorf("include: template %q was not found", name))
 	}
-	st = st.NewScope(st.context)
+
+	st.newScope()
 	st.blocks = t.processedBlocks
 	if context != nil {
 		st.context = reflect.ValueOf(context)
@@ -93,24 +124,21 @@ func (st *State) YieldTemplate(name string, context interface{}) {
 	st.executeList(Root)
 }
 
-func (st *State) NewScope(data reflect.Value) *State {
-	return &State{parent: st, context: data, blocks: st.blocks, Writer: st.Writer, set: st.set}
-}
-
-func (st *State) Set(name string, val reflect.Value) (impossible bool) {
-	initial := st
+func (state *State) Set(name string, val reflect.Value) (impossible bool) {
+	sc := state.scope
+	initial := sc
 
 	// try to resolve variables in the current scope
-	_, ok := st.variables[name]
+	_, ok := sc.variables[name]
 
 	// if not found walks parent scopes
-	for !ok && st.parent != nil {
-		st = st.parent
-		_, ok = st.variables[name]
+	for !ok && sc.parent != nil {
+		sc = sc.parent
+		_, ok = sc.variables[name]
 	}
 
-	if st != nil {
-		st.variables[name] = val.Interface()
+	if ok {
+		sc.variables[name] = val
 		return
 	}
 
@@ -118,46 +146,43 @@ func (st *State) Set(name string, val reflect.Value) (impossible bool) {
 		initial = initial.parent
 	}
 
-	if initial.variables == nil {
-		initial.variables = make(map[string]interface{})
+	if initial.variables != nil {
+		sc.variables[name] = val
+		return
 	}
-
-	st.variables[name] = val.Interface()
-	return false
+	return true
 }
 
-func (st *State) Resolve(name string) reflect.Value {
+func (state *State) Resolve(name string) reflect.Value {
+
 	if name == "." {
-		return st.context
+		return state.context
 	}
+
+	sc := state.scope
 	// try to resolve variables in the current scope
-	vl, ok := st.variables[name]
+	vl, ok := sc.variables[name]
 	// if not found walks parent scopes
-	for !ok && st.parent != nil {
-		st = st.parent
-		vl, ok = st.variables[name]
+	for !ok && sc.parent != nil {
+		sc = sc.parent
+		vl, ok = sc.variables[name]
 	}
 
 	// if not found check globals
 	if !ok {
-		st.set.gmx.RLock()
-		vl, ok = st.set.globals[name]
-		st.set.gmx.RUnlock()
+		state.set.gmx.RLock()
+		vl, ok = state.set.globals[name]
+		state.set.gmx.RUnlock()
 		// not found check defaultVariables
 		if !ok {
 			vl, ok = defaultVariables[name]
 		}
 	}
-
-	// found value
-	if ok {
-		return reflect.ValueOf(vl)
-	}
-	return reflect.Value{}
+	return vl
 }
 
 func (st *State) recover(err *error) {
-	statePool.Put(st)
+	pool_State.Put(st)
 	recovered := recover()
 	if recovered != nil {
 		var is bool
@@ -225,7 +250,6 @@ func (st *State) executeLetList(set *SetNode) {
 
 func (st *State) executeList(list *ListNode) {
 	inNewSCOPE := false
-
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {
@@ -240,8 +264,7 @@ func (st *State) executeList(list *ListNode) {
 			if node.Set != nil {
 				if node.Set.Let {
 					if !inNewSCOPE {
-						st = st.NewScope(st.context)
-						st.variables = make(map[string]interface{})
+						st.newScope() //creates new scope in the back state
 						inNewSCOPE = true
 					}
 					st.executeLetList(node.Set)
@@ -253,7 +276,7 @@ func (st *State) executeList(list *ListNode) {
 				v := st.evalPipelineExpression(node.Pipe)
 				var err error
 				if v.Type().Implements(rendererType) {
-					err = v.Interface().(Renderer).Render(*st)
+					err = v.Interface().(Renderer).Render(st)
 				} else {
 					_, err = fastprinter.PrintValue(st.Writer, v)
 				}
@@ -263,12 +286,11 @@ func (st *State) executeList(list *ListNode) {
 			}
 		case NodeIf:
 			node := node.(*IfNode)
-			st := st
-
+			var isLet bool
 			if node.Set != nil {
 				if node.Set.Let {
-					st = st.NewScope(st.context)
-					st.variables = make(map[string]interface{})
+					isLet = true
+					st.newScope()
 					st.executeLetList(node.Set)
 				} else {
 					st.executeSetList(node.Set)
@@ -279,10 +301,13 @@ func (st *State) executeList(list *ListNode) {
 			} else {
 				st.executeList(node.ElseList)
 			}
+			if isLet {
+				st.releaseScope()
+			}
 		case NodeRange:
-			st := st
 			node := node.(*RangeNode)
 			var expression reflect.Value
+
 			isSet := node.Set != nil
 			isLet := false
 			isKeyVal := false
@@ -292,13 +317,12 @@ func (st *State) executeList(list *ListNode) {
 				expression = st.evalExpression(node.Set.Right[0])
 				if node.Set.Let {
 					isLet = true
-					st = st.NewScope(st.context)
-					st.variables = make(map[string]interface{})
+					st.newScope()
 				}
 			} else {
 				expression = st.evalExpression(node.Expression)
-				st = st.NewScope(st.context)
 			}
+
 			ranger := getRanger(expression)
 			indexValue, rangeValue, end := ranger.Range()
 			if !end {
@@ -306,10 +330,10 @@ func (st *State) executeList(list *ListNode) {
 					if isSet {
 						if isLet {
 							if isKeyVal {
-								st.variables[node.Set.Left[0].String()] = indexValue.Interface()
-								st.variables[node.Set.Left[1].String()] = rangeValue.Interface()
+								st.variables[node.Set.Left[0].String()] = indexValue
+								st.variables[node.Set.Left[1].String()] = rangeValue
 							} else {
-								st.variables[node.Set.Left[0].String()] = rangeValue.Interface()
+								st.variables[node.Set.Left[0].String()] = rangeValue
 							}
 						} else {
 							if isKeyVal {
@@ -328,17 +352,24 @@ func (st *State) executeList(list *ListNode) {
 			} else {
 				st.executeList(node.ElseList)
 			}
+
+			if isLet {
+				st.releaseScope()
+			}
 		case NodeYield:
 			node := node.(*YieldNode)
 			block, has := st.getBlock(node.Name)
 			if has == false {
 				node.errorf("unresolved block %q!!", node.Name)
 			} else {
-				st := st
 				if node.Expression != nil {
-					st = st.NewScope(st.evalExpression(node.Expression))
+					context := st.context
+					st.context = st.evalExpression(node.Expression)
+					st.executeList(block.List)
+					st.context = context
+				} else {
+					st.executeList(block.List)
 				}
-				st.executeList(block.List)
 			}
 		case NodeBlock:
 			node := node.(*BlockNode)
@@ -346,30 +377,37 @@ func (st *State) executeList(list *ListNode) {
 			if has == false {
 				block = node
 			}
-			st := st
 			if node.Expression != nil {
-				st = st.NewScope(st.evalExpression(node.Expression))
+				context := st.context
+				st.context = st.evalExpression(node.Expression)
+				st.executeList(block.List)
+				st.context = context
+			} else {
+				st.executeList(block.List)
 			}
-			st.executeList(block.List)
 		case NodeInclude:
 			node := node.(*IncludeNode)
 			t, exists := st.set.GetTemplate(node.Name)
 			if !exists {
 				node.errorf("template %q was not found!!", node.Name)
 			} else {
-				st := st.NewScope(st.context)
+				st := *st
+				st.newScope()
 				st.blocks = t.processedBlocks
 				if node.Expression != nil {
 					st.context = st.evalExpression(node.Expression)
 				}
-
 				Root := t.root
 				if t.extends != nil {
 					Root = t.extends.root
 				}
 				st.executeList(Root)
+				st.releaseScope()
 			}
 		}
+	}
+	if inNewSCOPE {
+		st.releaseScope()
 	}
 }
 

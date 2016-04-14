@@ -24,7 +24,7 @@ import (
 
 var evalTemplateSet = NewSet()
 
-func evalTestCase(t *testing.T, variables map[string]interface{}, context interface{}, testName, testContent, testExpected string) {
+func evalTestCase(t *testing.T, variables Scope, context interface{}, testName, testContent, testExpected string) {
 	buff := bytes.NewBuffer(nil)
 	tt, err := evalTemplateSet.loadTemplate(testName, testContent)
 	if err != nil {
@@ -59,14 +59,11 @@ func (user *User) GetName() string {
 }
 
 func TestEvalActionNode(t *testing.T) {
-	var data = make(map[string]interface{})
-	data["lower"] = strings.ToLower
-	data["upper"] = strings.ToUpper
-	data["repeat"] = strings.Repeat
+	var data = make(Scope)
 
-	data["user"] = &User{
+	data.Set("user", &User{
 		"José Santos", "email@example.com",
-	}
+	})
 
 	evalTestCase(t, nil, nil, "actionNode", `hello {{"world"}}`, `hello world`)
 	evalTestCase(t, data, nil, "actionNode_func", `hello {{lower: "WORLD"}}`, `hello world`)
@@ -99,14 +96,14 @@ func TestEvalActionNode(t *testing.T) {
 }
 
 func TestEvalIfNode(t *testing.T) {
-	var data = make(map[string]interface{})
-	data["lower"] = strings.ToLower
-	data["upper"] = strings.ToUpper
-	data["repeat"] = strings.Repeat
+	var data = make(Scope)
+	data.Set("lower", strings.ToLower)
+	data.Set("upper", strings.ToUpper)
+	data.Set("repeat", strings.Repeat)
 
-	data["user"] = &User{
+	data.Set("user", &User{
 		"José Santos", "email@example.com",
-	}
+	})
 
 	evalTestCase(t, data, nil, "ifNode_simples", `{{if true}}hello{{end}}`, `hello`)
 	evalTestCase(t, data, nil, "ifNode_else", `{{if false}}hello{{else}}world{{end}}`, `world`)
@@ -115,11 +112,11 @@ func TestEvalIfNode(t *testing.T) {
 }
 
 func TestEvalBlockYieldIncludeNode(t *testing.T) {
-	var data = make(map[string]interface{})
+	var data = make(Scope)
 
-	data["user"] = &User{
+	data.Set("user", &User{
 		"José Santos", "email@example.com",
-	}
+	})
 
 	evalTestCase(t, data, nil, "Block_simple", `{{block hello "Buddy" }}Hello {{ . }}{{end}},{{yield hello user.Name}}`, `Hello Buddy,Hello José Santos`)
 	evalTestCase(t, data, nil, "Block_Extends", `{{extends "Block_simple"}}{{block hello "Buddy" }}Hey {{ . }}{{end}}`, `Hey Buddy,Hey José Santos`)
@@ -132,13 +129,14 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 
 func TestEvalRangeNode(t *testing.T) {
 
-	var data = make(map[string]interface{})
+	var data = make(Scope)
 
-	data["users"] = []User{
+	data.Set("users", []User{
 		{"Mario Santos", "mario@gmail.com"},
 		{"Joel Silva", "joelsilva@gmail.com"},
 		{"Luis Santana", "luis.santana@gmail.com"},
-	}
+	})
+
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	evalTestCase(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
 	evalTestCase(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
@@ -165,6 +163,8 @@ func init() {
 	_, err := stdSet.Parse(`
 		{{define "actionNode_dummy"}}hello {{dummy "WORLD"}}{{end}}
 		{{define "noAllocFn"}}hello {{ "José" }} {{1}} {{ "José" }} {{end}}
+		{{define "rangeOverUsers_Set"}}{{range $index,$val := . }}{{$index}}:{{$val.Name}}-{{$val.Email}}{{end}}{{end}}
+		{{define "rangeOverUsers"}}{{range . }}{{.Name}}-{{.Email}}{{end}}{{end}}
 	`)
 	if err != nil {
 		println(err.Error())
@@ -172,9 +172,16 @@ func init() {
 	evalTemplateSet.AddGlobal("dummy", dummy)
 	evalTemplateSet.LoadTemplate("actionNode_dummy", `hello {{dummy("WORLD")}}`)
 	evalTemplateSet.LoadTemplate("noAllocFn", `hello {{ "José" }} {{1}} {{ "José" }}`)
+	evalTemplateSet.LoadTemplate("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
+	evalTemplateSet.LoadTemplate("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
 }
 
 var ww io.Writer = (*devNull)(nil)
+var users = []*User{
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+}
 
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := evalTemplateSet.GetTemplate("actionNode_dummy")
@@ -193,6 +200,26 @@ func BenchmarkSimpleActionNoAlloc(b *testing.B) {
 	}
 }
 
+func BenchmarkRangeSimple(b *testing.B) {
+	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers")
+	for i := 0; i < b.N; i++ {
+		err := t.Execute(ww, nil, users)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func BenchmarkRangeSimpleSet(b *testing.B) {
+	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers_Set")
+	for i := 0; i < b.N; i++ {
+		err := t.Execute(ww, nil, users)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func BenchmarkSimpleActionStd(b *testing.B) {
 	t := stdSet.Lookup("actionNode_dummy")
 	for i := 0; i < b.N; i++ {
@@ -204,5 +231,19 @@ func BenchmarkSimpleActionStdNoAlloc(b *testing.B) {
 	t := stdSet.Lookup("noAllocFn")
 	for i := 0; i < b.N; i++ {
 		t.Execute(ww, nil)
+	}
+}
+
+func BenchmarkRangeSimpleStd(b *testing.B) {
+	t := stdSet.Lookup("rangeOverUsers")
+	for i := 0; i < b.N; i++ {
+		t.Execute(ww, users)
+	}
+}
+
+func BenchmarkRangeSimpleSetStd(b *testing.B) {
+	t := stdSet.Lookup("rangeOverUsers_Set")
+	for i := 0; i < b.N; i++ {
+		t.Execute(ww, users)
 	}
 }

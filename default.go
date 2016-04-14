@@ -15,27 +15,28 @@ package jet
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
-var defaultVariables = map[string]interface{}{
-	"lower":     strings.ToLower,
-	"upper":     strings.ToUpper,
-	"hasPrefix": strings.HasPrefix,
-	"hasSuffix": strings.HasSuffix,
-	"repeat":    strings.Repeat,
-	"replace":   strings.Replace,
-	"map":       newMap,
+var defaultVariables = map[string]reflect.Value{
+	"lower":     reflect.ValueOf(strings.ToLower),
+	"upper":     reflect.ValueOf(strings.ToUpper),
+	"hasPrefix": reflect.ValueOf(strings.HasPrefix),
+	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
+	"repeat":    reflect.ValueOf(strings.Repeat),
+	"replace":   reflect.ValueOf(strings.Replace),
+	"map":       reflect.ValueOf(newMap),
 }
 
 func newMap(values ...interface{}) (nmap map[string]interface{}) {
-	if len(values) % 2 > 0 {
+	if len(values)%2 > 0 {
 		panic("new map: invalid number of arguments on call to map")
 	}
 	nmap = make(map[string]interface{})
 
 	for i := 0; i < len(values); i += 2 {
-		nmap[fmt.Sprint(values[i])] = values[i + 1]
+		nmap[fmt.Sprint(values[i])] = values[i+1]
 	}
 	return
 }

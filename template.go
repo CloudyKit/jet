@@ -25,7 +25,7 @@ import (
 type Set struct {
 	Dirs      []string
 	templates map[string]*Template
-	globals   map[string]interface{}
+	globals   Scope
 	tmx       sync.RWMutex
 	gmx       sync.RWMutex
 }
@@ -34,9 +34,9 @@ func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bo
 	s.gmx.Lock()
 	val, override = s.globals[key]
 	if s.globals == nil {
-		s.globals = make(map[string]interface{})
+		s.globals = make(Scope)
 	}
-	s.globals[key] = i
+	s.globals[key] = reflect.ValueOf(i)
 	s.gmx.Unlock()
 	return
 }
@@ -149,16 +149,27 @@ func (t *Template) addBlocks(blocks map[string]*BlockNode) {
 	}
 }
 
-func (t *Template) Execute(w io.Writer, variables map[string]interface{}, data interface{}) (err error) {
-	st := statePool.Get().(*State)
+type Scope map[string]reflect.Value
+
+func (scope Scope) Set(name string, v interface{}) {
+	scope[name] = reflect.ValueOf(v)
+}
+
+func (scope Scope) SetPtr(name string, v interface{}) {
+	scope[name] = reflect.ValueOf(v).Elem()
+}
+
+func (t *Template) Execute(w io.Writer, variables Scope, data interface{}) (err error) {
+	st := pool_State.Get().(*State)
 	defer st.recover(&err)
 
 	root := t.root
 	if t.extends != nil {
 		root = t.extends.root
 	}
-
-	st.context = reflect.ValueOf(data)
+	if data != nil {
+		st.context = reflect.ValueOf(data)
+	}
 	st.blocks = t.processedBlocks
 	st.set = t.set
 	st.Writer = w
