@@ -1,0 +1,25 @@
+{{ . }}
+{{ singleValue }}
+{{ @string }}
+{{ nil }}
+{{ "" }}
+{{ val.Field }}
+{{ url: "" }}
+{{ url: "","" |pipe }}
+{{ url("") |pipe |pipe }}
+{{ url("","").Field |pipe }}
+{{ url("","").Method("") |pipe }}
+{{ set newURL:=url("","").Method(""); newURL |pipe }}
+===
+{{.}}
+{{singleValue}}
+{{@string}}
+{{nil}}
+{{""}}
+{{val.Field}}
+{{url:""}}
+{{url:"", "" | pipe}}
+{{url("") | pipe | pipe}}
+{{url("", "").Field | pipe}}
+{{url("", "").Method("") | pipe}}
+{{set newURL:=url("", "").Method("");newURL | pipe}}

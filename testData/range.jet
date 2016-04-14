@@ -1,0 +1,15 @@
+{{ range coditionEe }}{{ end }}
+{{ range coditionEe.Field }}{{ end }}
+{{ range coditionEe.Method(value) }}{{ end }}
+{{ range coditionEe.Method(value) }} {{ else }} {{ end }}
+{{ range index,value = coditionEe.Method(value) }} {{ else }} {{ end }}
+{{ range value := coditionEe.Method(value) }} {{ else }} {{ end }}
+{{ range value = coditionEe.Method(value) }} {{ else }} {{ end }}
+===
+{{range coditionEe}}{{end}}
+{{range coditionEe.Field}}{{end}}
+{{range coditionEe.Method(value)}}{{end}}
+{{range coditionEe.Method(value)}} {{else}} {{end}}
+{{range index, value=coditionEe.Method(value)}} {{else}} {{end}}
+{{range value:=coditionEe.Method(value)}} {{else}} {{end}}
+{{range value=coditionEe.Method(value)}} {{else}} {{end}}

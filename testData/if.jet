@@ -1,0 +1,15 @@
+{{ if coditionEe }}{{ end }}
+{{ if coditionEe.Field }}{{ end }}
+{{ if coditionEe.Method(value) }}{{ end }}
+{{ if coditionEe.Method(value) }} {{ else }} {{ end }}
+{{ if coditionEe.Method(value) }} {{ else if conditionE }} {{ end }}
+{{ if isOk=coditionEe.Method(value); isOk }} {{ else if conditionE }} {{ end }}
+{{ if isOk=coditionEe.Method(value); isOk }} {{ else if conditionE }} {{ end }}
+===
+{{if coditionEe}}{{end}}
+{{if coditionEe.Field}}{{end}}
+{{if coditionEe.Method(value)}}{{end}}
+{{if coditionEe.Method(value)}} {{else}} {{end}}
+{{if coditionEe.Method(value)}} {{else}}{{if conditionE}} {{end}}{{end}}
+{{if isOk=coditionEe.Method(value);isOk}} {{else}}{{if conditionE}} {{end}}{{end}}
+{{if isOk=coditionEe.Method(value);isOk}} {{else}}{{if conditionE}} {{end}}{{end}}
