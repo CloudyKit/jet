@@ -73,26 +73,26 @@ func TestEvalActionNode(t *testing.T) {
 	evalTestCase(t, data, nil, "actionNode_Field2", `Oi {{ user.Name }}<{{ user.Email }}>`, `Oi José Santos<email@example.com>`)
 	evalTestCase(t, data, nil, "actionNode_Method", `Oi {{ user.Format: "%s<%s>" }}`, `Oi José Santos<email@example.com>`)
 
-	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2+1))
-	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2+1+4))
-	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
-	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4*2+4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2+4*2+4))
-	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1*1.23 }}`, fmt.Sprint(1*1.23))
-	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3%2))
-	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1*3)%2))
-	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2*5)/3%1))
+	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2 + 1))
+	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2 + 1 + 4))
+	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2 + 1 + 4 - 3))
+	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4 * 4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2 + 4 * 4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4 * 2 + 4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2 + 4 * 2 + 4))
+	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1*1.23 }}`, fmt.Sprint(1 * 1.23))
+	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3 % 2))
+	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1 * 3) % 2))
+	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2 * 5) / 3 % 1))
 
-	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2*5) == 10))
-	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2*5) == 5))
-	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2*5) == 5 || true))
-	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2*5) == 5 || false))
+	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2 * 5) == 10))
+	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2 * 5) == 5))
+	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2 * 5) == 5 || true))
+	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2 * 5) == 5 || false))
 
-	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5*5 > 2*12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5*5 >= 2*12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5*5 > 2*12.5) == (5*5 > 2*12.5)))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5 * 5 > 2 * 12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5 * 5 >= 2 * 12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5 * 5 > 2 * 12.5) == (5 * 5 > 2 * 12.5)))
 }
 
 func TestEvalIfNode(t *testing.T) {
@@ -181,6 +181,27 @@ var users = []*User{
 	&User{"Mario Santos", "mario@gmail.com"},
 	&User{"Joel Silva", "joelsilva@gmail.com"},
 	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Mario Santos", "mario@gmail.com"},
+	&User{"Joel Silva", "joelsilva@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
+	&User{"Luis Santana", "luis.santana@gmail.com"},
 }
 
 func BenchmarkSimpleAction(b *testing.B) {
@@ -203,7 +224,7 @@ func BenchmarkSimpleActionNoAlloc(b *testing.B) {
 func BenchmarkRangeSimple(b *testing.B) {
 	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers")
 	for i := 0; i < b.N; i++ {
-		err := t.Execute(ww, nil, users)
+		err := t.Execute(ww, nil, &users)
 		if err != nil {
 			panic(err)
 		}
@@ -213,7 +234,7 @@ func BenchmarkRangeSimple(b *testing.B) {
 func BenchmarkRangeSimpleSet(b *testing.B) {
 	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers_Set")
 	for i := 0; i < b.N; i++ {
-		err := t.Execute(ww, nil, users)
+		err := t.Execute(ww, nil, &users)
 		if err != nil {
 			panic(err)
 		}
@@ -223,27 +244,39 @@ func BenchmarkRangeSimpleSet(b *testing.B) {
 func BenchmarkSimpleActionStd(b *testing.B) {
 	t := stdSet.Lookup("actionNode_dummy")
 	for i := 0; i < b.N; i++ {
-		t.Execute(ww, nil)
+		err := t.Execute(ww, nil)
+		if err != nil {
+			b.Error(err.Error())
+		}
 	}
 }
 
 func BenchmarkSimpleActionStdNoAlloc(b *testing.B) {
 	t := stdSet.Lookup("noAllocFn")
 	for i := 0; i < b.N; i++ {
-		t.Execute(ww, nil)
+		err := t.Execute(ww, nil)
+		if err != nil {
+			b.Error(err.Error())
+		}
 	}
 }
 
 func BenchmarkRangeSimpleStd(b *testing.B) {
 	t := stdSet.Lookup("rangeOverUsers")
 	for i := 0; i < b.N; i++ {
-		t.Execute(ww, users)
+		err := t.Execute(ww, &users)
+		if err != nil {
+			b.Error(err.Error())
+		}
 	}
 }
 
 func BenchmarkRangeSimpleSetStd(b *testing.B) {
 	t := stdSet.Lookup("rangeOverUsers_Set")
 	for i := 0; i < b.N; i++ {
-		t.Execute(ww, users)
+		err := t.Execute(ww, &users)
+		if err != nil {
+			b.Error(err.Error())
+		}
 	}
 }

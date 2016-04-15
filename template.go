@@ -12,22 +12,13 @@ import (
 	"sync"
 )
 
-//type blockInterface interface {
-//	execute(s *State)
-//}
-//
-//type templateInterface interface {
-//	processedBlocks() map[string]blockInterface
-//	blockInterface
-//}
-//
-
 type Set struct {
-	Dirs      []string
-	templates map[string]*Template
-	globals   Scope
-	tmx       sync.RWMutex
-	gmx       sync.RWMutex
+	Dirs        []string
+	templates   map[string]*Template
+	autoescapee AutoEscapee
+	globals     Scope
+	tmx         sync.RWMutex
+	gmx         sync.RWMutex
 }
 
 func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bool) {
@@ -170,10 +161,15 @@ func (t *Template) Execute(w io.Writer, variables Scope, data interface{}) (err 
 	if data != nil {
 		st.context = reflect.ValueOf(data)
 	}
+
 	st.blocks = t.processedBlocks
+
 	st.set = t.set
 	st.Writer = w
 	st.variables = variables
+	st.flags = 0
+	st.autoescapee = t.set.autoescapee
+
 	st.executeList(root)
 	return
 }

@@ -25,10 +25,10 @@ import (
 var (
 	rangerType = reflect.TypeOf((*Ranger)(nil)).Elem()
 	rendererType = reflect.TypeOf((*Renderer)(nil)).Elem()
-	dictionaryMap = reflect.TypeOf((map[string]interface{})(nil))
+	stringInterfaceMapType = reflect.TypeOf((map[string]interface{})(nil))
 	pool_State = sync.Pool{
 		New: func() interface{} {
-			return &State{scope: &scope{}}
+			return &State{scope: &scope{}, autoScapeWriter: new(autoScapeWriter)}
 		},
 	}
 )
@@ -60,9 +60,9 @@ func (w *autoScapeWriter) Write(b []byte) (count int, err error) {
 
 type State struct {
 	set     *Set
-	context reflect.Value
-	autoScapeWriter
+	*autoScapeWriter
 	*scope
+	context reflect.Value
 }
 
 func (st *State) newScope() {
@@ -254,12 +254,14 @@ func (st *State) executeList(list *ListNode) {
 		node := list.Nodes[i]
 		switch node.Type() {
 		case NodeText:
+			st.node = node
 			node := node.(*TextNode)
 			_, err := st.Writer.Write(node.Text)
 			if err != nil {
 				node.error(err)
 			}
 		case NodeAction:
+			st.node = node
 			node := node.(*ActionNode)
 			if node.Set != nil {
 				if node.Set.Let {
@@ -278,7 +280,7 @@ func (st *State) executeList(list *ListNode) {
 				if v.Type().Implements(rendererType) {
 					err = v.Interface().(Renderer).Render(st)
 				} else {
-					_, err = fastprinter.PrintValue(st.Writer, v)
+					_, err = fastprinter.PrintValue(st.autoScapeWriter, v)
 				}
 				if err != nil {
 					node.error(err)
@@ -349,7 +351,7 @@ func (st *State) executeList(list *ListNode) {
 					st.executeList(node.List)
 					indexValue, rangeValue, end = ranger.Range()
 				}
-			} else {
+			} else if node.ElseList != nil {
 				st.executeList(node.ElseList)
 			}
 
@@ -572,7 +574,7 @@ func (st *State) evalUnaryExpression(node Node) reflect.Value {
 		for i := 0; i < len(node.Ident); i++ {
 			fieldResolved := getValue(node.Ident[i], resolved)
 			if !fieldResolved.IsValid() {
-				node.errorf("there is not field or method %q in %s", node.Ident[i], resolved.Type())
+				node.errorf("there is no field or method %q in %s", node.Ident[i], resolved.Type().String())
 			}
 			resolved = fieldResolved
 		}
@@ -583,7 +585,7 @@ func (st *State) evalUnaryExpression(node Node) reflect.Value {
 		for i := 0; i < len(node.Field); i++ {
 			fieldValue := getValue(node.Field[i], value)
 			if !fieldValue.IsValid() {
-				node.errorf("there is not field or method %q in %s", node.Field[i], value.Type().String())
+				node.errorf("there is no field or method %q in %s", node.Field[i], value.Type().String())
 			}
 			value = fieldValue
 		}
@@ -872,55 +874,52 @@ func castNumeric(v reflect.Value) reflect.Value {
 	return reflect.ValueOf(1)
 }
 
-func getValue(key string, v reflect.Value) (value reflect.Value) {
-	if v.IsValid() {
-		value = v.MethodByName(key)
-		if value.IsValid() == false {
-			typ := v.Type()
-			numMethod := typ.NumMethod()
-			for i := 0; i < numMethod; i++ {
-				if typ.Method(i).Name == key {
-					value = v.Method(i)
-					return
-				}
-			}
-			RESTART:
-			typ = v.Type()
-			switch typ.Kind() {
-			case reflect.Map:
-				if typ == dictionaryMap {
-					if eface, has := v.Interface().(map[string]interface{})[key]; has {
-						value = reflect.ValueOf(eface)
-					}
-				} else if typ.ConvertibleTo(dictionaryMap) {
-					if eface, has := v.Convert(dictionaryMap).Interface().(map[string]interface{})[key]; has {
-						value = reflect.ValueOf(eface)
-					}
-				} else {
-					mapKey := reflect.ValueOf(key)
-					value = v.MapIndex(mapKey)
-				}
-			case reflect.Struct:
-				numField := typ.NumField()
-				for i := 0; i < numField; i++ {
-					field := typ.Field(i)
-					if field.Name == key {
-						value = v.FieldByIndex(field.Index)
-						break
-					}
-				}
-			//value = v.FieldByName(key)
-			case reflect.Ptr:
-				v = v.Elem()
-				goto RESTART
-			}
+var cacheStructMutex = sync.RWMutex{}
+var cacheStructFieldIndex = map[reflect.Type]map[string][]int{}
 
-			for value.Kind() == reflect.Interface {
-				value = value.Elem()
-			}
+func getValue(key string, v reflect.Value) reflect.Value {
+	value := v.MethodByName(key)
+
+	if value.IsValid() {
+		return value
+	}
+
+	k := v.Kind()
+	if k == reflect.Ptr || k == reflect.Interface {
+		v = v.Elem()
+		k = v.Kind()
+		value = v.MethodByName(key)
+		if value.IsValid() {
+			return value
 		}
 	}
-	return
+
+	if k == reflect.Struct {
+		typ := v.Type()
+		cacheStructMutex.RLock()
+		cache, ok := cacheStructFieldIndex[typ]
+		cacheStructMutex.RUnlock()
+		if !ok {
+			cacheStructMutex.Lock()
+			if cache, ok = cacheStructFieldIndex[typ]; !ok {
+				cache = make(map[string][]int)
+				numFields := typ.NumField()
+				for i := 0; i < numFields; i++ {
+					field := typ.Field(i)
+					cache[field.Name] = field.Index
+				}
+				cacheStructFieldIndex[typ] = cache
+			}
+			cacheStructMutex.Unlock()
+		}
+		if id, ok := cache[key]; ok {
+			return v.FieldByIndex(id)
+		}
+		return reflect.Value{}
+	}else if k == reflect.Map {
+		return v.MapIndex(reflect.ValueOf(key))
+	}
+	return reflect.Value{}
 }
 
 func getRanger(v reflect.Value) Ranger {
@@ -928,17 +927,48 @@ func getRanger(v reflect.Value) Ranger {
 	if tuP.Implements(rangerType) {
 		return v.Interface().(Ranger)
 	}
-	switch tuP.Kind() {
-	case reflect.Array, reflect.Slice:
-		return &sliceRanger{v: v, len: v.Len()}
+	k := tuP.Kind()
+	switch k {
+	case reflect.Ptr, reflect.Interface:
+		v = v.Elem()
+		k = v.Kind()
+		fallthrough
+	case reflect.Slice, reflect.Array:
+		sliceranger := pool_sliceRanger.Get().(*sliceRanger)
+		sliceranger.i = 0
+		sliceranger.len = v.Len()
+		sliceranger.v = v
+		return sliceranger
 	case reflect.Map:
-		return &mapRanger{v: v, keys: v.MapKeys(), len: v.Len()}
+		mapranger := pool_mapRanger.Get().(*mapRanger)
+		*mapranger = mapRanger{v: v, keys: v.MapKeys(), len: v.Len()}
+		return mapranger
 	case reflect.Chan:
-		return &chanRanger{v: v}
+		chanranger := pool_chanRanger.Get().(*chanRanger)
+		*chanranger = chanRanger{v: v}
+		return chanranger
 	}
 	panic(fmt.Errorf("type %s is not rangeable", tuP))
 	return nil
 }
+
+var (
+	pool_sliceRanger = sync.Pool{
+		New: func() interface{} {
+			return new(sliceRanger)
+		},
+	}
+	pool_mapRanger = sync.Pool{
+		New: func() interface{} {
+			return new(mapRanger)
+		},
+	}
+	pool_chanRanger = sync.Pool{
+		New: func() interface{} {
+			return new(chanRanger)
+		},
+	}
+)
 
 type sliceRanger struct {
 	v   reflect.Value
@@ -953,6 +983,7 @@ func (s *sliceRanger) Range() (index, value reflect.Value, end bool) {
 		s.i++
 		return
 	}
+	pool_sliceRanger.Put(s)
 	end = true
 	return
 }
@@ -963,6 +994,9 @@ type chanRanger struct {
 
 func (s *chanRanger) Range() (index, value reflect.Value, end bool) {
 	value, end = s.v.Recv()
+	if end {
+		pool_chanRanger.Put(s)
+	}
 	return
 }
 
@@ -981,5 +1015,6 @@ func (s *mapRanger) Range() (index, value reflect.Value, end bool) {
 		return
 	}
 	end = true
+	pool_mapRanger.Put(s)
 	return
 }
