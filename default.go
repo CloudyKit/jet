@@ -15,19 +15,31 @@ package jet
 
 import (
 	"fmt"
+	"html"
+	"io"
+	"net/url"
 	"reflect"
 	"strings"
+	"text/template"
 )
 
 var defaultVariables = map[string]reflect.Value{
-	"lower":     reflect.ValueOf(strings.ToLower),
-	"upper":     reflect.ValueOf(strings.ToUpper),
-	"hasPrefix": reflect.ValueOf(strings.HasPrefix),
-	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
-	"repeat":    reflect.ValueOf(strings.Repeat),
-	"replace":   reflect.ValueOf(strings.Replace),
-	"map":       reflect.ValueOf(newMap),
+	"lower":      reflect.ValueOf(strings.ToLower),
+	"upper":      reflect.ValueOf(strings.ToUpper),
+	"hasPrefix":  reflect.ValueOf(strings.HasPrefix),
+	"hasSuffix":  reflect.ValueOf(strings.HasSuffix),
+	"repeat":     reflect.ValueOf(strings.Repeat),
+	"replace":    reflect.ValueOf(strings.Replace),
+	"map":        reflect.ValueOf(newMap),
+	"htmlEscape": reflect.ValueOf(html.EscapeString),
+	"urlEscape":  reflect.ValueOf(url.QueryEscape),
+	"safeHtml":   reflect.ValueOf(SafeWriter(template.HTMLEscape)),
+	"unsafe": reflect.ValueOf(SafeWriter(func(w io.Writer, b []byte) {
+		w.Write(b)
+	})),
 }
+
+type SafeWriter func(io.Writer, []byte)
 
 func newMap(values ...interface{}) (nmap map[string]interface{}) {
 	if len(values)%2 > 0 {

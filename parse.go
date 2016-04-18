@@ -473,7 +473,6 @@ func (t *Template) unaryExpression(context string) (Expression, item) {
 func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 
 	t.peekNonSpace()
-	pos := t.lex.pos
 	line := t.lex.lineNumber()
 	var right, left []Expression
 
@@ -481,6 +480,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 	var isLet bool
 	var returned item
 	operand, returned = t.logicalExpression(context)
+	pos := operand.Position()
 	if returned.typ == itemComma || returned.typ == itemAssign {
 		isSet = true
 	} else {
@@ -689,9 +689,9 @@ func (t *Template) checkPipeline(pipe *PipeNode, context string) {
 
 func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line int, set *SetNode, expression Expression, list, elseList *ListNode) {
 	line = t.lex.lineNumber()
-	pos = t.lex.pos
 
 	expression = t.assignmentOrExpression(context)
+	pos = expression.Position()
 	//if expression == nil {
 	//	println("nil here",t.lex.input[0:t.lex.pos])
 	//}

@@ -23,10 +23,10 @@ import (
 )
 
 var (
-	rangerType = reflect.TypeOf((*Ranger)(nil)).Elem()
-	rendererType = reflect.TypeOf((*Renderer)(nil)).Elem()
-	stringInterfaceMapType = reflect.TypeOf((map[string]interface{})(nil))
-	pool_State = sync.Pool{
+	rangerType     = reflect.TypeOf((*Ranger)(nil)).Elem()
+	rendererType   = reflect.TypeOf((*Renderer)(nil)).Elem()
+	safeWriterType = reflect.TypeOf(SafeWriter(nil))
+	pool_State     = sync.Pool{
 		New: func() interface{} {
 			return &State{scope: &scope{}, autoScapeWriter: new(autoScapeWriter)}
 		},
@@ -41,27 +41,25 @@ type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
 }
 
-type AutoEscapee func(node Node, contextualflags int, w io.Writer, b []byte) (flags int, count int, err error)
-
 type autoScapeWriter struct {
-	flags       int
-	node        Node
-	autoescapee AutoEscapee
-	Writer      io.Writer
+	Writer  io.Writer
+	escapee SafeWriter
+	set     *Set
 }
 
 func (w *autoScapeWriter) Write(b []byte) (count int, err error) {
-	if w.autoescapee != nil {
-		w.flags, count, err = w.autoescapee(w.node, w.flags, w.Writer, b)
-		return
+	if w.set.escapee == nil {
+		w.Writer.Write(b)
+	} else {
+		w.set.escapee(w.Writer, b)
 	}
-	return w.Writer.Write(b)
+	return
 }
 
 type State struct {
-	set     *Set
 	*autoScapeWriter
 	*scope
+
 	context reflect.Value
 }
 
@@ -220,7 +218,7 @@ func (st *State) executeSet(left Expression, right reflect.Value) {
 		}
 	}
 
-	RESTART:
+RESTART:
 	switch value.Kind() {
 	case reflect.Ptr:
 		value = value.Elem()
@@ -254,14 +252,12 @@ func (st *State) executeList(list *ListNode) {
 		node := list.Nodes[i]
 		switch node.Type() {
 		case NodeText:
-			st.node = node
 			node := node.(*TextNode)
 			_, err := st.Writer.Write(node.Text)
 			if err != nil {
 				node.error(err)
 			}
 		case NodeAction:
-			st.node = node
 			node := node.(*ActionNode)
 			if node.Set != nil {
 				if node.Set.Let {
@@ -275,15 +271,17 @@ func (st *State) executeList(list *ListNode) {
 				}
 			}
 			if node.Pipe != nil {
-				v := st.evalPipelineExpression(node.Pipe)
-				var err error
-				if v.Type().Implements(rendererType) {
-					err = v.Interface().(Renderer).Render(st)
-				} else {
-					_, err = fastprinter.PrintValue(st.autoScapeWriter, v)
-				}
-				if err != nil {
-					node.error(err)
+				v, safeWriter := st.evalPipelineExpression(node.Pipe)
+				if !safeWriter {
+					var err error
+					if v.Type().Implements(rendererType) {
+						err = v.Interface().(Renderer).Render(st)
+					} else {
+						_, err = fastprinter.PrintValue(st.autoScapeWriter, v)
+					}
+					if err != nil {
+						node.error(err)
+					}
 				}
 			}
 		case NodeIf:
@@ -614,40 +612,71 @@ func (st *State) evalCallExpression(fn reflect.Value, args []Expression, values 
 	return reflect_Call(make([]reflect.Value, i, i), st, fn, args, values...)
 }
 
-func (st *State) evalCommandExpression(node *CommandNode) reflect.Value {
+func (st *State) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalExpression(node.BaseExpr)
 	if node.Call {
 		if term.Kind() == reflect.Func {
+			if term.Type() == safeWriterType {
+				st.evalSafeWriter(term, node)
+				return reflect.Value{}, true
+			}
 			returned := st.evalCallExpression(term, node.Args)
 			if len(returned) == 0 {
-				return reflect.Value{}
+				return reflect.Value{}, false
 			}
-			return returned[0]
+			return returned[0], false
 		} else {
 			node.Args[0].errorf("command %q type %s is not func", node.Args[0], term.Type())
 		}
 	}
-	return term
+	return term, false
 }
 
-func (st *State) evalCommandPipeExpression(node *CommandNode, value reflect.Value) reflect.Value {
+type escapeWriter struct {
+	rawWriter  io.Writer
+	safeWriter SafeWriter
+}
+
+func (w *escapeWriter) Write(b []byte) (int, error) {
+	w.safeWriter(w.rawWriter, b)
+	return 0, nil
+}
+
+func (st *State) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
+	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
+	for i := 0; i < len(v); i++ {
+		fastprinter.PrintValue(sw, v[i])
+	}
+	for i := 0; i < len(node.Args); i++ {
+		fastprinter.PrintValue(sw, st.evalExpression(node.Args[i]))
+	}
+}
+
+func (st *State) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
 	term := st.evalExpression(node.BaseExpr)
 	if term.Kind() == reflect.Func {
+		if term.Type() == safeWriterType {
+			st.evalSafeWriter(term, node, value)
+			return reflect.Value{}, true
+		}
 		returned := st.evalCallExpression(term, node.Args, value)
 		if len(returned) == 0 {
-			return reflect.Value{}
+			return reflect.Value{}, false
 		}
-		return returned[0]
+		return returned[0], false
 	} else {
 		node.BaseExpr.errorf("pipe command %q type %s is not func", node.BaseExpr, term.Type())
 	}
-	return term
+	return term, false
 }
 
-func (st *State) evalPipelineExpression(node *PipeNode) (value reflect.Value) {
-	value = st.evalCommandExpression(node.Cmds[0])
+func (st *State) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
+	value, safeWriter = st.evalCommandExpression(node.Cmds[0])
 	for i := 1; i < len(node.Cmds); i++ {
-		value = st.evalCommandPipeExpression(node.Cmds[i], value)
+		if safeWriter {
+			node.Cmds[i].errorf("unexpected command %s, writer command should be the last command", node.Cmds[i])
+		}
+		value, safeWriter = st.evalCommandPipeExpression(node.Cmds[i], value)
 	}
 	return
 }
@@ -682,7 +711,7 @@ func reflect_Call(arguments []reflect.Value, st *State, fn reflect.Value, args [
 		}
 	}
 
-	for ; i < numIn && j < len(args); i, j = i + 1, j + 1 {
+	for ; i < numIn && j < len(args); i, j = i+1, j+1 {
 		in := typ.In(i)
 		term := st.evalExpression(args[j])
 		if !term.Type().AssignableTo(in) {
@@ -693,7 +722,7 @@ func reflect_Call(arguments []reflect.Value, st *State, fn reflect.Value, args [
 
 	if isVariadic {
 		in := typ.In(numIn).Elem()
-		for ; j < len(args); i, j = i + 1, j + 1 {
+		for ; j < len(args); i, j = i+1, j+1 {
 			term := st.evalExpression(args[j])
 			if !term.Type().AssignableTo(in) {
 				term = term.Convert(in)
@@ -716,21 +745,21 @@ func generalizeValue(left, right reflect.Value) (reflect.Value, reflect.Value) {
 	rightKind := right.Kind()
 
 	if leftKind >= reflect.Uint &&
-	leftKind <= reflect.Uint64 &&
-	rightKind >= reflect.Uint &&
-	rightKind <= reflect.Uint64 {
+		leftKind <= reflect.Uint64 &&
+		rightKind >= reflect.Uint &&
+		rightKind <= reflect.Uint64 {
 		return left, right
 	}
 	if leftKind >= reflect.Int &&
-	leftKind <= reflect.Int64 &&
-	rightKind >= reflect.Int &&
-	rightKind <= reflect.Int64 {
+		leftKind <= reflect.Int64 &&
+		rightKind >= reflect.Int &&
+		rightKind <= reflect.Int64 {
 		return left, right
 	}
 	if leftKind >= reflect.Float32 &&
-	leftKind <= reflect.Float64 &&
-	rightKind >= reflect.Float32 &&
-	rightKind <= reflect.Float64 {
+		leftKind <= reflect.Float64 &&
+		rightKind >= reflect.Float32 &&
+		rightKind <= reflect.Float64 {
 		return left, right
 	}
 
@@ -916,7 +945,7 @@ func getValue(key string, v reflect.Value) reflect.Value {
 			return v.FieldByIndex(id)
 		}
 		return reflect.Value{}
-	}else if k == reflect.Map {
+	} else if k == reflect.Map {
 		return v.MapIndex(reflect.ValueOf(key))
 	}
 	return reflect.Value{}

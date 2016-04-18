@@ -119,7 +119,7 @@ func (l *ListNode) String() string {
 // TextNode holds plain text.
 type TextNode struct {
 	NodeBase
-	Text []byte // The text; may span newlines.
+	Text []byte
 }
 
 func (t *TextNode) String() string {

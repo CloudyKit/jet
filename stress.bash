@@ -2,7 +2,7 @@
 
 go test -c
 # comment above and uncomment below to enable the race builder
-# go test -c -race
+#go test -c -race
 PKG=$(basename $(pwd))
 
 while true ; do

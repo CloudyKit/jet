@@ -42,6 +42,24 @@ func evalTestCase(t *testing.T, variables Scope, context interface{}, testName, 
 	}
 }
 
+func evalTestCaseSet(testingSet *Set, t *testing.T, variables Scope, context interface{}, testName, testContent, testExpected string) {
+	buff := bytes.NewBuffer(nil)
+	tt, err := testingSet.loadTemplate(testName, testContent)
+	if err != nil {
+		t.Errorf("Parsing error: %s %s %s", err.Error(), testName, testContent)
+		return
+	}
+	err = tt.Execute(buff, variables, context)
+	if err != nil {
+		t.Errorf("Eval error: %q executing %s", err.Error(), testName)
+		return
+	}
+	result := buff.String()
+	if result != testExpected {
+		t.Errorf("Result error expected %q got %q on %s", testExpected, result, testName)
+	}
+}
+
 func TestEvalTextNode(t *testing.T) {
 	evalTestCase(t, nil, nil, "textNode", `hello {*Buddy*} World`, `hello  World`)
 }
@@ -73,26 +91,26 @@ func TestEvalActionNode(t *testing.T) {
 	evalTestCase(t, data, nil, "actionNode_Field2", `Oi {{ user.Name }}<{{ user.Email }}>`, `Oi José Santos<email@example.com>`)
 	evalTestCase(t, data, nil, "actionNode_Method", `Oi {{ user.Format: "%s<%s>" }}`, `Oi José Santos<email@example.com>`)
 
-	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2 + 1))
-	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2 + 1 + 4))
-	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2 + 1 + 4 - 3))
-	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4 * 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2 + 4 * 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4 * 2 + 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2 + 4 * 2 + 4))
-	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1*1.23 }}`, fmt.Sprint(1 * 1.23))
-	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3 % 2))
-	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1 * 3) % 2))
-	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2 * 5) / 3 % 1))
+	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2+1))
+	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2+1+4))
+	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
+	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4*2+4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2+4*2+4))
+	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1*1.23 }}`, fmt.Sprint(1*1.23))
+	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3%2))
+	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1*3)%2))
+	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2*5)/3%1))
 
-	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2 * 5) == 10))
-	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2 * 5) == 5))
-	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2 * 5) == 5 || true))
-	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2 * 5) == 5 || false))
+	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2*5) == 10))
+	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2*5) == 5))
+	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2*5) == 5 || true))
+	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2*5) == 5 || false))
 
-	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5 * 5 > 2 * 12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5 * 5 >= 2 * 12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5 * 5 > 2 * 12.5) == (5 * 5 > 2 * 12.5)))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5*5 > 2*12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5*5 >= 2*12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5*5 > 2*12.5) == (5*5 > 2*12.5)))
 }
 
 func TestEvalIfNode(t *testing.T) {
@@ -145,6 +163,16 @@ func TestEvalRangeNode(t *testing.T) {
 func TestEvalDefaultFuncs(t *testing.T) {
 	evalTestCase(t, nil, nil, "DefaultFuncs_map", `{{ map("name","José Santos").name }}`, `José Santos`)
 	evalTestCase(t, nil, nil, "DefaultFuncs_map1", `{{ map(@name,"José Santos", @email,"email@example.pt").email }}`, `email@example.pt`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml", `<h1>{{"<h1>Hello Buddy!</h1>" |safeHtml}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml2", `<h1>{{safeHtml: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_htmlEscape", `<h1>{{htmlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{urlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
+}
+
+func TestEvalAutoescape(t *testing.T) {
+	set := NewHTMLSet()
+	evalTestCaseSet(set, t, nil, nil, "Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`, "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")
+	evalTestCaseSet(set, t, nil, nil, "Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`, "<h1><h1>Hello Buddy!</h1></h1>")
 }
 
 type devNull struct{}

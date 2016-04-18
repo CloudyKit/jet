@@ -10,17 +10,19 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"text/template"
 )
 
 type Set struct {
-	Dirs        []string
-	templates   map[string]*Template
-	autoescapee AutoEscapee
-	globals     Scope
-	tmx         sync.RWMutex
-	gmx         sync.RWMutex
+	Dirs      []string             // directories for look to template files
+	templates map[string]*Template // parsed templates
+	escapee   SafeWriter
+	globals   Scope        // global scope for this template set
+	tmx       sync.RWMutex // template parsing mutext
+	gmx       sync.RWMutex // global variables map mutext
 }
 
+// AddGlobal (add|set)s a global variable to the set
 func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bool) {
 	s.gmx.Lock()
 	val, override = s.globals[key]
@@ -32,14 +34,27 @@ func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bo
 	return
 }
 
+// NewSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewSet(dir ...string) *Set {
 	return &Set{Dirs: dir, templates: make(map[string]*Template)}
 }
 
+// NewHTMLSet creates a new set, dir specifies a list of directories entries to search for templates
+func NewHTMLSet(dir ...string) *Set {
+	return &Set{Dirs: dir, escapee: template.HTMLEscape, templates: make(map[string]*Template)}
+}
+
+// NewSafeSet creates a new set, dir specifies a list of directories entries to search for templates
+func NewSafeSet(escapee SafeWriter, dir ...string) *Set {
+	return &Set{Dirs: dir, escapee: escapee, templates: make(map[string]*Template)}
+}
+
+// AddPath adds a path to the directories entries
 func (s *Set) AddPath(path string) {
 	s.Dirs = append([]string{path}, s.Dirs...)
 }
 
+//AddGopathPath adds a path to directories
 func (s *Set) AddGopathPath(path string) {
 	paths := filepath.SplitList(os.Getenv("GOPATH"))
 	for i := 0; i < len(paths); i++ {
@@ -167,8 +182,6 @@ func (t *Template) Execute(w io.Writer, variables Scope, data interface{}) (err 
 	st.set = t.set
 	st.Writer = w
 	st.variables = variables
-	st.flags = 0
-	st.autoescapee = t.set.autoescapee
 
 	st.executeList(root)
 	return
