@@ -41,6 +41,5 @@ func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{ . }}`, itemLeftDelim, itemIdentifier, itemRightDelim)
 	lexerTestCase(t, `{{ .Field }}`, itemLeftDelim, itemField, itemRightDelim)
 	lexerTestCase(t, `{{ "value" }}`, itemLeftDelim, itemString, itemRightDelim)
-	lexerTestCase(t, `{{ @special }}`, itemLeftDelim, itemString, itemRightDelim)
 	lexerTestCase(t, `{{ call: value }}`, itemLeftDelim, itemIdentifier, itemColon, itemIdentifier, itemRightDelim)
 }

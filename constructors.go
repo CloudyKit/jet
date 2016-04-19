@@ -19,6 +19,10 @@ import (
 	"strings"
 )
 
+func (t *Template) newTernary(pos Pos, line int, boolean, left, right Expression) *TernaryExprNode {
+	return &TernaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTernary, Pos: pos, Line: line}, Boolean: boolean, Left: left, Right: right}
+}
+
 func (t *Template) newBuiltinExpr(pos Pos, line int, name string, nodetype NodeType) *BuiltinExprNode {
 	return &BuiltinExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodetype, Pos: pos, Line: line}, Name: name}
 }

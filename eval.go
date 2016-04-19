@@ -429,6 +429,12 @@ func (st *State) evalExpression(node Expression) reflect.Value {
 		return st.evalLogicalExpression(node.(*LogicalExprNode))
 	case NodeNotExpr:
 		return boolValue(!castBoolean(st.evalExpression(node.(*NotExprNode).Expr)))
+	case NodeTernary:
+		node := node.(*TernaryExprNode)
+		if castBoolean(st.evalExpression(node.Boolean)) {
+			return st.evalExpression(node.Left)
+		}
+		return st.evalExpression(node.Right)
 	case NodeCallExpr:
 		node := node.(*CallExprNode)
 		baseExpr := st.evalUnaryExpression(node.BaseExpr)

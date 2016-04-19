@@ -22,9 +22,6 @@ import (
 )
 
 func unquote(text string) (string, error) {
-	if text[0] == '@' {
-		return text[1:], nil
-	}
 	return strconv.Unquote(text)
 }
 
@@ -32,8 +29,8 @@ func unquote(text string) (string, error) {
 type Template struct {
 	Name      string // name of the template represented by the tree.
 	ParseName string // name of the top-level template during parsing, for error messages.
-	set       *Set
 
+	set     *Set
 	extends *Template
 	imports []*Template
 
@@ -421,6 +418,19 @@ func (t *Template) logicalExpression(context string) (Expression, item) {
 	}
 	return left, endtoken
 }
+func (t *Template) parserExpression(context string) (Expression, item) {
+	expression, endtoken := t.logicalExpression(context)
+	if endtoken.typ == itemTernary {
+		var left, right Expression
+		left, endtoken = t.parserExpression(context)
+		if endtoken.typ != itemColon {
+			t.unexpected(endtoken, "ternary expression")
+		}
+		right, endtoken = t.parserExpression(context)
+		expression = t.newTernary(expression.Position(), t.lex.lineNumber(), expression, left, right)
+	}
+	return expression, endtoken
+}
 
 func (t *Template) comparativeExpression(context string) (Expression, item) {
 	left, endtoken := t.numericComparativeExpression(context)
@@ -479,7 +489,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 	var isSet bool
 	var isLet bool
 	var returned item
-	operand, returned = t.logicalExpression(context)
+	operand, returned = t.parserExpression(context)
 	pos := operand.Position()
 	if returned.typ == itemComma || returned.typ == itemAssign {
 		isSet = true
@@ -503,7 +513,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 
 			switch returned.typ {
 			case itemComma:
-				operand, returned = t.logicalExpression(context)
+				operand, returned = t.parserExpression(context)
 			case itemAssign:
 				isLet = returned.val == ":="
 				break leftloop
@@ -521,7 +531,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 		}
 
 		for {
-			operand, returned = t.logicalExpression("assignment")
+			operand, returned = t.parserExpression("assignment")
 			right = append(right, operand)
 			if returned.typ != itemComma {
 				t.backup()
@@ -546,7 +556,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 }
 
 func (t *Template) expression(context string) Expression {
-	pipe, tk := t.logicalExpression(context)
+	pipe, tk := t.parserExpression(context)
 	if pipe == nil {
 		t.unexpected(tk, context)
 	}
@@ -655,7 +665,7 @@ func (t *Template) parseArguments() (args []Expression) {
 	if t.peekNonSpace().typ != itemRightParen {
 	loop:
 		for {
-			expr, endtoken := t.logicalExpression("call expression")
+			expr, endtoken := t.parserExpression("call expression")
 			args = append(args, expr)
 			switch endtoken.typ {
 			case itemComma:

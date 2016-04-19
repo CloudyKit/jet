@@ -79,6 +79,7 @@ const (
 	itemDiv
 	itemMod
 	itemColon
+	itemTernary
 	//itemLBrace
 	//itemRBrace
 	// Keywords appear after all the rest.
@@ -110,13 +111,11 @@ var key = map[string]itemType{
 	"block":   itemBlock,
 	"yield":   itemYield,
 
-	"else": itemElse,
-	"end":  itemEnd,
-	"if":   itemIf,
-	"set":  itemSet,
-	//"let":   itemLet,
+	"else":  itemElse,
+	"end":   itemEnd,
+	"if":    itemIf,
+	"set":   itemSet,
 	"range": itemRange,
-	//"with":  itemWith,
 	"nil":   itemNil,
 	"and":   itemAnd,
 	"or":    itemOr,
@@ -325,13 +324,6 @@ func lexInsideAction(l *lexer) stateFn {
 		l.emit(itemComma)
 	case r == ';':
 		l.emit(itemColonComma)
-	case r == '@':
-		r := l.next()
-		for isAlphaNumeric(r) || r == '.' {
-			r = l.next()
-		}
-		l.backup()
-		l.emit(itemString)
 	case r == '*':
 		l.emit(itemMul)
 	case r == '/':
@@ -342,6 +334,8 @@ func lexInsideAction(l *lexer) stateFn {
 		l.emit(itemMinus)
 	case r == '+':
 		l.emit(itemAdd)
+	case r == '?':
+		l.emit(itemTernary)
 	case r == '&':
 		if l.next() == '&' {
 			l.emit(itemAnd)

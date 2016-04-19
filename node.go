@@ -95,7 +95,7 @@ const (
 	NodeNotExpr
 	NodeSet
 	NodeIsset
-	NodeUnset
+	NodeTernary
 )
 
 // Nodes.
@@ -537,4 +537,13 @@ func (s *BuiltinExprNode) String() string {
 		arguments += expr.String()
 	}
 	return fmt.Sprintf("%s(%s)", s.Name, arguments)
+}
+
+type TernaryExprNode struct {
+	NodeBase
+	Boolean, Left, Right Expression
+}
+
+func (s *TernaryExprNode) String() string {
+	return fmt.Sprintf("%s?%s:%s", s.Boolean, s.Left, s.Right)
 }

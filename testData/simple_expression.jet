@@ -1,6 +1,5 @@
 {{ . }}
 {{ singleValue }}
-{{ @string }}
 {{ nil }}
 {{ "" }}
 {{ val.Field }}
@@ -13,7 +12,6 @@
 ===
 {{.}}
 {{singleValue}}
-{{@string}}
 {{nil}}
 {{""}}
 {{val.Field}}

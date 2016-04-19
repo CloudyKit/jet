@@ -169,7 +169,7 @@ func TestEvalDefaultFuncs(t *testing.T) {
 	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{urlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
 }
 
-func TestEvalIsset(t *testing.T) {
+func TestEvalIssetAndTernary(t *testing.T) {
 	var data = make(Scope)
 	data.Set("title", "title")
 	evalTestCase(t, nil, nil, "IssetExpression_1", `{{isset(value)}}`, "false")
@@ -179,6 +179,7 @@ func TestEvalIsset(t *testing.T) {
 	}
 	evalTestCase(t, nil, user, "IssetExpression_3", `{{isset(.Name)}}`, "true")
 	evalTestCase(t, nil, user, "IssetExpression_4", `{{isset(.Names)}}`, "false")
+	evalTestCase(t, nil, user, "TernaryExpression_4", `{{isset(.Names)?"All names":"no names"}}`, "false")
 }
 
 func TestEvalAutoescape(t *testing.T) {
