@@ -391,7 +391,6 @@ func (st *State) executeList(list *ListNode) {
 			if !exists {
 				node.errorf("template %q was not found!!", node.Name)
 			} else {
-				st := *st
 				st.newScope()
 				st.blocks = t.processedBlocks
 				if node.Expression != nil {
@@ -411,6 +410,11 @@ func (st *State) executeList(list *ListNode) {
 	}
 }
 
+var (
+	valueBoolTRUE  = reflect.ValueOf(true)
+	valueBoolFALSE = reflect.ValueOf(false)
+)
+
 func (st *State) evalExpression(node Expression) reflect.Value {
 	switch node.Type() {
 	case NodeAdditiveExpr:
@@ -424,7 +428,7 @@ func (st *State) evalExpression(node Expression) reflect.Value {
 	case NodeLogicalExpr:
 		return st.evalLogicalExpression(node.(*LogicalExprNode))
 	case NodeNotExpr:
-		return reflect.ValueOf(!castBoolean(st.evalExpression(node.(*NotExprNode).Expr)))
+		return boolValue(!castBoolean(st.evalExpression(node.(*NotExprNode).Expr)))
 	case NodeCallExpr:
 		node := node.(*CallExprNode)
 		baseExpr := st.evalUnaryExpression(node.BaseExpr)
@@ -432,6 +436,37 @@ func (st *State) evalExpression(node Expression) reflect.Value {
 			node.errorf("node %q is not func", node)
 		}
 		return st.evalCallExpression(baseExpr, node.Args)[0]
+	case NodeIsset:
+		node := node.(*BuiltinExprNode)
+		for i := 0; i < len(node.Args); i++ {
+			switch node.Args[i].Type() {
+			case NodeIdentifier:
+				if st.Resolve(node.Args[i].String()).IsValid() == false {
+					return valueBoolFALSE
+				}
+			case NodeField:
+				node := node.Args[i].(*FieldNode)
+				resolved := st.context
+				for i := 0; i < len(node.Ident); i++ {
+					resolved = getValue(node.Ident[i], resolved)
+					if !resolved.IsValid() {
+						return valueBoolFALSE
+					}
+				}
+			case NodeChain:
+				node := node.Args[i].(*ChainNode)
+				var value = st.evalExpression(node.Node)
+				for i := 0; i < len(node.Field); i++ {
+					value := getValue(node.Field[i], value)
+					if !value.IsValid() {
+						return valueBoolFALSE
+					}
+				}
+			default:
+				node.Args[i].errorf("unexpected %q node in isset clause", node.Args[i])
+			}
+		}
+		return valueBoolTRUE
 	}
 	return st.evalUnaryExpression(node)
 }
@@ -474,7 +509,7 @@ func (st *State) evalNumericComparativeExpression(node *NumericComparativeExprNo
 			isTrue = left.Float() <= right.Float()
 		}
 	}
-	return reflect.ValueOf(isTrue)
+	return boolValue(isTrue)
 }
 
 func (st *State) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
@@ -484,12 +519,19 @@ func (st *State) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
 	} else {
 		isTrue = isTrue || castBoolean(st.evalExpression(node.Right))
 	}
-	return reflect.ValueOf(isTrue)
+	return boolValue(isTrue)
+}
+
+func boolValue(isTrue bool) reflect.Value {
+	if isTrue {
+		return valueBoolTRUE
+	}
+	return valueBoolFALSE
 }
 
 func (st *State) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
 	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
-	return reflect.ValueOf(checkEquality(left, right))
+	return boolValue(checkEquality(left, right))
 }
 
 func (st *State) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
@@ -557,7 +599,10 @@ func (st *State) evalUnaryExpression(node Node) reflect.Value {
 	case NodeNil:
 		return reflect.ValueOf(nil)
 	case NodeBool:
-		return reflect.ValueOf(&node.(*BoolNode).True).Elem()
+		if node.(*BoolNode).True {
+			return valueBoolTRUE
+		}
+		return valueBoolFALSE
 	case NodeString:
 		return reflect.ValueOf(&node.(*StringNode).Text).Elem()
 	case NodeIdentifier:

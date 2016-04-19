@@ -564,7 +564,7 @@ loop:
 	for {
 		switch token.typ {
 		case itemBool, itemCharConstant, itemComplex, itemField, itemIdentifier,
-			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot:
+			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot, itemIsset:
 			t.backup()
 			pipe.append(t.command())
 			token = t.nextNonSpace()
@@ -635,16 +635,18 @@ RESET:
 		default:
 			node = chain
 		}
-
 	}
-	if t.nextNonSpace().typ == itemLeftParen {
-		callExpr := t.newCallExpr(node.Position(), t.lex.lineNumber(), node)
-		callExpr.Args = t.parseArguments()
-		t.expect(itemRightParen, "call expression")
-		node = callExpr
-		goto RESET
-	} else {
-		t.backup()
+	nodeTYPE := node.Type()
+	if nodeTYPE == NodeIdentifier || nodeTYPE == NodeCallExpr || nodeTYPE == NodeField || nodeTYPE == NodeChain {
+		if t.nextNonSpace().typ == itemLeftParen {
+			callExpr := t.newCallExpr(node.Position(), t.lex.lineNumber(), node)
+			callExpr.Args = t.parseArguments()
+			t.expect(itemRightParen, "call expression")
+			node = callExpr
+			goto RESET
+		} else {
+			t.backup()
+		}
 	}
 	return node
 }
@@ -785,6 +787,12 @@ func (t *Template) term() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemError:
 		t.errorf("%s", token.val)
+	case itemIsset:
+		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeIsset)
+		t.expect(itemLeftParen, "builtin call")
+		node.Args = t.parseArguments()
+		t.expect(itemRightParen, "builtin call")
+		return node
 	case itemIdentifier:
 		return t.newIdentifier(token.val, token.pos, t.lex.lineNumber())
 	case itemNil:

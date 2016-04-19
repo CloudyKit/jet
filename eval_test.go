@@ -169,6 +169,18 @@ func TestEvalDefaultFuncs(t *testing.T) {
 	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{urlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
 }
 
+func TestEvalIsset(t *testing.T) {
+	var data = make(Scope)
+	data.Set("title", "title")
+	evalTestCase(t, nil, nil, "IssetExpression_1", `{{isset(value)}}`, "false")
+	evalTestCase(t, data, nil, "IssetExpression_2", `{{isset(title)}}`, "true")
+	user := &User{
+		"José Santos", "email@example.com",
+	}
+	evalTestCase(t, nil, user, "IssetExpression_3", `{{isset(.Name)}}`, "true")
+	evalTestCase(t, nil, user, "IssetExpression_4", `{{isset(.Names)}}`, "false")
+}
+
 func TestEvalAutoescape(t *testing.T) {
 	set := NewHTMLSet()
 	evalTestCaseSet(set, t, nil, nil, "Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`, "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")

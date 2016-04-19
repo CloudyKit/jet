@@ -97,6 +97,7 @@ const (
 	itemOr
 	itemNot
 	itemSet
+	itemIsset
 	//itemLet
 	//itemWith
 )
@@ -116,10 +117,11 @@ var key = map[string]itemType{
 	//"let":   itemLet,
 	"range": itemRange,
 	//"with":  itemWith,
-	"nil": itemNil,
-	"and": itemAnd,
-	"or":  itemOr,
-	"not": itemNot,
+	"nil":   itemNil,
+	"and":   itemAnd,
+	"or":    itemOr,
+	"not":   itemNot,
+	"isset": itemIsset,
 }
 
 const eof = -1
