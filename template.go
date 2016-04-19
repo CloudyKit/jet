@@ -161,10 +161,6 @@ func (scope Scope) Set(name string, v interface{}) {
 	scope[name] = reflect.ValueOf(v)
 }
 
-func (scope Scope) SetPtr(name string, v interface{}) {
-	scope[name] = reflect.ValueOf(v).Elem()
-}
-
 func (t *Template) Execute(w io.Writer, variables Scope, data interface{}) (err error) {
 	st := pool_State.Get().(*State)
 	defer st.recover(&err)
