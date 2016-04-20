@@ -8,7 +8,8 @@
 {{ url("") |pipe |pipe }}
 {{ url("","").Field |pipe }}
 {{ url("","").Method("") |pipe }}
-{{ set newURL:=url("","").Method(""); newURL |pipe }}
+{{ newURL:=url("","").Method(""); newURL |pipe }}
+{{ newName := name; safeHtml: newName, " ", "new name" }}
 ===
 {{.}}
 {{singleValue}}
@@ -20,4 +21,5 @@
 {{url("") | pipe | pipe}}
 {{url("", "").Field | pipe}}
 {{url("", "").Method("") | pipe}}
-{{set newURL:=url("", "").Method("");newURL | pipe}}
+{{newURL:=url("", "").Method("");newURL | pipe}}
+{{newName:=name;safeHtml: newName, " ", "new name"}}

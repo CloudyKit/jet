@@ -160,7 +160,7 @@ type ActionNode struct {
 
 func (a *ActionNode) String() string {
 	if a.Set != nil {
-		return fmt.Sprintf("{{set %s;%s}}", a.Set, a.Pipe)
+		return fmt.Sprintf("{{%s;%s}}", a.Set, a.Pipe)
 	}
 	return fmt.Sprintf("{{%s}}", a.Pipe)
 }

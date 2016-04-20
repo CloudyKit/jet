@@ -161,8 +161,6 @@ func TestEvalRangeNode(t *testing.T) {
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {
-	evalTestCase(t, nil, nil, "DefaultFuncs_map", `{{ map("name","José Santos").name }}`, `José Santos`)
-	evalTestCase(t, nil, nil, "DefaultFuncs_map1", `{{ map(@name,"José Santos", @email,"email@example.pt").email }}`, `email@example.pt`)
 	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml", `<h1>{{"<h1>Hello Buddy!</h1>" |safeHtml}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
 	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml2", `<h1>{{safeHtml: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
 	evalTestCase(t, nil, nil, "DefaultFuncs_htmlEscape", `<h1>{{htmlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
@@ -179,7 +177,8 @@ func TestEvalIssetAndTernary(t *testing.T) {
 	}
 	evalTestCase(t, nil, user, "IssetExpression_3", `{{isset(.Name)}}`, "true")
 	evalTestCase(t, nil, user, "IssetExpression_4", `{{isset(.Names)}}`, "false")
-	evalTestCase(t, nil, user, "TernaryExpression_4", `{{isset(.Names)?"All names":"no names"}}`, "false")
+	evalTestCase(t, nil, user, "TernaryExpression_4", `{{isset(.Names)?"All names":"no names"}}`, "no names")
+	evalTestCase(t, nil, user, "TernaryExpression_5", `{{isset(.Name)?"All names":"no names"}}`, "All names")
 }
 
 func TestEvalAutoescape(t *testing.T) {

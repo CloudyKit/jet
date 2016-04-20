@@ -398,14 +398,13 @@ func (t *Template) action() (n Node) {
 
 	action := t.newAction(t.peek().pos, t.lex.lineNumber())
 
-	if t.peekNonSpace().typ == itemSet {
-		t.next()
-		action.Set = t.assignmentOrExpression("command").(*SetNode)
-		t.peekNonSpace()
+	expr := t.assignmentOrExpression("command")
+	if expr.Type() == NodeSet {
+		action.Set = expr.(*SetNode)
+		expr = nil
 	}
-
 	if action.Set == nil || t.expectOneOf(itemColonComma, itemRightDelim, "command").typ == itemColonComma {
-		action.Pipe = t.pipeline("command")
+		action.Pipe = t.pipeline("command", expr)
 	}
 	return action
 }
@@ -556,27 +555,42 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 }
 
 func (t *Template) expression(context string) Expression {
-	pipe, tk := t.parserExpression(context)
-	if pipe == nil {
+	expr, tk := t.parserExpression(context)
+	if expr == nil {
 		t.unexpected(tk, context)
 	}
 	t.backup()
-	return pipe
+	return expr
 }
 
 // Pipeline:
 //	declarations? command ('|' command)*
-func (t *Template) pipeline(context string) (pipe *PipeNode) {
+func (t *Template) pipeline(context string, baseExprMutate Expression) (pipe *PipeNode) {
 	pos := t.peekNonSpace().pos
 	pipe = t.newPipeline(pos, t.lex.lineNumber())
-	token := t.nextNonSpace()
+	var token item
+	if baseExprMutate != nil {
+		//special case
+		pipe.append(t.command(baseExprMutate))
+		token = t.nextNonSpace()
+		if token.typ == itemPipe {
+			token = t.nextNonSpace()
+		} else {
+			t.backup()
+			t.expect(itemRightDelim, context)
+			return
+		}
+	} else {
+		token = t.nextNonSpace()
+	}
+
 loop:
 	for {
 		switch token.typ {
 		case itemBool, itemCharConstant, itemComplex, itemField, itemIdentifier,
 			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot, itemIsset:
 			t.backup()
-			pipe.append(t.command())
+			pipe.append(t.command(nil))
 			token = t.nextNonSpace()
 			if token.typ == itemPipe {
 				token = t.nextNonSpace()
@@ -599,10 +613,15 @@ loop:
 //	operand (:(space operand)*)?
 // space-separated arguments up to a pipeline character or right delimiter.
 // we consume the pipe character but leave the right delim to terminate the action.
-func (t *Template) command() *CommandNode {
+func (t *Template) command(baseExpr Expression) *CommandNode {
 	cmd := t.newCommand(t.peekNonSpace().pos)
 
-	cmd.BaseExpr = t.expression("command")
+	if baseExpr == nil {
+		cmd.BaseExpr = t.expression("command")
+	} else {
+		cmd.BaseExpr = baseExpr
+	}
+
 	if t.nextNonSpace().typ == itemColon {
 		cmd.Call = true
 		cmd.Args = t.parseArguments()
@@ -629,7 +648,7 @@ func (t *Template) operand() Expression {
 RESET:
 	if t.peek().typ == itemField {
 		chain := t.newChain(t.peek().pos, node)
-		for t.peek().typ == itemField {
+		for t.peekNonSpace().typ == itemField {
 			chain.Add(t.next().val)
 		}
 		// Compatibility with original API: If the term is of type NodeField
