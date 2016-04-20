@@ -24,7 +24,7 @@ import (
 
 var evalTemplateSet = NewSet()
 
-func evalTestCase(t *testing.T, variables Scope, context interface{}, testName, testContent, testExpected string) {
+func evalTestCase(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
 	buff := bytes.NewBuffer(nil)
 	tt, err := evalTemplateSet.loadTemplate(testName, testContent)
 	if err != nil {
@@ -42,7 +42,7 @@ func evalTestCase(t *testing.T, variables Scope, context interface{}, testName, 
 	}
 }
 
-func evalTestCaseSet(testingSet *Set, t *testing.T, variables Scope, context interface{}, testName, testContent, testExpected string) {
+func evalTestCaseSet(testingSet *Set, t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
 	buff := bytes.NewBuffer(nil)
 	tt, err := testingSet.loadTemplate(testName, testContent)
 	if err != nil {
@@ -77,7 +77,7 @@ func (user *User) GetName() string {
 }
 
 func TestEvalActionNode(t *testing.T) {
-	var data = make(Scope)
+	var data = make(VarMap)
 
 	data.Set("user", &User{
 		"José Santos", "email@example.com",
@@ -114,7 +114,7 @@ func TestEvalActionNode(t *testing.T) {
 }
 
 func TestEvalIfNode(t *testing.T) {
-	var data = make(Scope)
+	var data = make(VarMap)
 	data.Set("lower", strings.ToLower)
 	data.Set("upper", strings.ToUpper)
 	data.Set("repeat", strings.Repeat)
@@ -130,7 +130,7 @@ func TestEvalIfNode(t *testing.T) {
 }
 
 func TestEvalBlockYieldIncludeNode(t *testing.T) {
-	var data = make(Scope)
+	var data = make(VarMap)
 
 	data.Set("user", &User{
 		"José Santos", "email@example.com",
@@ -147,7 +147,7 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 
 func TestEvalRangeNode(t *testing.T) {
 
-	var data = make(Scope)
+	var data = make(VarMap)
 
 	data.Set("users", []User{
 		{"Mario Santos", "mario@gmail.com"},
@@ -168,7 +168,7 @@ func TestEvalDefaultFuncs(t *testing.T) {
 }
 
 func TestEvalIssetAndTernary(t *testing.T) {
-	var data = make(Scope)
+	var data = make(VarMap)
 	data.Set("title", "title")
 	evalTestCase(t, nil, nil, "IssetExpression_1", `{{isset(value)}}`, "false")
 	evalTestCase(t, data, nil, "IssetExpression_2", `{{isset(title)}}`, "true")

@@ -64,7 +64,7 @@ type State struct {
 }
 
 func (st *State) newScope() {
-	st.scope = &scope{parent: st.scope, variables: make(Scope), blocks: st.blocks}
+	st.scope = &scope{parent: st.scope, variables: make(VarMap), blocks: st.blocks}
 }
 
 func (st *State) releaseScope() {
@@ -73,7 +73,7 @@ func (st *State) releaseScope() {
 
 type scope struct {
 	parent    *scope
-	variables Scope
+	variables VarMap
 	blocks    map[string]*BlockNode
 }
 

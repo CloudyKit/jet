@@ -22,4 +22,4 @@
 {{url("", "").Field | pipe}}
 {{url("", "").Method("") | pipe}}
 {{newURL:=url("", "").Method("");newURL | pipe}}
-{{newName:=name;safeHtml: newName, " ", "new name"}}
+{{newName:=name;safeHtml:newName, " ", "new name"}}

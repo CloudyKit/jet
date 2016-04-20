@@ -17,7 +17,7 @@ type Set struct {
 	Dirs      []string             // directories for look to template files
 	templates map[string]*Template // parsed templates
 	escapee   SafeWriter
-	globals   Scope        // global scope for this template set
+	globals   VarMap       // global scope for this template set
 	tmx       sync.RWMutex // template parsing mutext
 	gmx       sync.RWMutex // global variables map mutext
 }
@@ -27,7 +27,7 @@ func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bo
 	s.gmx.Lock()
 	val, override = s.globals[key]
 	if s.globals == nil {
-		s.globals = make(Scope)
+		s.globals = make(VarMap)
 	}
 	s.globals[key] = reflect.ValueOf(i)
 	s.gmx.Unlock()
@@ -155,13 +155,13 @@ func (t *Template) addBlocks(blocks map[string]*BlockNode) {
 	}
 }
 
-type Scope map[string]reflect.Value
+type VarMap map[string]reflect.Value
 
-func (scope Scope) Set(name string, v interface{}) {
+func (scope VarMap) Set(name string, v interface{}) {
 	scope[name] = reflect.ValueOf(v)
 }
 
-func (t *Template) Execute(w io.Writer, variables Scope, data interface{}) (err error) {
+func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
 	st := pool_State.Get().(*State)
 	defer st.recover(&err)
 
