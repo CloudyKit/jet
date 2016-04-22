@@ -177,8 +177,13 @@ func TestEvalIssetAndTernary(t *testing.T) {
 	}
 	evalTestCase(t, nil, user, "IssetExpression_3", `{{isset(.Name)}}`, "true")
 	evalTestCase(t, nil, user, "IssetExpression_4", `{{isset(.Names)}}`, "false")
+	evalTestCase(t, data, user, "IssetExpression_5", `{{isset(title)}}`, "true")
+	evalTestCase(t, data, user, "IssetExpression_6", `{{isset(title.Get)}}`, "false")
+
 	evalTestCase(t, nil, user, "TernaryExpression_4", `{{isset(.Names)?"All names":"no names"}}`, "no names")
+
 	evalTestCase(t, nil, user, "TernaryExpression_5", `{{isset(.Name)?"All names":"no names"}}`, "All names")
+	evalTestCase(t, data, user, "TernaryExpression_6", `{{ isset(form) ? form.Get("value") : "no form" }}`, "no form")
 }
 
 func TestEvalAutoescape(t *testing.T) {

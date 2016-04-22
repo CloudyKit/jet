@@ -65,8 +65,13 @@ func (s *Set) AddGopathPath(path string) {
 		}
 
 		if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
-			s.Dirs = append([]string{path}, s.Dirs...)
+			s.AddPath(path)
+			return
 		}
+	}
+
+	if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
+		s.AddPath(path)
 	}
 }
 
@@ -100,6 +105,7 @@ func (s *Set) loadTemplate(name, content string) (template *Template, err error)
 	return
 }
 
+// GetTemplate gets a template already loaded by name
 func (s *Set) GetTemplate(name string) (template *Template, ok bool) {
 	s.tmx.RLock()
 	template, ok = s.templates[name]
@@ -107,6 +113,8 @@ func (s *Set) GetTemplate(name string) (template *Template, ok bool) {
 	return
 }
 
+// LoadTemplate loads a template by name, and caches the template in the set, if content is provided
+// content will be parsed instead of file
 func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {
 	var ok bool
 
@@ -131,15 +139,12 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 }
 
 func (t *Template) String() (template string) {
-
 	if t.extends != nil {
 		template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
 	}
-
 	for _, _import := range t.imports {
 		template += fmt.Sprintf("\n{{import %q}}", _import.ParseName)
 	}
-
 	template += t.root.String()
 	return
 }
@@ -161,24 +166,27 @@ func (scope VarMap) Set(name string, v interface{}) {
 	scope[name] = reflect.ValueOf(v)
 }
 
+// Execute executes the template in the w Writer
 func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
 	st := pool_State.Get().(*State)
 	defer st.recover(&err)
 
-	root := t.root
-	if t.extends != nil {
-		root = t.extends.root
-	}
 	if data != nil {
 		st.context = reflect.ValueOf(data)
 	}
 
 	st.blocks = t.processedBlocks
-
 	st.set = t.set
-	st.Writer = w
-	st.variables = variables
 
-	st.executeList(root)
+	st.variables = variables
+	st.Writer = w
+
+	// resolve extended template
+	for t.extends != nil {
+		t = t.extends
+	}
+
+	// execute the extended root
+	st.executeList(t.root)
 	return
 }

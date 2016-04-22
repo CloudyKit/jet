@@ -34,9 +34,12 @@ var defaultVariables = map[string]reflect.Value{
 	"htmlEscape": reflect.ValueOf(html.EscapeString),
 	"urlEscape":  reflect.ValueOf(url.QueryEscape),
 	"safeHtml":   reflect.ValueOf(SafeWriter(template.HTMLEscape)),
-	"unsafe": reflect.ValueOf(SafeWriter(func(w io.Writer, b []byte) {
-		w.Write(b)
-	})),
+	"safeJs":     reflect.ValueOf(SafeWriter(template.JSEscape)),
+	"unsafe":     reflect.ValueOf(SafeWriter(unsafePrinter)),
+}
+
+func unsafePrinter(w io.Writer, b []byte) {
+	w.Write(b)
 }
 
 type SafeWriter func(io.Writer, []byte)

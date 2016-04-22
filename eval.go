@@ -34,7 +34,7 @@ var (
 )
 
 type Renderer interface {
-	Render(*State) error
+	Render(*State)
 }
 
 type Ranger interface {
@@ -122,7 +122,11 @@ func (st State) YieldTemplate(name string, context interface{}) {
 	st.executeList(Root)
 }
 
-func (state *State) Set(name string, val reflect.Value) (impossible bool) {
+func (state *State) Set(name string, val interface{}) {
+	state.setValue(name, reflect.ValueOf(val))
+}
+
+func (state *State) setValue(name string, val reflect.Value) (impossible bool) {
 	sc := state.scope
 	initial := sc
 
@@ -197,7 +201,7 @@ func (st *State) recover(err *error) {
 func (st *State) executeSet(left Expression, right reflect.Value) {
 	typ := left.Type()
 	if typ == NodeIdentifier {
-		st.Set(left.(*IdentifierNode).Ident, right)
+		st.setValue(left.(*IdentifierNode).Ident, right)
 		return
 	}
 	var value reflect.Value
@@ -273,14 +277,13 @@ func (st *State) executeList(list *ListNode) {
 			if node.Pipe != nil {
 				v, safeWriter := st.evalPipelineExpression(node.Pipe)
 				if !safeWriter {
-					var err error
 					if v.Type().Implements(rendererType) {
-						err = v.Interface().(Renderer).Render(st)
+						v.Interface().(Renderer).Render(st)
 					} else {
-						_, err = fastprinter.PrintValue(st.autoScapeWriter, v)
-					}
-					if err != nil {
-						node.error(err)
+						_, err := fastprinter.PrintValue(st.autoScapeWriter, v)
+						if err != nil {
+							node.error(err)
+						}
 					}
 				}
 			}
@@ -462,6 +465,9 @@ func (st *State) evalExpression(node Expression) reflect.Value {
 			case NodeChain:
 				node := node.Args[i].(*ChainNode)
 				var value = st.evalExpression(node.Node)
+				if !value.IsValid() {
+					return valueBoolFALSE
+				}
 				for i := 0; i < len(node.Field); i++ {
 					value := getValue(node.Field[i], value)
 					if !value.IsValid() {
