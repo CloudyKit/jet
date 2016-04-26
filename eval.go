@@ -28,26 +28,32 @@ var (
 	safeWriterType = reflect.TypeOf(SafeWriter(nil))
 	pool_State     = sync.Pool{
 		New: func() interface{} {
-			return &State{scope: &scope{}, autoScapeWriter: new(autoScapeWriter)}
+			return &Runtime{scope: &scope{}, escapeeWriter: new(escapeeWriter)}
 		},
 	}
 )
 
 type Renderer interface {
-	Render(*State)
+	Render(*Runtime)
+}
+
+type RendererFunc func(*Runtime)
+
+func (renderer RendererFunc) Render(r *Runtime) {
+	renderer(r)
 }
 
 type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
 }
 
-type autoScapeWriter struct {
+type escapeeWriter struct {
 	Writer  io.Writer
 	escapee SafeWriter
 	set     *Set
 }
 
-func (w *autoScapeWriter) Write(b []byte) (count int, err error) {
+func (w *escapeeWriter) Write(b []byte) (count int, err error) {
 	if w.set.escapee == nil {
 		w.Writer.Write(b)
 	} else {
@@ -56,18 +62,17 @@ func (w *autoScapeWriter) Write(b []byte) (count int, err error) {
 	return
 }
 
-type State struct {
-	*autoScapeWriter
+type Runtime struct {
+	*escapeeWriter
 	*scope
-
 	context reflect.Value
 }
 
-func (st *State) newScope() {
+func (st *Runtime) newScope() {
 	st.scope = &scope{parent: st.scope, variables: make(VarMap), blocks: st.blocks}
 }
 
-func (st *State) releaseScope() {
+func (st *Runtime) releaseScope() {
 	st.scope = st.scope.parent
 }
 
@@ -78,7 +83,7 @@ type scope struct {
 }
 
 // YieldBlock yields a block in the current context, will panic if the context is not available
-func (st *State) YieldBlock(name string, context interface{}) {
+func (st *Runtime) YieldBlock(name string, context interface{}) {
 	block, has := st.getBlock(name)
 
 	if has == false {
@@ -104,7 +109,7 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
-func (st State) YieldTemplate(name string, context interface{}) {
+func (st Runtime) YieldTemplate(name string, context interface{}) {
 	t, exists := st.set.GetTemplate(name)
 	if !exists {
 		panic(fmt.Errorf("include: template %q was not found", name))
@@ -122,11 +127,11 @@ func (st State) YieldTemplate(name string, context interface{}) {
 	st.executeList(Root)
 }
 
-func (state *State) Set(name string, val interface{}) {
+func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
 }
 
-func (state *State) setValue(name string, val reflect.Value) (impossible bool) {
+func (state *Runtime) setValue(name string, val reflect.Value) (impossible bool) {
 	sc := state.scope
 	initial := sc
 
@@ -155,7 +160,7 @@ func (state *State) setValue(name string, val reflect.Value) (impossible bool) {
 	return true
 }
 
-func (state *State) Resolve(name string) reflect.Value {
+func (state *Runtime) Resolve(name string) reflect.Value {
 
 	if name == "." {
 		return state.context
@@ -183,7 +188,7 @@ func (state *State) Resolve(name string) reflect.Value {
 	return vl
 }
 
-func (st *State) recover(err *error) {
+func (st *Runtime) recover(err *error) {
 	pool_State.Put(st)
 	recovered := recover()
 	if recovered != nil {
@@ -198,7 +203,7 @@ func (st *State) recover(err *error) {
 	}
 }
 
-func (st *State) executeSet(left Expression, right reflect.Value) {
+func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 	typ := left.Type()
 	if typ == NodeIdentifier {
 		st.setValue(left.(*IdentifierNode).Ident, right)
@@ -238,19 +243,19 @@ RESTART:
 	}
 }
 
-func (st *State) executeSetList(set *SetNode) {
+func (st *Runtime) executeSetList(set *SetNode) {
 	for i := 0; i < len(set.Left); i++ {
 		st.executeSet(set.Left[i], st.evalExpression(set.Right[i]))
 	}
 }
 
-func (st *State) executeLetList(set *SetNode) {
+func (st *Runtime) executeLetList(set *SetNode) {
 	for i := 0; i < len(set.Left); i++ {
 		st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalExpression(set.Right[i])
 	}
 }
 
-func (st *State) executeList(list *ListNode) {
+func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
@@ -280,7 +285,7 @@ func (st *State) executeList(list *ListNode) {
 					if v.Type().Implements(rendererType) {
 						v.Interface().(Renderer).Render(st)
 					} else {
-						_, err := fastprinter.PrintValue(st.autoScapeWriter, v)
+						_, err := fastprinter.PrintValue(st.escapeeWriter, v)
 						if err != nil {
 							node.error(err)
 						}
@@ -418,7 +423,7 @@ var (
 	valueBoolFALSE = reflect.ValueOf(false)
 )
 
-func (st *State) evalExpression(node Expression) reflect.Value {
+func (st *Runtime) evalExpression(node Expression) reflect.Value {
 	switch node.Type() {
 	case NodeAdditiveExpr:
 		return st.evalAdditiveExpression(node.(*AdditiveExprNode))
@@ -483,7 +488,7 @@ func (st *State) evalExpression(node Expression) reflect.Value {
 	return st.evalUnaryExpression(node)
 }
 
-func (st *State) evalNumericComparativeExpression(node *NumericComparativeExprNode) reflect.Value {
+func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExprNode) reflect.Value {
 	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
 	isTrue := false
 	kind := left.Kind()
@@ -524,7 +529,7 @@ func (st *State) evalNumericComparativeExpression(node *NumericComparativeExprNo
 	return boolValue(isTrue)
 }
 
-func (st *State) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
+func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
 	isTrue := castBoolean(st.evalExpression(node.Left))
 	if node.Operator.typ == itemAnd {
 		isTrue = isTrue && castBoolean(st.evalExpression(node.Right))
@@ -541,12 +546,12 @@ func boolValue(isTrue bool) reflect.Value {
 	return valueBoolFALSE
 }
 
-func (st *State) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
+func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
 	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
 	return boolValue(checkEquality(left, right))
 }
 
-func (st *State) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
+func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
 
 	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
 
@@ -580,7 +585,7 @@ func (st *State) evalMultiplicativeExpression(node *MultiplicativeExprNode) refl
 	return left
 }
 
-func (st *State) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
+func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
 	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
 	isAdditive := node.Operator.typ == itemAdd
 	kind := left.Kind()
@@ -606,7 +611,7 @@ func (st *State) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
 	return left
 }
 
-func (st *State) evalUnaryExpression(node Node) reflect.Value {
+func (st *Runtime) evalUnaryExpression(node Node) reflect.Value {
 	switch node.Type() {
 	case NodeNil:
 		return reflect.ValueOf(nil)
@@ -661,7 +666,7 @@ func (st *State) evalUnaryExpression(node Node) reflect.Value {
 	return reflect.Value{}
 }
 
-func (st *State) evalCallExpression(fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
+func (st *Runtime) evalCallExpression(fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
 	i := len(args) + len(values)
 	if i <= 10 {
 		return reflect_Call10(i, st, fn, args, values...)
@@ -669,7 +674,7 @@ func (st *State) evalCallExpression(fn reflect.Value, args []Expression, values 
 	return reflect_Call(make([]reflect.Value, i, i), st, fn, args, values...)
 }
 
-func (st *State) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
+func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalExpression(node.BaseExpr)
 	if node.Call {
 		if term.Kind() == reflect.Func {
@@ -699,7 +704,7 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
-func (st *State) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
+func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
@@ -709,7 +714,7 @@ func (st *State) evalSafeWriter(term reflect.Value, node *CommandNode, v ...refl
 	}
 }
 
-func (st *State) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
+func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
 	term := st.evalExpression(node.BaseExpr)
 	if term.Kind() == reflect.Func {
 		if term.Type() == safeWriterType {
@@ -727,7 +732,7 @@ func (st *State) evalCommandPipeExpression(node *CommandNode, value reflect.Valu
 	return term, false
 }
 
-func (st *State) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
+func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
 	value, safeWriter = st.evalCommandExpression(node.Cmds[0])
 	for i := 1; i < len(node.Cmds); i++ {
 		if safeWriter {
@@ -738,7 +743,7 @@ func (st *State) evalPipelineExpression(node *PipeNode) (value reflect.Value, sa
 	return
 }
 
-func reflect_Call(arguments []reflect.Value, st *State, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
+func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
 	typ := fn.Type()
 	numIn := typ.NumIn()
 
@@ -790,7 +795,7 @@ func reflect_Call(arguments []reflect.Value, st *State, fn reflect.Value, args [
 	return fn.Call(arguments[0:i])
 }
 
-func reflect_Call10(i int, st *State, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
+func reflect_Call10(i int, st *Runtime, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
 	var arguments [10]reflect.Value
 	return reflect_Call(arguments[0:i], st, fn, args, values...)
 }

@@ -168,7 +168,7 @@ func (scope VarMap) Set(name string, v interface{}) {
 
 // Execute executes the template in the w Writer
 func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
-	st := pool_State.Get().(*State)
+	st := pool_State.Get().(*Runtime)
 	defer st.recover(&err)
 
 	if data != nil {
