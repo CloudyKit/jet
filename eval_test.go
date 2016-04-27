@@ -163,8 +163,8 @@ func TestEvalRangeNode(t *testing.T) {
 func TestEvalDefaultFuncs(t *testing.T) {
 	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml", `<h1>{{"<h1>Hello Buddy!</h1>" |safeHtml}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
 	evalTestCase(t, nil, nil, "DefaultFuncs_safeHtml2", `<h1>{{safeHtml: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
-	evalTestCase(t, nil, nil, "DefaultFuncs_htmlEscape", `<h1>{{htmlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
-	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{urlEscape: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_htmlEscape", `<h1>{{html: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
+	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{url: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
 }
 
 func TestEvalIssetAndTernary(t *testing.T) {
