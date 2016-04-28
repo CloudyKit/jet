@@ -306,7 +306,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 			if castBoolean(st.evalExpression(node.Expression)) {
 				st.executeList(node.List)
-			} else {
+			} else if node.ElseList != nil {
 				st.executeList(node.ElseList)
 			}
 			if isLet {
@@ -369,17 +369,18 @@ func (st *Runtime) executeList(list *ListNode) {
 		case NodeYield:
 			node := node.(*YieldNode)
 			block, has := st.getBlock(node.Name)
-			if has == false {
+
+			if has == false || block == nil {
 				node.errorf("unresolved block %q!!", node.Name)
+			}
+
+			if node.Expression != nil {
+				context := st.context
+				st.context = st.evalExpression(node.Expression)
+				st.executeList(block.List)
+				st.context = context
 			} else {
-				if node.Expression != nil {
-					context := st.context
-					st.context = st.evalExpression(node.Expression)
-					st.executeList(block.List)
-					st.context = context
-				} else {
-					st.executeList(block.List)
-				}
+				st.executeList(block.List)
 			}
 		case NodeBlock:
 			node := node.(*BlockNode)
