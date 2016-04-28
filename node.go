@@ -95,6 +95,7 @@ const (
 	NodeNotExpr
 	NodeSet
 	NodeIsset
+	NodeLen
 	NodeTernary
 )
 

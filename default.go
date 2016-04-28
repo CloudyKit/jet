@@ -24,18 +24,18 @@ import (
 )
 
 var defaultVariables = map[string]reflect.Value{
-	"lower":      reflect.ValueOf(strings.ToLower),
-	"upper":      reflect.ValueOf(strings.ToUpper),
-	"hasPrefix":  reflect.ValueOf(strings.HasPrefix),
-	"hasSuffix":  reflect.ValueOf(strings.HasSuffix),
-	"repeat":     reflect.ValueOf(strings.Repeat),
-	"replace":    reflect.ValueOf(strings.Replace),
-	"map":        reflect.ValueOf(newMap),
-	"html":       reflect.ValueOf(html.EscapeString),
-	"url":        reflect.ValueOf(url.QueryEscape),
-	"safeHtml":   reflect.ValueOf(SafeWriter(template.HTMLEscape)),
-	"safeJs":     reflect.ValueOf(SafeWriter(template.JSEscape)),
-	"unsafe":     reflect.ValueOf(SafeWriter(unsafePrinter)),
+	"lower":     reflect.ValueOf(strings.ToLower),
+	"upper":     reflect.ValueOf(strings.ToUpper),
+	"hasPrefix": reflect.ValueOf(strings.HasPrefix),
+	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
+	"repeat":    reflect.ValueOf(strings.Repeat),
+	"replace":   reflect.ValueOf(strings.Replace),
+	"map":       reflect.ValueOf(newMap),
+	"html":      reflect.ValueOf(html.EscapeString),
+	"url":       reflect.ValueOf(url.QueryEscape),
+	"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
+	"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
+	"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 }
 
 func unsafePrinter(w io.Writer, b []byte) {
@@ -45,13 +45,13 @@ func unsafePrinter(w io.Writer, b []byte) {
 type SafeWriter func(io.Writer, []byte)
 
 func newMap(values ...interface{}) (nmap map[string]interface{}) {
-	if len(values) % 2 > 0 {
+	if len(values)%2 > 0 {
 		panic("new map: invalid number of arguments on call to map")
 	}
 	nmap = make(map[string]interface{})
 
 	for i := 0; i < len(values); i += 2 {
-		nmap[fmt.Sprint(values[i])] = values[i + 1]
+		nmap[fmt.Sprint(values[i])] = values[i+1]
 	}
 	return
 }

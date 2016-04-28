@@ -186,6 +186,11 @@ func TestEvalIssetAndTernary(t *testing.T) {
 	evalTestCase(t, data, user, "TernaryExpression_6", `{{ isset(form) ? form.Get("value") : "no form" }}`, "no form")
 }
 
+func TestEvalBuiltinExpression(t *testing.T) {
+	var data = make(VarMap)
+	evalTestCase(t, data, nil, "LenExpression_1", `{{len("111")}}`, "3")
+}
+
 func TestEvalAutoescape(t *testing.T) {
 	set := NewHTMLSet()
 	evalTestCaseSet(set, t, nil, nil, "Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`, "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")

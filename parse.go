@@ -588,7 +588,7 @@ loop:
 	for {
 		switch token.typ {
 		case itemBool, itemCharConstant, itemComplex, itemField, itemIdentifier,
-			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot, itemIsset:
+			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot, itemIsset, itemLen:
 			t.backup()
 			pipe.append(t.command(nil))
 			token = t.nextNonSpace()
@@ -816,6 +816,12 @@ func (t *Template) term() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemError:
 		t.errorf("%s", token.val)
+	case itemLen:
+		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeLen)
+		t.expect(itemLeftParen, "builtin call")
+		node.Args = []Expression{t.expression("len builtin call")}
+		t.expect(itemRightParen, "builtin call")
+		return node
 	case itemIsset:
 		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeIsset)
 		t.expect(itemLeftParen, "builtin call")

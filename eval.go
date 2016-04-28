@@ -320,6 +320,8 @@ func (st *Runtime) executeList(list *ListNode) {
 			isLet := false
 			isKeyVal := false
 
+			context := st.context
+
 			if isSet {
 				isKeyVal = len(node.Set.Left) > 1
 				expression = st.evalExpression(node.Set.Right[0])
@@ -360,7 +362,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			} else if node.ElseList != nil {
 				st.executeList(node.ElseList)
 			}
-
+			st.context = context
 			if isLet {
 				st.releaseScope()
 			}
@@ -450,6 +452,14 @@ func (st *Runtime) evalExpression(node Expression) reflect.Value {
 			node.errorf("node %q is not func", node)
 		}
 		return st.evalCallExpression(baseExpr, node.Args)[0]
+	case NodeLen:
+		node := node.(*BuiltinExprNode)
+		expression := st.evalExpression(node.Args[0])
+		switch expression.Kind() {
+		case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
+			return reflect.ValueOf(expression.Len())
+		}
+		node.errorf("inválid value type %s in len builtin", expression.Type())
 	case NodeIsset:
 		node := node.(*BuiltinExprNode)
 		for i := 0; i < len(node.Args); i++ {
