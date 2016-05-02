@@ -75,12 +75,12 @@ No Escape {{ "<a href=\""\">Link</a>" |unsafe}}
     {{end}}
 {{end}}
 ```
-#### Fast then some pre-compiled template engines
+#### Faster than some pre-compiled template engines
 
 Benchmark consist of range over a slice of data printing the values,
 the benchmark is based on "https://github.com/SlinSo/goTemplateBenchmark",
 
-Jet performs better then all template engines without pre-compilation, and peforms better then gorazor,
+Jet performs better than all template engines without pre-compilation, and peforms better than gorazor,
 Ftmpl, Egon which are pre-compiled to go.
 
 
