@@ -38,23 +38,23 @@ func (t *Template) newNotExpr(pos Pos, line int, expr Expression) *NotExprNode {
 	return &NotExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNotExpr, Pos: pos, Line: line}, Expr: expr}
 }
 func (t *Template) newNumericComparativeExpr(pos Pos, line int, left, right Expression, item item) *NumericComparativeExprNode {
-	return &NumericComparativeExprNode{BinaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumericComparativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
+	return &NumericComparativeExprNode{binaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumericComparativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
 }
 
 func (t *Template) newComparativeExpr(pos Pos, line int, left, right Expression, item item) *ComparativeExprNode {
-	return &ComparativeExprNode{BinaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeComparativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
+	return &ComparativeExprNode{binaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeComparativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
 }
 
 func (t *Template) newLogicalExpr(pos Pos, line int, left, right Expression, item item) *LogicalExprNode {
-	return &LogicalExprNode{BinaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeLogicalExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
+	return &LogicalExprNode{binaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeLogicalExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
 }
 
 func (t *Template) newMultiplicativeExpr(pos Pos, line int, left, right Expression, item item) *MultiplicativeExprNode {
-	return &MultiplicativeExprNode{BinaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeMultiplicativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
+	return &MultiplicativeExprNode{binaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeMultiplicativeExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
 }
 
 func (t *Template) newAdditiveExpr(pos Pos, line int, left, right Expression, item item) *AdditiveExprNode {
-	return &AdditiveExprNode{BinaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeAdditiveExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
+	return &AdditiveExprNode{binaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeAdditiveExpr, Pos: pos, Line: line}, Operator: item, Left: left, Right: right}}
 }
 
 func (t *Template) newList(pos Pos) *ListNode {

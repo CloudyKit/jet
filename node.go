@@ -346,6 +346,7 @@ func (e *elseNode) String() string {
 	return "{{else}}"
 }
 
+// SetNode represents a set action, ident( ',' ident)* '=' expression ( ',' expression )*
 type SetNode struct {
 	NodeBase
 	Let   bool
@@ -439,7 +440,7 @@ func (t *BlockNode) String() string {
 	return fmt.Sprintf("{{block %s %s}}%s{{end}}", t.Name, t.Expression, t.List)
 }
 
-//
+// YieldNode represents a {{yield}} action
 type YieldNode struct {
 	NodeBase              // The line number in the input. Deprecated: Kept for compatibility.
 	Name       string     // The name of the template (unquoted).
@@ -467,36 +468,48 @@ func (t *IncludeNode) String() string {
 	return fmt.Sprintf("{{include %q %s}}", t.Name, t.Expression)
 }
 
-type BinaryExprNode struct {
+type binaryExprNode struct {
 	NodeBase
 	Operator    item
 	Left, Right Expression
 }
 
-func (node *BinaryExprNode) String() string {
+func (node *binaryExprNode) String() string {
 	return fmt.Sprintf("%s %s %s", node.Left, node.Operator.val, node.Right)
 }
 
+// AdditiveExprNode represents an add or subtract expression
+// ex: expression ( '+' | '-' ) expression
 type AdditiveExprNode struct {
-	BinaryExprNode
+	binaryExprNode
 }
 
+// MultiplicativeExprNode represents a multiplication, division, or module expression
+// ex: expression ( '*' | '/' | '%' ) expression
 type MultiplicativeExprNode struct {
-	BinaryExprNode
+	binaryExprNode
 }
 
+// LogicalExprNode represents a boolean expression, 'and' or 'or'
+// ex: expression ( '&&' | '||' ) expression
 type LogicalExprNode struct {
-	BinaryExprNode
+	binaryExprNode
 }
 
+// ComparativeExprNode represents a comparative expression
+// ex: expression ( '==' | '!=' ) expression
 type ComparativeExprNode struct {
-	BinaryExprNode
+	binaryExprNode
 }
 
+// NumericComparativeExprNode represents a numeric comparative expression
+// ex: expression ( '<' | '>' | '<=' | '>=' ) expression
 type NumericComparativeExprNode struct {
-	BinaryExprNode
+	binaryExprNode
 }
 
+// NotExprNode represents a negate expression
+// ex: '!' expression
 type NotExprNode struct {
 	NodeBase
 	Expr Expression
@@ -506,6 +519,8 @@ func (s *NotExprNode) String() string {
 	return fmt.Sprintf("!%s", s.Expr)
 }
 
+// CallExprNode represents a call expression
+// ex: expression '(' (expression (',' expression)* )? ')'
 type CallExprNode struct {
 	NodeBase
 	BaseExpr Expression
@@ -523,6 +538,7 @@ func (s *CallExprNode) String() string {
 	return fmt.Sprintf("%s(%s)", s.BaseExpr, arguments)
 }
 
+// ex: builtinToken '(' (expression (',' expression)* )? ')'
 type BuiltinExprNode struct {
 	NodeBase
 	Name string
@@ -540,6 +556,8 @@ func (s *BuiltinExprNode) String() string {
 	return fmt.Sprintf("%s(%s)", s.Name, arguments)
 }
 
+// TernaryExprNod represents a ternary expression,
+// ex: expression '?' expression ':' expression
 type TernaryExprNode struct {
 	NodeBase
 	Boolean, Left, Right Expression

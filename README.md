@@ -8,6 +8,17 @@ more features.
 
 Jet is based on text/template, i used part of the lexer and part of the parser code.
 
+#### Features
+
+* Template Inheritance
+* File based
+* Auto-escape
+* Complex Expression
+* Tested and Benchmarked
+* Fast and light
+* Simple syntax and simple to use
+* Descriptive error messages with filename and line while parsing or evaluating templates
+
 ### Examples
 
 #### Simple
@@ -140,4 +151,4 @@ ok  	github.com/SlinSo/goTemplateBenchmark	36.200s
 #### Thanks
 
 -   @golang developers, for the awesome language, and std library
--   @SlinSo for the benchmarks that used to show the results above
+-   @SlinSo for the benchmarks that i used as base to show the results above

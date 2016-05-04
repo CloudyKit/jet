@@ -13,16 +13,18 @@ import (
 	"text/template"
 )
 
+// Set responsible to load and cache templates, also holds some runtime data
+// passed to Runtime at evaluating time.
 type Set struct {
-	Dirs      []string             // directories for look to template files
+	dirs      []string             // directories for look to template files
 	templates map[string]*Template // parsed templates
-	escapee   SafeWriter
-	globals   VarMap       // global scope for this template set
-	tmx       sync.RWMutex // template parsing mutext
-	gmx       sync.RWMutex // global variables map mutext
+	escapee   SafeWriter           // escapee to use at runtime
+	globals   VarMap               // global scope for this template set
+	tmx       sync.RWMutex         // template parsing mutex
+	gmx       sync.RWMutex         // global variables map mutex
 }
 
-// AddGlobal (add|set)s a global variable to the set
+// AddGlobal add or set a global variable into the Set
 func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bool) {
 	s.gmx.Lock()
 	val, override = s.globals[key]
@@ -36,25 +38,27 @@ func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bo
 
 // NewSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewSet(dir ...string) *Set {
-	return &Set{Dirs: dir, templates: make(map[string]*Template)}
+	return &Set{dirs: dir, templates: make(map[string]*Template)}
 }
 
 // NewHTMLSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewHTMLSet(dir ...string) *Set {
-	return &Set{Dirs: dir, escapee: template.HTMLEscape, templates: make(map[string]*Template)}
+	return &Set{dirs: dir, escapee: template.HTMLEscape, templates: make(map[string]*Template)}
 }
 
 // NewSafeSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewSafeSet(escapee SafeWriter, dir ...string) *Set {
-	return &Set{Dirs: dir, escapee: escapee, templates: make(map[string]*Template)}
+	return &Set{dirs: dir, escapee: escapee, templates: make(map[string]*Template)}
 }
 
-// AddPath adds a path to the directories entries
+// AddPath add path to the lookup list, when loading a template the Set will
+// look into the lookup list for the file matching the provided name.
 func (s *Set) AddPath(path string) {
-	s.Dirs = append([]string{path}, s.Dirs...)
+	s.dirs = append([]string{path}, s.dirs...)
 }
 
-//AddGopathPath adds a path to directories
+// AddGopathPath add path based on GOPATH env to the lookup list, when loading a template the Set will
+// look into the lookup list for the file matching the provided name.
 func (s *Set) AddGopathPath(path string) {
 	paths := filepath.SplitList(os.Getenv("GOPATH"))
 	for i := 0; i < len(paths); i++ {
@@ -75,10 +79,12 @@ func (s *Set) AddGopathPath(path string) {
 	}
 }
 
+// load loads the template by name, if content is provided template Set will not
+// look in the file system and will parse the content string
 func (s *Set) load(name, content string) (template *Template, err error) {
 	if content == "" {
-		for i := 0; i < len(s.Dirs); i++ {
-			fileName := path.Join(s.Dirs[i], name)
+		for i := 0; i < len(s.dirs); i++ {
+			fileName := path.Join(s.dirs[i], name)
 			var bytestring []byte
 			bytestring, err = ioutil.ReadFile(fileName)
 			if err == nil {
@@ -95,6 +101,8 @@ func (s *Set) load(name, content string) (template *Template, err error) {
 	return
 }
 
+// loadTemplate is used to load a template while parsing a template, since set is already
+// locked previously we can't lock again.
 func (s *Set) loadTemplate(name, content string) (template *Template, err error) {
 	var ok bool
 	if template, ok = s.templates[name]; ok {

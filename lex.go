@@ -80,8 +80,6 @@ const (
 	itemMod
 	itemColon
 	itemTernary
-	//itemLBrace
-	//itemRBrace
 	// Keywords appear after all the rest.
 	itemKeyword // used only to delimit the keywords
 	itemExtends
@@ -100,8 +98,6 @@ const (
 	itemSet
 	itemIsset
 	itemLen
-	//itemLet
-	//itemWith
 )
 
 var key = map[string]itemType{
