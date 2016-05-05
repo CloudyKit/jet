@@ -1,4 +1,4 @@
-# Jet Template Engine for GO
+# Jet Template Engine for GO [![Build Status](https://travis-ci.org/CloudyKit/jet.svg?branch=master)](https://travis-ci.org/CloudyKit/jet)
 
 Jet is template engine developed to be easy to use, powerful, dynamic and very fast.
 Very fast without pre-compilation and dynamic features, yes this is possible.
