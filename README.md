@@ -8,13 +8,20 @@ more features.
 
 Jet is based on text/template, i used part of the lexer and part of the parser code.
 
+#### Intellij Plugin
+
+If you use intellij there is a plugin available in https://github.com/jhsx/GoJetPlugin
+There is also a very good Go plugin for intellij ("https://github.com/go-lang-plugin-org/go-lang-idea-plugin")
+GoJetPlugin + Go-lang-idea-plugin = Happiness :D
+
+
 #### Features
 
 * Template Inheritance
 * File based
 * Auto-escape
 * Complex Expression
-* Tested and Benchmarked
+* Tests and Benchmarks
 * Fast and light
 * Simple syntax and simple to use
 * Descriptive error messages with filename and line while parsing or evaluating templates
