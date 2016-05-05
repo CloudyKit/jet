@@ -15,7 +15,7 @@ package jet
 
 import (
 	"fmt"
-	"fastprinter"
+	"github.com/CloudyKit/fastprinter"
 	"io"
 	"reflect"
 	"runtime"
@@ -23,10 +23,10 @@ import (
 )
 
 var (
-	rangerType = reflect.TypeOf((*Ranger)(nil)).Elem()
-	rendererType = reflect.TypeOf((*Renderer)(nil)).Elem()
+	rangerType     = reflect.TypeOf((*Ranger)(nil)).Elem()
+	rendererType   = reflect.TypeOf((*Renderer)(nil)).Elem()
 	safeWriterType = reflect.TypeOf(SafeWriter(nil))
-	pool_State = sync.Pool{
+	pool_State     = sync.Pool{
 		New: func() interface{} {
 			return &Runtime{scope: &scope{}, escapeeWriter: new(escapeeWriter)}
 		},
@@ -131,7 +131,7 @@ func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
 }
 
-func (state *Runtime) setValue(name string, val reflect.Value) (bool) {
+func (state *Runtime) setValue(name string, val reflect.Value) bool {
 	sc := state.scope
 	initial := sc
 
@@ -227,7 +227,7 @@ func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 		}
 	}
 
-	RESTART:
+RESTART:
 	switch value.Kind() {
 	case reflect.Ptr:
 		value = value.Elem()
@@ -422,7 +422,7 @@ func (st *Runtime) executeList(list *ListNode) {
 }
 
 var (
-	valueBoolTRUE = reflect.ValueOf(true)
+	valueBoolTRUE  = reflect.ValueOf(true)
 	valueBoolFALSE = reflect.ValueOf(false)
 )
 
@@ -784,7 +784,7 @@ func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args
 		}
 	}
 
-	for ; i < numIn && j < len(args); i, j = i + 1, j + 1 {
+	for ; i < numIn && j < len(args); i, j = i+1, j+1 {
 		in := typ.In(i)
 		term := st.evalExpression(args[j])
 		if !term.Type().AssignableTo(in) {
@@ -795,7 +795,7 @@ func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args
 
 	if isVariadic {
 		in := typ.In(numIn).Elem()
-		for ; j < len(args); i, j = i + 1, j + 1 {
+		for ; j < len(args); i, j = i+1, j+1 {
 			term := st.evalExpression(args[j])
 			if !term.Type().AssignableTo(in) {
 				term = term.Convert(in)
