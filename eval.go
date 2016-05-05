@@ -146,7 +146,7 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 
 	if ok {
 		sc.variables[name] = val
-		return
+		return false
 	}
 
 	for initial.variables == nil && initial.parent != nil {
@@ -155,7 +155,7 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 
 	if initial.variables != nil {
 		sc.variables[name] = val
-		return
+		return false
 	}
 	return true
 }
