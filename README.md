@@ -154,6 +154,9 @@ PASS
 ok  	github.com/SlinSo/goTemplateBenchmark	36.200s
 ```
 
+#### Contributing
+
+Any contribution is welcome, if you found a bug please report in the issues tracker.
 
 #### Thanks
 
