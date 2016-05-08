@@ -1,0 +1,19 @@
+{{.[1]}}
+{{users[1]}}
+{{users[1].Func()}}
+{{users[1].Contacts[1]}}
+{{range .[0:10]}}
+    {{.Description[:50]}}
+    {{range .Contacts[1:]}}
+    {{end}}
+{{end}}
+===
+{{.[1]}}
+{{users[1]}}
+{{users[1].Func()}}
+{{users[1].Contacts[1]}}
+{{range .[0:10]}}
+    {{.Description[:50]}}
+    {{range .Contacts[1:]}}
+    {{end}}
+{{end}}

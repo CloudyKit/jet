@@ -80,3 +80,8 @@ func TestParseTemplateBlockYield(t *testing.T) {
 	p := ParserTestCase{t}
 	p.TestPrintFile("block_yield.jet")
 }
+
+func TestParseTemplateIndexSliceExpression(t *testing.T) {
+	p := ParserTestCase{t}
+	p.TestPrintFile("index_slice_expression.jet")
+}

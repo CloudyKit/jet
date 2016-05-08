@@ -24,7 +24,8 @@ var textFormat = "%s" // Changed to "%q" in tests for better error messages.
 type Node interface {
 	Type() NodeType
 	String() string
-	Position() Pos // byte position of start of node in full original input string
+	Position() Pos
+	line() int
 	error(error)
 	errorf(string, ...interface{})
 }
@@ -49,6 +50,10 @@ type NodeBase struct {
 	Line         int
 	NodeType
 	Pos
+}
+
+func (node *NodeBase) line() int {
+	return node.Line
 }
 
 func (node *NodeBase) error(err error) {
@@ -86,6 +91,8 @@ const (
 	NodeBlock
 	NodeInclude
 	NodeYield
+	NodeSet
+
 	NodeAdditiveExpr
 	NodeMultiplicativeExpr
 	NodeComparativeExpr
@@ -93,10 +100,11 @@ const (
 	NodeLogicalExpr
 	NodeCallExpr
 	NodeNotExpr
-	NodeSet
-	NodeIsset
-	NodeLen
-	NodeTernary
+	NodeIssetExpr
+	NodeLenExpr
+	NodeTernaryExpr
+	NodeIndexExpr
+	NodeSliceExpr
 )
 
 // Nodes.
@@ -565,4 +573,32 @@ type TernaryExprNode struct {
 
 func (s *TernaryExprNode) String() string {
 	return fmt.Sprintf("%s?%s:%s", s.Boolean, s.Left, s.Right)
+}
+
+type IndexExprNode struct {
+	NodeBase
+	Base  Expression
+	Index Expression
+}
+
+func (s *IndexExprNode) String() string {
+	return fmt.Sprintf("%s[%s]", s.Base, s.Index)
+}
+
+type SliceExprNode struct {
+	NodeBase
+	Base     Expression
+	Index    Expression
+	EndIndex Expression
+}
+
+func (s *SliceExprNode) String() string {
+	var index_string, len_string string
+	if s.Index != nil {
+		index_string = s.Index.String()
+	}
+	if s.EndIndex != nil {
+		len_string = s.EndIndex.String()
+	}
+	return fmt.Sprintf("%s[%s:%s]", s.Base, index_string, len_string)
 }

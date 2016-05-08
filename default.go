@@ -30,6 +30,8 @@ var defaultVariables = map[string]reflect.Value{
 	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
 	"repeat":    reflect.ValueOf(strings.Repeat),
 	"replace":   reflect.ValueOf(strings.Replace),
+	"split":     reflect.ValueOf(strings.Split),
+	"trimSpace": reflect.ValueOf(strings.TrimSpace),
 	"map":       reflect.ValueOf(newMap),
 	"html":      reflect.ValueOf(html.EscapeString),
 	"url":       reflect.ValueOf(url.QueryEscape),

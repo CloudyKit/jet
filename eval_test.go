@@ -167,7 +167,7 @@ func TestEvalDefaultFuncs(t *testing.T) {
 	evalTestCase(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{url: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
 }
 
-func TestEvalIssetAndTernary(t *testing.T) {
+func TestEvalIssetAndTernaryExpression(t *testing.T) {
 	var data = make(VarMap)
 	data.Set("title", "title")
 	evalTestCase(t, nil, nil, "IssetExpression_1", `{{isset(value)}}`, "false")
@@ -184,6 +184,22 @@ func TestEvalIssetAndTernary(t *testing.T) {
 
 	evalTestCase(t, nil, user, "TernaryExpression_5", `{{isset(.Name)?"All names":"no names"}}`, "All names")
 	evalTestCase(t, data, user, "TernaryExpression_6", `{{ isset(form) ? form.Get("value") : "no form" }}`, "no form")
+}
+
+func TestEvalIndexExpression(t *testing.T) {
+	evalTestCase(t, nil, []string{"111", "222"}, "IndexExpressionSlice_1", `{{.[1]}}`, `222`)
+	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_1", `{{.["name"]}}`, "value")
+	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
+	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
+}
+
+func TestEvalSliceExpression(t *testing.T) {
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_1", `{{range .[1:]}}{{.}}{{end}}`, `222333444`)
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_2", `{{range .[:2]}}{{.}}{{end}}`, `111222`)
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_3", `{{range .[:]}}{{.}}{{end}}`, `111222333444`)
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_4", `{{range .[0:2]}}{{.}}{{end}}`, `111222`)
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_5", `{{range .[1:2]}}{{.}}{{end}}`, `222`)
+	evalTestCase(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_6", `{{range .[1:3]}}{{.}}{{end}}`, `222333`)
 }
 
 func TestEvalBuiltinExpression(t *testing.T) {

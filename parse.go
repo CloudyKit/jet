@@ -426,7 +426,7 @@ func (t *Template) parserExpression(context string) (Expression, item) {
 			t.unexpected(endtoken, "ternary expression")
 		}
 		right, endtoken = t.parserExpression(context)
-		expression = t.newTernary(expression.Position(), t.lex.lineNumber(), expression, left, right)
+		expression = t.newTernaryExpr(expression.Position(), t.lex.lineNumber(), expression, left, right)
 	}
 	return expression, endtoken
 }
@@ -667,13 +667,42 @@ RESET:
 	}
 	nodeTYPE := node.Type()
 	if nodeTYPE == NodeIdentifier || nodeTYPE == NodeCallExpr || nodeTYPE == NodeField || nodeTYPE == NodeChain {
-		if t.nextNonSpace().typ == itemLeftParen {
+		switch t.nextNonSpace().typ {
+		case itemLeftParen:
 			callExpr := t.newCallExpr(node.Position(), t.lex.lineNumber(), node)
 			callExpr.Args = t.parseArguments()
 			t.expect(itemRightParen, "call expression")
 			node = callExpr
 			goto RESET
-		} else {
+		case itemLeftBrackets:
+			base := node
+			var index Expression
+			var next item
+
+			//found colon is slice expression
+			if t.peekNonSpace().typ != itemColon {
+				index, next = t.parserExpression("index|slice expression")
+			} else {
+				next = t.nextNonSpace()
+			}
+
+			switch next.typ {
+			case itemColon:
+				var lenexpr Expression
+				if t.peekNonSpace().typ != itemRightBrackets {
+					lenexpr = t.expression("index expression")
+				}
+				node = t.newSliceExpr(node.Position(), node.line(), base, index, lenexpr)
+			case itemRightBrackets:
+				node = t.newIndexExpr(node.Position(), node.line(), base, index)
+				fallthrough
+			default:
+				t.backup()
+			}
+
+			t.expect(itemRightBrackets, "index expression")
+			goto RESET
+		default:
 			t.backup()
 		}
 	}
@@ -817,16 +846,16 @@ func (t *Template) term() Node {
 	case itemError:
 		t.errorf("%s", token.val)
 	case itemLen:
-		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeLen)
-		t.expect(itemLeftParen, "builtin call")
-		node.Args = []Expression{t.expression("len builtin call")}
-		t.expect(itemRightParen, "builtin call")
+		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeLenExpr)
+		t.expect(itemLeftParen, "builtin len call")
+		node.Args = []Expression{t.expression("builtin len call")}
+		t.expect(itemRightParen, "builtin len call")
 		return node
 	case itemIsset:
-		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeIsset)
-		t.expect(itemLeftParen, "builtin call")
+		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeIssetExpr)
+		t.expect(itemLeftParen, "builtin isset call")
 		node.Args = t.parseArguments()
-		t.expect(itemRightParen, "builtin call")
+		t.expect(itemRightParen, "builtin isset call")
 		return node
 	case itemIdentifier:
 		return t.newIdentifier(token.val, token.pos, t.lex.lineNumber())

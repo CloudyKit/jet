@@ -213,7 +213,7 @@ func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 	var fields []string
 	if typ == NodeChain {
 		chain := left.(*ChainNode)
-		value = st.evalExpression(chain.Node)
+		value = st.evalPrimaryExpressionGroup(chain.Node)
 		fields = chain.Field
 	} else {
 		fields = left.(*FieldNode).Ident
@@ -245,13 +245,13 @@ RESTART:
 
 func (st *Runtime) executeSetList(set *SetNode) {
 	for i := 0; i < len(set.Left); i++ {
-		st.executeSet(set.Left[i], st.evalExpression(set.Right[i]))
+		st.executeSet(set.Left[i], st.evalPrimaryExpressionGroup(set.Right[i]))
 	}
 }
 
 func (st *Runtime) executeLetList(set *SetNode) {
 	for i := 0; i < len(set.Left); i++ {
-		st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalExpression(set.Right[i])
+		st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
 	}
 }
 
@@ -304,7 +304,7 @@ func (st *Runtime) executeList(list *ListNode) {
 					st.executeSetList(node.Set)
 				}
 			}
-			if castBoolean(st.evalExpression(node.Expression)) {
+			if castBoolean(st.evalPrimaryExpressionGroup(node.Expression)) {
 				st.executeList(node.List)
 			} else if node.ElseList != nil {
 				st.executeList(node.ElseList)
@@ -324,13 +324,13 @@ func (st *Runtime) executeList(list *ListNode) {
 
 			if isSet {
 				isKeyVal = len(node.Set.Left) > 1
-				expression = st.evalExpression(node.Set.Right[0])
+				expression = st.evalPrimaryExpressionGroup(node.Set.Right[0])
 				if node.Set.Let {
 					isLet = true
 					st.newScope()
 				}
 			} else {
-				expression = st.evalExpression(node.Expression)
+				expression = st.evalPrimaryExpressionGroup(node.Expression)
 			}
 
 			ranger := getRanger(expression)
@@ -376,7 +376,7 @@ func (st *Runtime) executeList(list *ListNode) {
 
 			if node.Expression != nil {
 				context := st.context
-				st.context = st.evalExpression(node.Expression)
+				st.context = st.evalPrimaryExpressionGroup(node.Expression)
 				st.executeList(block.List)
 				st.context = context
 			} else {
@@ -390,7 +390,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 			if node.Expression != nil {
 				context := st.context
-				st.context = st.evalExpression(node.Expression)
+				st.context = st.evalPrimaryExpressionGroup(node.Expression)
 				st.executeList(block.List)
 				st.context = context
 			} else {
@@ -405,7 +405,7 @@ func (st *Runtime) executeList(list *ListNode) {
 				st.newScope()
 				st.blocks = t.processedBlocks
 				if node.Expression != nil {
-					st.context = st.evalExpression(node.Expression)
+					st.context = st.evalPrimaryExpressionGroup(node.Expression)
 				}
 				Root := t.root
 				if t.extends != nil {
@@ -426,7 +426,7 @@ var (
 	valueBoolFALSE = reflect.ValueOf(false)
 )
 
-func (st *Runtime) evalExpression(node Expression) reflect.Value {
+func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	switch node.Type() {
 	case NodeAdditiveExpr:
 		return st.evalAdditiveExpression(node.(*AdditiveExprNode))
@@ -439,29 +439,101 @@ func (st *Runtime) evalExpression(node Expression) reflect.Value {
 	case NodeLogicalExpr:
 		return st.evalLogicalExpression(node.(*LogicalExprNode))
 	case NodeNotExpr:
-		return boolValue(!castBoolean(st.evalExpression(node.(*NotExprNode).Expr)))
-	case NodeTernary:
+		return boolValue(!castBoolean(st.evalPrimaryExpressionGroup(node.(*NotExprNode).Expr)))
+	case NodeTernaryExpr:
 		node := node.(*TernaryExprNode)
-		if castBoolean(st.evalExpression(node.Boolean)) {
-			return st.evalExpression(node.Left)
+		if castBoolean(st.evalPrimaryExpressionGroup(node.Boolean)) {
+			return st.evalPrimaryExpressionGroup(node.Left)
 		}
-		return st.evalExpression(node.Right)
+		return st.evalPrimaryExpressionGroup(node.Right)
 	case NodeCallExpr:
 		node := node.(*CallExprNode)
-		baseExpr := st.evalUnaryExpression(node.BaseExpr)
+		baseExpr := st.evalBaseExpressionGroup(node.BaseExpr)
 		if baseExpr.Kind() != reflect.Func {
 			node.errorf("node %q is not func", node)
 		}
 		return st.evalCallExpression(baseExpr, node.Args)[0]
-	case NodeLen:
+	case NodeLenExpr:
 		node := node.(*BuiltinExprNode)
-		expression := st.evalExpression(node.Args[0])
+		expression := st.evalPrimaryExpressionGroup(node.Args[0])
+
+		if expression.Kind() == reflect.Ptr {
+			expression = expression.Elem()
+		}
+
 		switch expression.Kind() {
 		case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
 			return reflect.ValueOf(expression.Len())
+		case reflect.Struct:
+			return reflect.ValueOf(expression.NumField())
 		}
 		node.errorf("inválid value type %s in len builtin", expression.Type())
-	case NodeIsset:
+	case NodeIndexExpr:
+		node := node.(*IndexExprNode)
+		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
+		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
+		indexType := indexExpression.Type()
+
+		if baseExpression.Kind() == reflect.Ptr {
+			baseExpression = baseExpression.Elem()
+		}
+
+		switch baseExpression.Kind() {
+		case reflect.Map:
+			key := baseExpression.Type().Key()
+			if !indexType.AssignableTo(key) {
+				if indexType.ConvertibleTo(key) {
+					indexExpression = indexExpression.Convert(key)
+				} else {
+					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
+				}
+			}
+			return baseExpression.MapIndex(indexExpression)
+		case reflect.Array, reflect.String, reflect.Slice:
+			if canNumber(indexType.Kind()) {
+				return baseExpression.Index(int(castInt64(indexExpression)))
+			} else {
+				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
+			}
+		case reflect.Struct:
+			if canNumber(indexType.Kind()) {
+				return baseExpression.Field(int(castInt64(indexExpression)))
+			} else if indexType.Kind() == reflect.String {
+				return getValue(indexExpression.String(), baseExpression)
+			} else {
+				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
+			}
+		default:
+			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
+		}
+	case NodeSliceExpr:
+		node := node.(*SliceExprNode)
+		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
+
+		var index, length int
+		if node.Index != nil {
+			indexExpression := st.evalPrimaryExpressionGroup(node.Index)
+			if canNumber(indexExpression.Kind()) {
+				index = int(castInt64(indexExpression))
+			} else {
+				node.Index.errorf("non numeric value in index expression kind %s", indexExpression.Kind().String())
+			}
+		}
+
+		if node.EndIndex != nil {
+			indexExpression := st.evalPrimaryExpressionGroup(node.EndIndex)
+			if canNumber(indexExpression.Kind()) {
+				length = int(castInt64(indexExpression))
+			} else {
+				node.EndIndex.errorf("non numeric value in index expression kind %s", indexExpression.Kind().String())
+			}
+		} else {
+			length = baseExpression.Len()
+		}
+
+		return baseExpression.Slice(index, length)
+
+	case NodeIssetExpr:
 		node := node.(*BuiltinExprNode)
 		for i := 0; i < len(node.Args); i++ {
 			switch node.Args[i].Type() {
@@ -480,7 +552,7 @@ func (st *Runtime) evalExpression(node Expression) reflect.Value {
 				}
 			case NodeChain:
 				node := node.Args[i].(*ChainNode)
-				var value = st.evalExpression(node.Node)
+				var value = st.evalPrimaryExpressionGroup(node.Node)
 				if !value.IsValid() {
 					return valueBoolFALSE
 				}
@@ -496,11 +568,11 @@ func (st *Runtime) evalExpression(node Expression) reflect.Value {
 		}
 		return valueBoolTRUE
 	}
-	return st.evalUnaryExpression(node)
+	return st.evalBaseExpressionGroup(node)
 }
 
 func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
+	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
 	isTrue := false
 	kind := left.Kind()
 	switch node.Operator.typ {
@@ -541,11 +613,11 @@ func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExpr
 }
 
 func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
-	isTrue := castBoolean(st.evalExpression(node.Left))
+	isTrue := castBoolean(st.evalPrimaryExpressionGroup(node.Left))
 	if node.Operator.typ == itemAnd {
-		isTrue = isTrue && castBoolean(st.evalExpression(node.Right))
+		isTrue = isTrue && castBoolean(st.evalPrimaryExpressionGroup(node.Right))
 	} else {
-		isTrue = isTrue || castBoolean(st.evalExpression(node.Right))
+		isTrue = isTrue || castBoolean(st.evalPrimaryExpressionGroup(node.Right))
 	}
 	return boolValue(isTrue)
 }
@@ -558,13 +630,13 @@ func boolValue(isTrue bool) reflect.Value {
 }
 
 func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
+	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
 	return boolValue(checkEquality(left, right))
 }
 
 func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
 
-	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
+	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
 
 	kind := left.Kind()
 	switch node.Operator.typ {
@@ -597,7 +669,7 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 }
 
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalExpression(node.Left), st.evalExpression(node.Right))
+	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
 	isAdditive := node.Operator.typ == itemAdd
 	kind := left.Kind()
 	if isUint(kind) {
@@ -622,7 +694,7 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 	return left
 }
 
-func (st *Runtime) evalUnaryExpression(node Node) reflect.Value {
+func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	switch node.Type() {
 	case NodeNil:
 		return reflect.ValueOf(nil)
@@ -652,7 +724,7 @@ func (st *Runtime) evalUnaryExpression(node Node) reflect.Value {
 		return resolved
 	case NodeChain:
 		node := node.(*ChainNode)
-		var value = st.evalExpression(node.Node)
+		var value = st.evalPrimaryExpressionGroup(node.Node)
 		for i := 0; i < len(node.Field); i++ {
 			fieldValue := getValue(node.Field[i], value)
 			if !fieldValue.IsValid() {
@@ -686,7 +758,7 @@ func (st *Runtime) evalCallExpression(fn reflect.Value, args []Expression, value
 }
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
-	term := st.evalExpression(node.BaseExpr)
+	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
 	if node.Call {
 		if term.Kind() == reflect.Func {
 			if term.Type() == safeWriterType {
@@ -721,12 +793,12 @@ func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...re
 		fastprinter.PrintValue(sw, v[i])
 	}
 	for i := 0; i < len(node.Args); i++ {
-		fastprinter.PrintValue(sw, st.evalExpression(node.Args[i]))
+		fastprinter.PrintValue(sw, st.evalPrimaryExpressionGroup(node.Args[i]))
 	}
 }
 
 func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
-	term := st.evalExpression(node.BaseExpr)
+	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
 	if term.Kind() == reflect.Func {
 		if term.Type() == safeWriterType {
 			st.evalSafeWriter(term, node, value)
@@ -786,7 +858,7 @@ func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args
 
 	for ; i < numIn && j < len(args); i, j = i+1, j+1 {
 		in := typ.In(i)
-		term := st.evalExpression(args[j])
+		term := st.evalPrimaryExpressionGroup(args[j])
 		if !term.Type().AssignableTo(in) {
 			term = term.Convert(in)
 		}
@@ -796,7 +868,7 @@ func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args
 	if isVariadic {
 		in := typ.In(numIn).Elem()
 		for ; j < len(args); i, j = i+1, j+1 {
-			term := st.evalExpression(args[j])
+			term := st.evalPrimaryExpressionGroup(args[j])
 			if !term.Type().AssignableTo(in) {
 				term = term.Convert(in)
 			}
@@ -963,6 +1035,23 @@ func castBoolean(v reflect.Value) bool {
 		}
 	}
 	return false
+}
+
+func canNumber(kind reflect.Kind) bool {
+	return isInt(kind) || isUint(kind) || isFloat(kind)
+}
+
+func castInt64(v reflect.Value) int64 {
+	kind := v.Kind()
+	switch {
+	case isInt(kind):
+		return v.Int()
+	case isUint(kind):
+		return int64(v.Uint())
+	case isFloat(kind):
+		return int64(v.Float())
+	}
+	return 0
 }
 
 func castNumeric(v reflect.Value) reflect.Value {

@@ -80,6 +80,8 @@ const (
 	itemMod
 	itemColon
 	itemTernary
+	itemLeftBrackets
+	itemRightBrackets
 	// Keywords appear after all the rest.
 	itemKeyword // used only to delimit the keywords
 	itemExtends
@@ -404,6 +406,10 @@ func lexInsideAction(l *lexer) stateFn {
 	case isAlphaNumeric(r):
 		l.backup()
 		return lexIdentifier
+	case r == '[':
+		l.emit(itemLeftBrackets)
+	case r == ']':
+		l.emit(itemRightBrackets)
 	case r == '(':
 		l.emit(itemLeftParen)
 		l.parenDepth++
@@ -496,7 +502,7 @@ func (l *lexer) atTerminator() bool {
 		return true
 	}
 	switch r {
-	case eof, '.', ',', '|', ':', ')', '=', '(', ';', '?':
+	case eof, '.', ',', '|', ':', ')', '=', '(', ';', '?', '[', ']':
 		return true
 	}
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
