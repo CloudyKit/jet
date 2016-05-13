@@ -2,31 +2,24 @@
 
 [![Join the chat at https://gitter.im/CloudyKit/jet](https://badges.gitter.im/CloudyKit/jet.svg)](https://gitter.im/CloudyKit/jet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Jet is template engine developed to be easy to use, powerful, dynamic and very fast.
-Very fast without pre-compilation and dynamic features, yes this is possible.
+Jet is a template engine developed to be easy to use, powerful, dynamic,secure and very fast.
 
-Support template inheritance, with extends, and block imports, fast writer, auto escapee, and many
-more features.
+* Support template inheritance extends,imports and includes statements.
+* Descriptive error messages with file name and line number.
+* Auto-escape.
+* Simple C like Expression.
+* Very fast execution, jet can execute templates faster then some pre-compiled template engines
+* Very light in terms of allocations and memory foot print.
+* Simple and familiar syntax.
+* Ease to use.
 
-Jet is based on text/template, i used part of the lexer and part of the parser code.
+[Documentation Wiki](https://github.com/CloudyKit/jet/wiki)
 
 #### Intellij Plugin
 
 If you use intellij there is a plugin available in https://github.com/jhsx/GoJetPlugin
 There is also a very good Go plugin for intellij ("https://github.com/go-lang-plugin-org/go-lang-idea-plugin")
 GoJetPlugin + Go-lang-idea-plugin = Happiness :D
-
-
-#### Features
-
-* Template Inheritance
-* File based
-* Auto-escape
-* Complex Expression
-* Tests and Benchmarks
-* Fast and light
-* Simple syntax and simple to use
-* Descriptive error messages with filename and line while parsing or evaluating templates
 
 ### Examples
 
@@ -64,7 +57,7 @@ No Escape {{ "<a href=\""\">Link</a>" |unsafe}}
 
     {{range .Result}}
     	<div>
-        	<div class="result-header">{{.Title}}</div>
+            <div class="result-header">{{.Title}}</div>
             <div class="result-description">{{.Description}}
             <a href="{{.Linkme()}}">Read more</a></div>
         </div>
@@ -158,7 +151,7 @@ ok  	github.com/SlinSo/goTemplateBenchmark	36.200s
 
 #### Contributing
 
-Any contribution is welcome, if you found a bug please report in the issues tracker.
+Any contribution is welcome, if you find a bug please report.
 
 #### Thanks
 
