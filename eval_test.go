@@ -271,7 +271,7 @@ var users = []*User{
 }
 
 func BenchmarkSimpleAction(b *testing.B) {
-	t, _ := evalTemplateSet.GetTemplate("actionNode_dummy")
+	t, _ := evalTemplateSet.getTemplate("actionNode_dummy")
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, nil)
 		if err != nil {
@@ -281,14 +281,14 @@ func BenchmarkSimpleAction(b *testing.B) {
 }
 
 func BenchmarkSimpleActionNoAlloc(b *testing.B) {
-	t, _ := evalTemplateSet.GetTemplate("noAllocFn")
+	t, _ := evalTemplateSet.getTemplate("noAllocFn")
 	for i := 0; i < b.N; i++ {
 		t.Execute(ww, nil, nil)
 	}
 }
 
 func BenchmarkRangeSimple(b *testing.B) {
-	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers")
+	t, _ := evalTemplateSet.getTemplate("rangeOverUsers")
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, &users)
 		if err != nil {
@@ -298,7 +298,7 @@ func BenchmarkRangeSimple(b *testing.B) {
 }
 
 func BenchmarkRangeSimpleSet(b *testing.B) {
-	t, _ := evalTemplateSet.GetTemplate("rangeOverUsers_Set")
+	t, _ := evalTemplateSet.getTemplate("rangeOverUsers_Set")
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, &users)
 		if err != nil {

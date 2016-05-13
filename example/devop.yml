@@ -1,0 +1,14 @@
+gobuild:
+  match: "\\.go$"
+  command: "go build ."
+  continue: gorun
+  wait: true
+  stderr: true
+  stdout: true
+gorun:
+  match: "\\.jet$"
+  command: "./example"
+  env:
+    - PORT=:8890
+  stderr: true
+  stdout: true

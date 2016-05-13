@@ -110,7 +110,7 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 }
 
 func (st Runtime) YieldTemplate(name string, context interface{}) {
-	t, exists := st.set.GetTemplate(name)
+	t, exists := st.set.getTemplate(name)
 	if !exists {
 		panic(fmt.Errorf("include: template %q was not found", name))
 	}
@@ -398,7 +398,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 		case NodeInclude:
 			node := node.(*IncludeNode)
-			t, exists := st.set.GetTemplate(node.Name)
+			t, exists := st.set.getTemplate(node.Name)
 			if !exists {
 				node.errorf("template %q was not found!!", node.Name)
 			} else {

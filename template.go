@@ -113,14 +113,19 @@ func (s *Set) loadTemplate(name, content string) (template *Template, err error)
 	return
 }
 
-// GetTemplate gets a template already loaded by name
-func (s *Set) GetTemplate(name string) (template *Template, ok bool) {
+// getTemplate gets a template already loaded by name
+func (s *Set) getTemplate(name string) (template *Template, ok bool) {
 	s.tmx.RLock()
 	template, ok = s.templates[name]
 	s.tmx.RUnlock()
 	return
 }
 
+// GetTemplate calls LoadTemplate and returns the template, template is already loaded return it, if
+// not load, cache and return
+func (s *Set) GetTemplate(name string) (*Template, error) {
+	return s.LoadTemplate(name, "")
+}
 // LoadTemplate loads a template by name, and caches the template in the set, if content is provided
 // content will be parsed instead of file
 func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {
