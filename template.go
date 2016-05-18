@@ -27,9 +27,10 @@ type Set struct {
 // AddGlobal add or set a global variable into the Set
 func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bool) {
 	s.gmx.Lock()
-	val, override = s.globals[key]
 	if s.globals == nil {
 		s.globals = make(VarMap)
+	} else {
+		val, override = s.globals[key]
 	}
 	s.globals[key] = reflect.ValueOf(i)
 	s.gmx.Unlock()
@@ -126,6 +127,7 @@ func (s *Set) getTemplate(name string) (template *Template, ok bool) {
 func (s *Set) GetTemplate(name string) (*Template, error) {
 	return s.LoadTemplate(name, "")
 }
+
 // LoadTemplate loads a template by name, and caches the template in the set, if content is provided
 // content will be parsed instead of file
 func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {

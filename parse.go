@@ -335,7 +335,12 @@ func (t *Template) parseInclude() Node {
 	if t.nextNonSpace().typ != itemRightDelim {
 		t.backup()
 		pipe = t.expression("include")
+		t.expect(itemRightDelim, "include invocation")
+
 	}
+
+	//todo: my remove map lookup
+	t.set.loadTemplate(name, "")
 
 	return t.newInclude(token.pos, t.lex.lineNumber(), name, pipe)
 }

@@ -1126,7 +1126,7 @@ func getRanger(v reflect.Value) Ranger {
 		fallthrough
 	case reflect.Slice, reflect.Array:
 		sliceranger := pool_sliceRanger.Get().(*sliceRanger)
-		sliceranger.i = 0
+		sliceranger.i = -1
 		sliceranger.len = v.Len()
 		sliceranger.v = v
 		return sliceranger
@@ -1168,10 +1168,10 @@ type sliceRanger struct {
 }
 
 func (s *sliceRanger) Range() (index, value reflect.Value, end bool) {
+	s.i++
 	index = reflect.ValueOf(&s.i).Elem()
 	if s.i < s.len {
 		value = s.v.Index(s.i)
-		s.i++
 		return
 	}
 	pool_sliceRanger.Put(s)
