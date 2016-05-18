@@ -16,12 +16,19 @@ import (
 // Set responsible to load and cache templates, also holds some runtime data
 // passed to Runtime at evaluating time.
 type Set struct {
-	dirs      []string             // directories for look to template files
-	templates map[string]*Template // parsed templates
-	escapee   SafeWriter           // escapee to use at runtime
-	globals   VarMap               // global scope for this template set
-	tmx       sync.RWMutex         // template parsing mutex
-	gmx       sync.RWMutex         // global variables map mutex
+	dirs            []string             // directories for look to template files
+	templates       map[string]*Template // parsed templates
+	escapee         SafeWriter           // escapee to use at runtime
+	globals         VarMap               // global scope for this template set
+	tmx             sync.RWMutex         // template parsing mutex
+	gmx             sync.RWMutex         // global variables map mutex
+	developmentMode bool
+}
+
+// SetDevelopmentMode set's development mode on/off, in development mode template will be recompiled on every run
+func (s *Set) SetDevelopmentMode(b bool) *Set {
+	s.developmentMode = b
+	return s
 }
 
 // AddGlobal add or set a global variable into the Set
@@ -105,6 +112,11 @@ func (s *Set) load(name, content string) (template *Template, err error) {
 // loadTemplate is used to load a template while parsing a template, since set is already
 // locked previously we can't lock again.
 func (s *Set) loadTemplate(name, content string) (template *Template, err error) {
+	if s.developmentMode {
+		template, err = s.load(name, content)
+		return
+	}
+
 	var ok bool
 	if template, ok = s.templates[name]; ok {
 		return
@@ -116,6 +128,11 @@ func (s *Set) loadTemplate(name, content string) (template *Template, err error)
 
 // getTemplate gets a template already loaded by name
 func (s *Set) getTemplate(name string) (template *Template, ok bool) {
+	if s.developmentMode {
+		template, _ = s.GetTemplate(name)
+		ok = template != nil
+		return
+	}
 	s.tmx.RLock()
 	template, ok = s.templates[name]
 	s.tmx.RUnlock()
@@ -131,6 +148,11 @@ func (s *Set) GetTemplate(name string) (*Template, error) {
 // LoadTemplate loads a template by name, and caches the template in the set, if content is provided
 // content will be parsed instead of file
 func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {
+	if s.developmentMode {
+		template, err = s.load(name, content)
+		return
+	}
+
 	var ok bool
 
 	s.tmx.RLock()

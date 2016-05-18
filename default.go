@@ -25,21 +25,21 @@ import (
 )
 
 var defaultVariables = map[string]reflect.Value{
-	"lower":      reflect.ValueOf(strings.ToLower),
-	"upper":      reflect.ValueOf(strings.ToUpper),
-	"hasPrefix":  reflect.ValueOf(strings.HasPrefix),
-	"hasSuffix":  reflect.ValueOf(strings.HasSuffix),
-	"repeat":     reflect.ValueOf(strings.Repeat),
-	"replace":    reflect.ValueOf(strings.Replace),
-	"split":      reflect.ValueOf(strings.Split),
-	"trimSpace":  reflect.ValueOf(strings.TrimSpace),
-	"map":        reflect.ValueOf(newMap),
-	"html":       reflect.ValueOf(html.EscapeString),
-	"url":        reflect.ValueOf(url.QueryEscape),
-	"safeHtml":   reflect.ValueOf(SafeWriter(template.HTMLEscape)),
-	"safeJs":     reflect.ValueOf(SafeWriter(template.JSEscape)),
-	"unsafe":     reflect.ValueOf(SafeWriter(unsafePrinter)),
-	"writeJson":  reflect.ValueOf(jsonRenderer),
+	"lower":     reflect.ValueOf(strings.ToLower),
+	"upper":     reflect.ValueOf(strings.ToUpper),
+	"hasPrefix": reflect.ValueOf(strings.HasPrefix),
+	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
+	"repeat":    reflect.ValueOf(strings.Repeat),
+	"replace":   reflect.ValueOf(strings.Replace),
+	"split":     reflect.ValueOf(strings.Split),
+	"trimSpace": reflect.ValueOf(strings.TrimSpace),
+	"map":       reflect.ValueOf(newMap),
+	"html":      reflect.ValueOf(html.EscapeString),
+	"url":       reflect.ValueOf(url.QueryEscape),
+	"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
+	"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
+	"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
+	"writeJson": reflect.ValueOf(jsonRenderer),
 }
 
 func jsonRenderer(v interface{}) RendererFunc {
@@ -58,13 +58,13 @@ func unsafePrinter(w io.Writer, b []byte) {
 type SafeWriter func(io.Writer, []byte)
 
 func newMap(values ...interface{}) (nmap map[string]interface{}) {
-	if len(values) % 2 > 0 {
+	if len(values)%2 > 0 {
 		panic("new map: invalid number of arguments on call to map")
 	}
 	nmap = make(map[string]interface{})
 
 	for i := 0; i < len(values); i += 2 {
-		nmap[fmt.Sprint(values[i])] = values[i + 1]
+		nmap[fmt.Sprint(values[i])] = values[i+1]
 	}
 	return
 }
