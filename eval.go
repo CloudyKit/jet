@@ -190,8 +190,7 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 
 func (st *Runtime) recover(err *error) {
 	pool_State.Put(st)
-	recovered := recover()
-	if recovered != nil {
+	if recovered := recover(); recovered != nil {
 		var is bool
 		if _, is = recovered.(runtime.Error); is {
 			panic(recovered)
@@ -694,6 +693,13 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 	return left
 }
 
+func getTypeString(value reflect.Value) string {
+	if value.IsValid() {
+		return value.Type().String()
+	}
+	return "nil"
+}
+
 func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	switch node.Type() {
 	case NodeNil:
@@ -717,22 +723,22 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		for i := 0; i < len(node.Ident); i++ {
 			fieldResolved := getValue(node.Ident[i], resolved)
 			if !fieldResolved.IsValid() {
-				node.errorf("there is no field or method %q in %s", node.Ident[i], resolved.Type().String())
+				node.errorf("there is no field or method %q in %s", node.Ident[i], getTypeString(resolved))
 			}
 			resolved = fieldResolved
 		}
 		return resolved
 	case NodeChain:
 		node := node.(*ChainNode)
-		var value = st.evalPrimaryExpressionGroup(node.Node)
+		var resolved = st.evalPrimaryExpressionGroup(node.Node)
 		for i := 0; i < len(node.Field); i++ {
-			fieldValue := getValue(node.Field[i], value)
+			fieldValue := getValue(node.Field[i], resolved)
 			if !fieldValue.IsValid() {
-				node.errorf("there is no field or method %q in %s", node.Field[i], value.Type().String())
+				node.errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
 			}
-			value = fieldValue
+			resolved = fieldValue
 		}
-		return value
+		return resolved
 	case NodeNumber:
 		node := node.(*NumberNode)
 		if node.IsUint {
@@ -788,6 +794,7 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
+	//todo: should use here sync.Pool ?
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
@@ -1069,6 +1076,11 @@ var cacheStructMutex = sync.RWMutex{}
 var cacheStructFieldIndex = map[reflect.Type]map[string][]int{}
 
 func getValue(key string, v reflect.Value) reflect.Value {
+
+	if !v.IsValid() {
+		return reflect.Value{}
+	}
+
 	value := v.MethodByName(key)
 
 	if value.IsValid() {

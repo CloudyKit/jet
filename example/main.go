@@ -16,6 +16,8 @@ type tTODO struct {
 }
 
 func main() {
+	//todo: remove in production
+	views.SetDevelopmentMode(true)
 
 	var todos = map[string]*tTODO{
 		"add an show todo page":   &tTODO{Text: "Add an show todo page to the example project", Done: true},
