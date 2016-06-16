@@ -189,6 +189,7 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
+	isDev := st.set.developmentMode
 	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var is bool
@@ -196,7 +197,7 @@ func (st *Runtime) recover(err *error) {
 			panic(recovered)
 		}
 		*err, is = recovered.(error)
-		if !is {
+		if isDev || !is {
 			panic(recovered)
 		}
 	}
@@ -403,15 +404,21 @@ func (st *Runtime) executeList(list *ListNode) {
 			} else {
 				st.newScope()
 				st.blocks = t.processedBlocks
+				var context reflect.Value
 				if node.Expression != nil {
+					context = st.context
 					st.context = st.evalPrimaryExpressionGroup(node.Expression)
 				}
 				Root := t.root
-				if t.extends != nil {
-					Root = t.extends.root
+				for t.extends != nil {
+					t = t.extends
+					Root = t.root
 				}
 				st.executeList(Root)
 				st.releaseScope()
+				if node.Expression != nil {
+					st.context = context
+				}
 			}
 		}
 	}
@@ -714,7 +721,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	case NodeIdentifier:
 		resolved := st.Resolve(node.(*IdentifierNode).Ident)
 		if !resolved.IsValid() {
-			node.errorf("identifier %q is not available in the current scope", node)
+			node.errorf("identifier %q is not available in the current scope %v", node, st.variables)
 		}
 		return resolved
 	case NodeField:
@@ -1095,6 +1102,11 @@ func getValue(key string, v reflect.Value) reflect.Value {
 		if value.IsValid() {
 			return value
 		}
+	} else if v.CanAddr() {
+		value = v.Addr().MethodByName(key)
+		if value.IsValid() {
+			return value
+		}
 	}
 
 	if k == reflect.Struct {
@@ -1106,11 +1118,7 @@ func getValue(key string, v reflect.Value) reflect.Value {
 			cacheStructMutex.Lock()
 			if cache, ok = cacheStructFieldIndex[typ]; !ok {
 				cache = make(map[string][]int)
-				numFields := typ.NumField()
-				for i := 0; i < numFields; i++ {
-					field := typ.Field(i)
-					cache[field.Name] = field.Index
-				}
+				buildCache(typ, cache, nil)
 				cacheStructFieldIndex[typ] = cache
 			}
 			cacheStructMutex.Unlock()
@@ -1123,6 +1131,27 @@ func getValue(key string, v reflect.Value) reflect.Value {
 		return v.MapIndex(reflect.ValueOf(key))
 	}
 	return reflect.Value{}
+}
+
+func buildCache(typ reflect.Type, cache map[string][]int, parent []int) {
+	numFields := typ.NumField()
+	max := len(parent) + 1
+
+	for i := 0; i < numFields; i++ {
+
+		index := make([]int, max)
+		copy(index, parent)
+		index[len(parent)] = i
+
+		field := typ.Field(i)
+		if field.Anonymous {
+			typ := field.Type
+			if typ.Kind() == reflect.Struct {
+				buildCache(typ, cache, index)
+			}
+		}
+		cache[field.Name] = index
+	}
 }
 
 func getRanger(v reflect.Value) Ranger {
