@@ -217,6 +217,19 @@ func TestEvalAutoescape(t *testing.T) {
 	evalTestCaseSet(set, t, nil, nil, "Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`, "<h1><h1>Hello Buddy!</h1></h1>")
 }
 
+func TestBugInGetValueWithPtrMethod(t *testing.T) {
+	var data = make(VarMap)
+
+	type ComplexType struct {
+		User User
+	}
+
+	data.Set("complex", &ComplexType{})
+
+	evalTestCase(t, data, nil, "BugInGetValueWithPtrMethod",
+		`{{complex.User.GetName()}}`, ``)
+}
+
 type devNull struct{}
 
 func (*devNull) Write(_ []byte) (int, error) {

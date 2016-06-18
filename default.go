@@ -40,6 +40,7 @@ var defaultVariables = map[string]reflect.Value{
 	"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
 	"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 	"writeJson": reflect.ValueOf(jsonRenderer),
+	"json":      reflect.ValueOf(json.Marshal),
 }
 
 func jsonRenderer(v interface{}) RendererFunc {
