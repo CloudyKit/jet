@@ -128,6 +128,7 @@ func TestEvalIfNode(t *testing.T) {
 	evalTestCase(t, data, nil, "ifNode_elseif", `{{if false}}hello{{else if true}}world{{end}}`, `world`)
 	evalTestCase(t, data, nil, "ifNode_elseif_else", `{{if false}}hello{{else if false}}world{{else}}buddy{{end}}`, `buddy`)
 	evalTestCase(t, data, nil, "ifNode_string_comparison", `{{user.Name}} (email: {{user.Email}}): {{if user.Email == "email2@example.com"}}email is email2@example.com{{else}}email is not email2@example.com{{end}}`, `José Santos (email: email@example.com): email is not email2@example.com`)
+
 }
 
 func TestEvalBlockYieldIncludeNode(t *testing.T) {
@@ -159,6 +160,8 @@ func TestEvalRangeNode(t *testing.T) {
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	evalTestCase(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
 	evalTestCase(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
+	var resultString2 = `<h1>1: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>3: Luis Santana<small>luis.santana@gmail.com</small></h1>`
+	evalTestCase(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 1 || i == 3}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {
