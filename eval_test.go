@@ -127,6 +127,7 @@ func TestEvalIfNode(t *testing.T) {
 	evalTestCase(t, data, nil, "ifNode_else", `{{if false}}hello{{else}}world{{end}}`, `world`)
 	evalTestCase(t, data, nil, "ifNode_elseif", `{{if false}}hello{{else if true}}world{{end}}`, `world`)
 	evalTestCase(t, data, nil, "ifNode_elseif_else", `{{if false}}hello{{else if false}}world{{else}}buddy{{end}}`, `buddy`)
+	evalTestCase(t, data, nil, "ifNode_string_comparison", `{{user.Name}} (email: {{user.Email}}): {{if user.Email == "email2@example.com"}}email is email2@example.com{{else}}email is not email2@example.com{{end}}`, `José Santos (email: email@example.com): email is not email2@example.com`)
 }
 
 func TestEvalBlockYieldIncludeNode(t *testing.T) {
