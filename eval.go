@@ -304,6 +304,7 @@ func (st *Runtime) executeList(list *ListNode) {
 					st.executeSetList(node.Set)
 				}
 			}
+
 			if castBoolean(st.evalPrimaryExpressionGroup(node.Expression)) {
 				st.executeList(node.List)
 			} else if node.ElseList != nil {
@@ -636,7 +637,10 @@ func boolValue(isTrue bool) reflect.Value {
 }
 
 func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
+	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
+	if node.Operator.typ == itemNotEquals {
+		return boolValue(!checkEquality(left, right))
+	}
 	return boolValue(checkEquality(left, right))
 }
 
@@ -801,7 +805,7 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
-	//todo: should use here sync.Pool ?
+	//todo:  sync.Pool ?
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
@@ -898,6 +902,7 @@ func reflect_Call10(i int, st *Runtime, fn reflect.Value, args []Expression, val
 }
 
 func generalizeValue(left, right reflect.Value) (reflect.Value, reflect.Value) {
+
 	left, right = castNumeric(left), castNumeric(right)
 
 	leftKind := left.Kind()
@@ -939,15 +944,26 @@ func isFloat(kind reflect.Kind) bool {
 }
 
 func checkEquality(v1, v2 reflect.Value) bool {
+
 	if !v1.IsValid() || !v2.IsValid() {
 		return v1.IsValid() == v2.IsValid()
 	}
 
-	if v1.Type() != v2.Type() {
+	if !v1.Type().ConvertibleTo(v2.Type()) {
 		return false
 	}
 
 	switch v1.Kind() {
+	case reflect.Bool:
+		return v1.Bool() == v2.Bool()
+	case reflect.Float32, reflect.Float64:
+		return v1.Float() == v2.Float()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v1.Int() == v2.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v1.Uint() == v2.Uint()
+	case reflect.String:
+		return v1.String() == v2.String()
 	case reflect.Array:
 		for i := 0; i < v1.Len(); i++ {
 			if !checkEquality(v1.Index(i), v2.Index(i)) {
