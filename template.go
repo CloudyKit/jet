@@ -109,8 +109,8 @@ func (s *Set) load(name, content string) (template *Template, err error) {
 	return
 }
 
-// loadTemplate is used to load a template while parsing a template, since set is already
-// locked previously we can't lock again.
+// loadTemplate is used to load a template while parsing a template,
+// this function is not thread safe, the lock usually is called before by the parent function
 func (s *Set) loadTemplate(name, content string) (template *Template, err error) {
 	if s.developmentMode {
 		template, err = s.load(name, content)

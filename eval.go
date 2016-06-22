@@ -579,41 +579,86 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 }
 
 func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
+	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
 	isTrue := false
 	kind := left.Kind()
+
+	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
+	// this is necessary for expressions like 4*1.23
+	needFloatPromotion := !isFloat(kind) && isFloat(right.Kind())
+
 	switch node.Operator.typ {
 	case itemGreat:
-		if isUint(kind) {
-			isTrue = left.Uint() > right.Uint()
-		} else if isInt(kind) {
-			isTrue = left.Int() > right.Int()
+		if isInt(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Int()) > right.Float()
+			} else {
+				isTrue = left.Int() > toInt(right)
+			}
 		} else if isFloat(kind) {
-			isTrue = left.Float() > right.Float()
+			isTrue = left.Float() > toFloat(right)
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Uint()) > right.Float()
+			} else {
+				isTrue = left.Uint() > toUint(right)
+			}
+		} else {
+			node.Left.errorf("a non numeric value in numeric comparative expression")
 		}
 	case itemGreatEquals:
-		if isUint(kind) {
-			isTrue = left.Uint() >= right.Uint()
-		} else if isInt(kind) {
-			isTrue = left.Int() >= right.Int()
+		if isInt(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Int()) >= right.Float()
+			} else {
+				isTrue = left.Int() >= toInt(right)
+			}
 		} else if isFloat(kind) {
-			isTrue = left.Float() >= right.Float()
+			isTrue = left.Float() >= toFloat(right)
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Uint()) >= right.Float()
+			} else {
+				isTrue = left.Uint() >= toUint(right)
+			}
+		} else {
+			node.Left.errorf("a non numeric value in numeric comparative expression")
 		}
 	case itemLess:
-		if isUint(kind) {
-			isTrue = left.Uint() < right.Uint()
-		} else if isInt(kind) {
-			isTrue = left.Int() < right.Int()
+		if isInt(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Int()) < right.Float()
+			} else {
+				isTrue = left.Int() < toInt(right)
+			}
 		} else if isFloat(kind) {
-			isTrue = left.Float() < right.Float()
+			isTrue = left.Float() < toFloat(right)
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Uint()) < right.Float()
+			} else {
+				isTrue = left.Uint() < toUint(right)
+			}
+		} else {
+			node.Left.errorf("a non numeric value in numeric comparative expression")
 		}
 	case itemLessEquals:
-		if isUint(kind) {
-			isTrue = left.Uint() <= right.Uint()
-		} else if isInt(kind) {
-			isTrue = left.Int() <= right.Int()
+		if isInt(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Int()) <= right.Float()
+			} else {
+				isTrue = left.Int() <= toInt(right)
+			}
 		} else if isFloat(kind) {
-			isTrue = left.Float() <= right.Float()
+			isTrue = left.Float() <= toFloat(right)
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				isTrue = float64(left.Uint()) <= right.Float()
+			} else {
+				isTrue = left.Uint() <= toUint(right)
+			}
+		} else {
+			node.Left.errorf("a non numeric value in numeric comparative expression")
 		}
 	}
 	return boolValue(isTrue)
@@ -644,63 +689,155 @@ func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.
 	return boolValue(checkEquality(left, right))
 }
 
+func toInt(v reflect.Value) int64 {
+	kind := v.Kind()
+	if isInt(kind) {
+		return v.Int()
+	} else if isFloat(kind) {
+		return int64(v.Float())
+	} else if isUint(kind) {
+		return int64(v.Uint())
+	}
+	panic(fmt.Errorf("type: %q can't be converted to int64", v.Type()))
+	return 0
+}
+
+func toUint(v reflect.Value) uint64 {
+	kind := v.Kind()
+	if isUint(kind) {
+		return v.Uint()
+	}
+	if isInt(kind) {
+		return uint64(v.Int())
+	}
+	if isFloat(kind) {
+		return uint64(v.Float())
+	}
+	panic(fmt.Errorf("type: %q can't be converted to uint64", v.Type()))
+	return 0
+}
+
+func toFloat(v reflect.Value) float64 {
+	kind := v.Kind()
+	if isFloat(kind) {
+		return v.Float()
+	}
+	if isInt(kind) {
+		return float64(v.Int())
+	}
+	if isUint(kind) {
+		return float64(v.Uint())
+	}
+	panic(fmt.Errorf("type: %q can't be converted to float64", v.Type()))
+	return 0
+}
+
 func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
-
-	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
-
+	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
 	kind := left.Kind()
+	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
+	// this is necessary for expressions like 4*1.23
+	needFloatPromotion := !isFloat(kind) && isFloat(right.Kind())
 	switch node.Operator.typ {
 	case itemMul:
-		if isUint(kind) {
-			left = reflect.ValueOf(left.Uint() * right.Uint())
-		} else if isInt(kind) {
-			left = reflect.ValueOf(left.Int() * right.Int())
+		if isInt(kind) {
+			if needFloatPromotion {
+				// do the promotion and calculates
+				left = reflect.ValueOf(float64(left.Int()) * right.Float())
+			} else {
+				// do not need float promotion
+				left = reflect.ValueOf(left.Int() * toInt(right))
+			}
 		} else if isFloat(kind) {
-			left = reflect.ValueOf(left.Float() * right.Float())
+			left = reflect.ValueOf(left.Float() * toFloat(right))
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				left = reflect.ValueOf(float64(left.Uint()) * right.Float())
+			} else {
+				left = reflect.ValueOf(left.Uint() * toUint(right))
+			}
+		} else {
+			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
 	case itemDiv:
-		if isUint(kind) {
-			left = reflect.ValueOf(left.Uint() / right.Uint())
-		} else if isInt(kind) {
-			left = reflect.ValueOf(left.Int() / right.Int())
+		if isInt(kind) {
+			if needFloatPromotion {
+				left = reflect.ValueOf(float64(left.Int()) / right.Float())
+			} else {
+				left = reflect.ValueOf(left.Int() / toInt(right))
+			}
 		} else if isFloat(kind) {
-			left = reflect.ValueOf(left.Float() / right.Float())
+			left = reflect.ValueOf(left.Float() / toFloat(right))
+		} else if isUint(kind) {
+			if needFloatPromotion {
+				left = reflect.ValueOf(float64(left.Uint()) / right.Float())
+			} else {
+				left = reflect.ValueOf(left.Uint() / toUint(right))
+			}
+		} else {
+			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
 	case itemMod:
-		if isUint(kind) {
-			left = reflect.ValueOf(left.Uint() % right.Uint())
-		} else if isInt(kind) {
-			left = reflect.ValueOf(left.Int() % right.Int())
+		if isInt(kind) {
+			left = reflect.ValueOf(left.Int() % toInt(right))
 		} else if isFloat(kind) {
-			left = reflect.ValueOf(int64(left.Float()) % int64(left.Float()))
+			left = reflect.ValueOf(int64(left.Float()) % toInt(right))
+		} else if isUint(kind) {
+			left = reflect.ValueOf(left.Uint() % toUint(right))
+		} else {
+			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
 	}
 	return left
 }
 
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
-	left, right := generalizeValue(st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right))
+	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
 	isAdditive := node.Operator.typ == itemAdd
 	kind := left.Kind()
-	if isUint(kind) {
-		if isAdditive {
-			left = reflect.ValueOf(left.Uint() + right.Uint())
+	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
+	// this is necessary for expressions like 4+1.23
+	needFloatPromotion := !isFloat(kind) && isFloat(right.Kind())
+	if needFloatPromotion {
+		if isInt(kind) {
+			if isAdditive {
+				left = reflect.ValueOf(float64(left.Int()) + right.Float())
+			} else {
+				left = reflect.ValueOf(float64(left.Int()) - right.Float())
+			}
+		} else if isUint(kind) {
+			if isAdditive {
+				left = reflect.ValueOf(float64(left.Uint()) + right.Float())
+			} else {
+				left = reflect.ValueOf(float64(left.Uint()) - right.Float())
+			}
 		} else {
-			left = reflect.ValueOf(left.Uint() - right.Uint())
+			node.Left.errorf("a non numeric value in additive expression")
 		}
-	} else if isInt(kind) {
-		if isAdditive {
-			left = reflect.ValueOf(left.Int() + right.Int())
+	} else {
+		if isInt(kind) {
+			if isAdditive {
+				left = reflect.ValueOf(left.Int() + toInt(right))
+			} else {
+				left = reflect.ValueOf(left.Int() - toInt(right))
+			}
+		} else if isFloat(kind) {
+			if isAdditive {
+				left = reflect.ValueOf(left.Float() + toFloat(right))
+			} else {
+				left = reflect.ValueOf(left.Float() - toFloat(right))
+			}
+		} else if isUint(kind) {
+			if isAdditive {
+				left = reflect.ValueOf(left.Uint() + toUint(right))
+			} else {
+				left = reflect.ValueOf(left.Uint() - toUint(right))
+			}
 		} else {
-			left = reflect.ValueOf(left.Int() - right.Int())
-		}
-	} else if isFloat(kind) {
-		if isAdditive {
-			left = reflect.ValueOf(left.Float() + right.Float())
-		} else {
-			left = reflect.ValueOf(left.Float() - right.Float())
+			node.Left.errorf("a non numeric value in additive expression")
 		}
 	}
+
 	return left
 }
 
@@ -899,38 +1036,6 @@ func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args
 func reflect_Call10(i int, st *Runtime, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
 	var arguments [10]reflect.Value
 	return reflect_Call(arguments[0:i], st, fn, args, values...)
-}
-
-func generalizeValue(left, right reflect.Value) (reflect.Value, reflect.Value) {
-
-	left, right = castNumeric(left), castNumeric(right)
-
-	leftKind := left.Kind()
-	rightKind := right.Kind()
-
-	if leftKind >= reflect.Uint &&
-		leftKind <= reflect.Uint64 &&
-		rightKind >= reflect.Uint &&
-		rightKind <= reflect.Uint64 {
-		return left, right
-	}
-	if leftKind >= reflect.Int &&
-		leftKind <= reflect.Int64 &&
-		rightKind >= reflect.Int &&
-		rightKind <= reflect.Int64 {
-		return left, right
-	}
-	if leftKind >= reflect.Float32 &&
-		leftKind <= reflect.Float64 &&
-		rightKind >= reflect.Float32 &&
-		rightKind <= reflect.Float64 {
-		return left, right
-	}
-
-	if rightKind == reflect.Float64 || rightKind == reflect.Float32 {
-		return left.Convert(right.Type()), right
-	}
-	return left, right.Convert(left.Type())
 }
 
 func isUint(kind reflect.Kind) bool {
