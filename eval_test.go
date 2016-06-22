@@ -38,7 +38,7 @@ func evalTestCase(t *testing.T, variables VarMap, context interface{}, testName,
 	}
 	result := buff.String()
 	if result != testExpected {
-		t.Errorf("Result error expected %q got %q on %s", testExpected, result, testName)
+		t.Errorf("Result error: expected %q got %q on %s", testExpected, result, testName)
 	}
 }
 
@@ -160,8 +160,8 @@ func TestEvalRangeNode(t *testing.T) {
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	evalTestCase(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
 	evalTestCase(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
-	var resultString2 = `<h1>1: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>3: Luis Santana<small>luis.santana@gmail.com</small></h1>`
-	evalTestCase(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 1 || i == 3}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
+	var resultString2 = `<h1>0: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>2: Luis Santana<small>luis.santana@gmail.com</small></h1>`
+	evalTestCase(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {

@@ -53,13 +53,13 @@ type escapeeWriter struct {
 	set     *Set
 }
 
-func (w *escapeeWriter) Write(b []byte) (count int, err error) {
+func (w *escapeeWriter) Write(b []byte) (int, error) {
 	if w.set.escapee == nil {
 		w.Writer.Write(b)
 	} else {
 		w.set.escapee(w.Writer, b)
 	}
-	return
+	return 0, nil
 }
 
 type Runtime struct {
@@ -1048,45 +1048,64 @@ func isFloat(kind reflect.Kind) bool {
 	return kind == reflect.Float32 || kind == reflect.Float64
 }
 
+//checkEquality of two reflect values in the semantic of the jet runtime
 func checkEquality(v1, v2 reflect.Value) bool {
 
 	if !v1.IsValid() || !v2.IsValid() {
 		return v1.IsValid() == v2.IsValid()
 	}
 
-	if !v1.Type().ConvertibleTo(v2.Type()) {
+	v1Type := v1.Type()
+	v2Type := v2.Type()
+
+	// fast path
+	if v1Type != v2.Type() && !v2Type.AssignableTo(v1Type) && !v2Type.ConvertibleTo(v1Type) {
 		return false
 	}
 
-	switch v1.Kind() {
+	kind := v1.Kind()
+	if isInt(kind) {
+		return v1.Int() == toInt(v2)
+	}
+	if isFloat(kind) {
+		return v1.Float() == toFloat(v2)
+	}
+	if isUint(kind) {
+		return v1.Uint() == toUint(v2)
+	}
+
+	switch kind {
 	case reflect.Bool:
-		return v1.Bool() == v2.Bool()
-	case reflect.Float32, reflect.Float64:
-		return v1.Float() == v2.Float()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v1.Int() == v2.Int()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return v1.Uint() == v2.Uint()
+		return v1.Bool() == castBoolean(v2)
 	case reflect.String:
 		return v1.String() == v2.String()
 	case reflect.Array:
-		for i := 0; i < v1.Len(); i++ {
+		vlen := v1.Len()
+		if vlen == v2.Len() {
+			return false
+		}
+		for i := 0; i < vlen; i++ {
 			if !checkEquality(v1.Index(i), v2.Index(i)) {
 				return false
 			}
 		}
 		return true
 	case reflect.Slice:
+
 		if v1.IsNil() != v2.IsNil() {
 			return false
 		}
-		if v1.Len() != v2.Len() {
+
+		vlen := v1.Len()
+		if vlen != v2.Len() {
 			return false
 		}
-		if v1.Pointer() == v2.Pointer() {
+
+		if v1.CanAddr() && v2.CanAddr() && v1.Pointer() == v2.Pointer() {
 			return true
 		}
-		for i := 0; i < v1.Len(); i++ {
+
+		for i := 0; i < vlen; i++ {
 			if !checkEquality(v1.Index(i), v2.Index(i)) {
 				return false
 			}
@@ -1187,17 +1206,6 @@ func castInt64(v reflect.Value) int64 {
 		return int64(v.Float())
 	}
 	return 0
-}
-
-func castNumeric(v reflect.Value) reflect.Value {
-	kind := v.Kind()
-	if isInt(kind) || isUint(kind) || isFloat(kind) {
-		return v
-	}
-	if castBoolean(v) {
-		return reflect.ValueOf(1)
-	}
-	return reflect.ValueOf(1)
 }
 
 var cacheStructMutex = sync.RWMutex{}
