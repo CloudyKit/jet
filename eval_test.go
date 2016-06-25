@@ -38,7 +38,7 @@ func evalTestCase(t *testing.T, variables VarMap, context interface{}, testName,
 	}
 	result := buff.String()
 	if result != testExpected {
-		t.Errorf("Result error expected %q got %q on %s", testExpected, result, testName)
+		t.Errorf("Result error: expected %q got %q on %s", testExpected, result, testName)
 	}
 }
 
@@ -98,7 +98,7 @@ func TestEvalActionNode(t *testing.T) {
 	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
 	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4*2+4))
 	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2+4*2+4))
-	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1*1.23 }}`, fmt.Sprint(1*1.23))
+	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1.23*1 }}`, fmt.Sprint(1*1.23))
 	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3%2))
 	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1*3)%2))
 	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2*5)/3%1))
@@ -127,6 +127,8 @@ func TestEvalIfNode(t *testing.T) {
 	evalTestCase(t, data, nil, "ifNode_else", `{{if false}}hello{{else}}world{{end}}`, `world`)
 	evalTestCase(t, data, nil, "ifNode_elseif", `{{if false}}hello{{else if true}}world{{end}}`, `world`)
 	evalTestCase(t, data, nil, "ifNode_elseif_else", `{{if false}}hello{{else if false}}world{{else}}buddy{{end}}`, `buddy`)
+	evalTestCase(t, data, nil, "ifNode_string_comparison", `{{user.Name}} (email: {{user.Email}}): {{if user.Email == "email2@example.com"}}email is email2@example.com{{else}}email is not email2@example.com{{end}}`, `José Santos (email: email@example.com): email is not email2@example.com`)
+
 }
 
 func TestEvalBlockYieldIncludeNode(t *testing.T) {
@@ -158,6 +160,8 @@ func TestEvalRangeNode(t *testing.T) {
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	evalTestCase(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
 	evalTestCase(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
+	var resultString2 = `<h1>0: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>2: Luis Santana<small>luis.santana@gmail.com</small></h1>`
+	evalTestCase(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {
