@@ -26,19 +26,22 @@ var evalTemplateSet = NewSet()
 
 func evalTestCase(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
 	buff := bytes.NewBuffer(nil)
+
 	tt, err := evalTemplateSet.loadTemplate(testName, testContent)
 	if err != nil {
 		t.Errorf("Parsing error: %s %s %s", err.Error(), testName, testContent)
 		return
 	}
+
 	err = tt.Execute(buff, variables, context)
 	if err != nil {
 		t.Errorf("Eval error: %q executing %s", err.Error(), testName)
 		return
 	}
+
 	result := buff.String()
 	if result != testExpected {
-		t.Errorf("Result error: expected %q got %q on %s", testExpected, result, testName)
+		t.Errorf("Result error: %q expected, got %q on %s", testExpected, result, testName)
 	}
 }
 
@@ -195,6 +198,10 @@ func TestEvalIssetAndTernaryExpression(t *testing.T) {
 func TestEvalIndexExpression(t *testing.T) {
 	evalTestCase(t, nil, []string{"111", "222"}, "IndexExpressionSlice_1", `{{.[1]}}`, `222`)
 	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_1", `{{.["name"]}}`, "value")
+	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_2", `{{.["non_existant_key"]}}`, "")
+	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_3", `{{isset(.["non_existant_key"]) ? "key does exist" : "key does not exist"}}`, "key does not exist")
+	//evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_4", `{{if v, ok := .["name"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does exist and has the value 'value'")
+	//evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_5", `{{if v, ok := .["non_existant_key"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does not exist")
 	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }

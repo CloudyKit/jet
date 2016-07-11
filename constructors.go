@@ -129,7 +129,7 @@ func (t *Template) newYield(pos Pos, line int, name string, pipe Expression) *Yi
 	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Expression: pipe}
 }
 
-func (t *Template) newInclude(pos Pos, line int, name string, pipe Expression) *IncludeNode {
+func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *IncludeNode {
 	return &IncludeNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeInclude, Pos: pos, Line: line}, Name: name, Expression: pipe}
 }
 
