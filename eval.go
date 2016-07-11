@@ -19,10 +19,12 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 )
 
 var (
+	stringerType   = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 	rangerType     = reflect.TypeOf((*Ranger)(nil)).Elem()
 	rendererType   = reflect.TypeOf((*Renderer)(nil)).Elem()
 	safeWriterType = reflect.TypeOf(SafeWriter(nil))
@@ -281,7 +283,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 			if node.Pipe != nil {
 				v, safeWriter := st.evalPipelineExpression(node.Pipe)
-				if !safeWriter {
+				if !safeWriter && v.IsValid() {
 					if v.Type().Implements(rendererType) {
 						v.Interface().(Renderer).Render(st)
 					} else {
@@ -399,7 +401,18 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 		case NodeInclude:
 			node := node.(*IncludeNode)
-			t, exists := st.set.getTemplate(node.Name)
+			var Name string
+
+			name := st.evalPrimaryExpressionGroup(node.Name)
+			if name.Type().Implements(stringerType) {
+				Name = name.String()
+			} else if name.Kind() == reflect.String {
+				Name = name.String()
+			} else {
+				node.errorf("unexpected expression type %q in template yielding", getTypeString(name))
+			}
+
+			t, exists := st.set.getTemplate(Name)
 			if !exists {
 				node.errorf("template %q was not found!!", node.Name)
 			} else {
@@ -477,6 +490,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		node.errorf("inválid value type %s in len builtin", expression.Type())
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
+
 		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
 		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
 		indexType := indexExpression.Type()
@@ -543,39 +557,99 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	case NodeIssetExpr:
 		node := node.(*BuiltinExprNode)
 		for i := 0; i < len(node.Args); i++ {
-			switch node.Args[i].Type() {
-			case NodeIdentifier:
-				if st.Resolve(node.Args[i].String()).IsValid() == false {
-					return valueBoolFALSE
-				}
-			case NodeField:
-				node := node.Args[i].(*FieldNode)
-				resolved := st.context
-				for i := 0; i < len(node.Ident); i++ {
-					resolved = getValue(node.Ident[i], resolved)
-					if !resolved.IsValid() {
-						return valueBoolFALSE
-					}
-				}
-			case NodeChain:
-				node := node.Args[i].(*ChainNode)
-				var value = st.evalPrimaryExpressionGroup(node.Node)
-				if !value.IsValid() {
-					return valueBoolFALSE
-				}
-				for i := 0; i < len(node.Field); i++ {
-					value := getValue(node.Field[i], value)
-					if !value.IsValid() {
-						return valueBoolFALSE
-					}
-				}
-			default:
-				node.Args[i].errorf("unexpected %q node in isset clause", node.Args[i])
+			if !st.Isset(node.Args[i]) {
+				return valueBoolFALSE
 			}
 		}
 		return valueBoolTRUE
 	}
 	return st.evalBaseExpressionGroup(node)
+}
+
+func (st *Runtime) Isset(node Node) bool {
+	nodeType := node.Type()
+
+	switch nodeType {
+	case NodeIndexExpr:
+		node := node.(*IndexExprNode)
+		if !st.Isset(node.Base) {
+			return false
+		}
+
+		if !st.Isset(node.Index) {
+			return false
+		}
+
+		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
+		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
+
+		indexType := indexExpression.Type()
+		if baseExpression.Kind() == reflect.Ptr {
+			baseExpression = baseExpression.Elem()
+		}
+
+		switch baseExpression.Kind() {
+		case reflect.Map:
+			key := baseExpression.Type().Key()
+			if !indexType.AssignableTo(key) {
+				if indexType.ConvertibleTo(key) {
+					indexExpression = indexExpression.Convert(key)
+				} else {
+					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
+				}
+			}
+			return baseExpression.MapIndex(indexExpression).IsValid()
+		case reflect.Array, reflect.String, reflect.Slice:
+			if canNumber(indexType.Kind()) {
+				i := int(castInt64(indexExpression))
+				return i >= 0 && i < baseExpression.Len()
+			} else {
+				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
+			}
+		case reflect.Struct:
+			if canNumber(indexType.Kind()) {
+				i := int(castInt64(indexExpression))
+				return i >= 0 && i < baseExpression.NumField()
+			} else if indexType.Kind() == reflect.String {
+				return getValue(indexExpression.String(), baseExpression).IsValid()
+			} else {
+				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
+			}
+		default:
+			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
+		}
+	case NodeIdentifier:
+		if st.Resolve(node.String()).IsValid() == false {
+			return false
+		}
+	case NodeField:
+		node := node.(*FieldNode)
+		resolved := st.context
+		for i := 0; i < len(node.Ident); i++ {
+			resolved = getValue(node.Ident[i], resolved)
+			if !resolved.IsValid() {
+				return false
+			}
+		}
+	case NodeChain:
+		node := node.(*ChainNode)
+		var value = st.evalPrimaryExpressionGroup(node.Node)
+		if !value.IsValid() {
+			return false
+		}
+		for i := 0; i < len(node.Field); i++ {
+			value := getValue(node.Field[i], value)
+			if !value.IsValid() {
+				return false
+			}
+		}
+	default:
+		//todo: maybe work some edge cases
+		if !(nodeType > beginExpressions && nodeType < endExpressions) {
+			node.errorf("unexpected %q node in isset clause", node)
+		}
+	}
+	return true
 }
 
 func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExprNode) reflect.Value {
