@@ -177,12 +177,28 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 
 func (t *Template) String() (template string) {
 	if t.extends != nil {
-		template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
+		if len(t.root.Nodes) > 0 && len(t.imports) == 0 {
+			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
+		} else {
+			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
+		}
 	}
-	for _, _import := range t.imports {
-		template += fmt.Sprintf("\n{{import %q}}", _import.ParseName)
+
+	for k, _import := range t.imports {
+		if t.extends == nil && k == 0 {
+			template += fmt.Sprintf("{{import %q}}", _import.ParseName)
+		} else {
+			template += fmt.Sprintf("\n{{import %q}}", _import.ParseName)
+		}
 	}
-	template += t.root.String()
+
+	if t.extends != nil || len(t.imports) > 0 {
+		if len(t.root.Nodes) > 0 {
+			template += "\n" + t.root.String()
+		}
+	} else {
+		template += t.root.String()
+	}
 	return
 }
 

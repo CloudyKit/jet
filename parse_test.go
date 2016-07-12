@@ -79,6 +79,7 @@ func TestParseTemplateExpressions(t *testing.T) {
 func TestParseTemplateBlockYield(t *testing.T) {
 	p := ParserTestCase{t}
 	p.TestPrintFile("block_yield.jet")
+	p.TestPrintFile("new_block_yield.jet")
 }
 
 func TestParseTemplateIndexSliceExpression(t *testing.T) {

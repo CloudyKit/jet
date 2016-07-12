@@ -163,7 +163,7 @@ func (t *Template) recover(errp *error) {
 
 func (s *Set) parse(name, text string) (t *Template, err error) {
 	t = &Template{Name: name, text: text, set: s, passedBlocks: make(map[string]*BlockNode)}
-	defer t.recover(&err)
+	//defer t.recover(&err)
 
 	t.ParseName = t.Name
 	t.startParse(lex(t.Name, text))
@@ -234,7 +234,7 @@ func (t *Template) parseTemplate() (next Node) {
 
 	for t.peek().typ != itemEOF {
 		switch n := t.textOrAction(); n.Type() {
-		case nodeEnd, nodeElse:
+		case nodeEnd, nodeElse, nodeContent:
 			t.errorf("unexpected %s", n)
 		default:
 			t.root.append(n)
@@ -280,25 +280,87 @@ func IsEmptyTree(n Node) bool {
 	return false
 }
 
+func (t *Template) blockParametersList(isDeclaring bool, context string) *BlockParameterList {
+	block := &BlockParameterList{}
+
+	t.expect(itemLeftParen, context)
+	for {
+		var expression Expression
+		next := t.nextNonSpace()
+		if next.typ == itemIdentifier {
+			identifier := next.val
+			switch t.peekNonSpace().typ {
+			case itemComma, itemRightParen:
+				block.List = append(block.List, BlockParameter{Identifier: identifier})
+				next = t.nextNonSpace()
+			case itemAssign:
+				t.nextNonSpace()
+				expression, next = t.parseExpression(context)
+				block.List = append(block.List, BlockParameter{Identifier: identifier, Expression: expression})
+			default:
+				if !isDeclaring {
+					switch next.typ {
+					case itemComma, itemRightParen:
+					default:
+						t.backup()
+						expression, next = t.parseExpression(context)
+						block.List = append(block.List, BlockParameter{Expression: expression})
+					}
+				}
+			}
+
+		} else if !isDeclaring {
+			switch next.typ {
+			case itemComma, itemRightParen:
+			default:
+				t.backup()
+				expression, next = t.parseExpression(context)
+				block.List = append(block.List, BlockParameter{Expression: expression})
+			}
+		}
+
+		if next.typ != itemComma {
+			t.backup()
+			break
+		}
+	}
+	t.expect(itemRightParen, context)
+	return block
+}
+
 // parseDefinition parses a {{block Ident pipeline?}} ...  {{end}} template definition and
 // installs the definition in the treeSet map.  The "define" keyword has already
 // been scanned.
 func (t *Template) parseBlock() Node {
-	const context = "block clause"
-	name := t.expect(itemIdentifier, context)
 
-	var pipe Expression
+	const context = "block clause"
+
+	var (
+		pipe Expression
+	)
+
+	name := t.expect(itemIdentifier, context)
+	bplist := t.blockParametersList(true, context)
 
 	if t.peekNonSpace().typ != itemRightDelim {
-		pipe = t.expression("block")
+		pipe = t.expression(context)
 	}
+
 	t.expect(itemRightDelim, context)
+
 	list, end := t.itemList()
-	if end.Type() != nodeEnd {
+	var contentList *ListNode
+
+	if end.Type() == nodeContent {
+		contentList, end = t.itemList()
+		if end.Type() != nodeEnd {
+			t.errorf("unexpected %s in %s", end, context)
+		}
+	} else if end.Type() != nodeEnd {
 		t.errorf("unexpected %s in %s", end, context)
 	}
 
-	block := t.newBlock(name.pos, t.lex.lineNumber(), name.val, pipe, list)
+	block := t.newBlock(name.pos, t.lex.lineNumber(), name.val, bplist, pipe, list, contentList)
 	t.passedBlocks[block.Name] = block
 	return block
 }
@@ -306,14 +368,50 @@ func (t *Template) parseBlock() Node {
 func (t *Template) parseYield() Node {
 	const context = "yield clause"
 	var pipe Expression
+	var name item
+	var bplist *BlockParameterList
+	var content *ListNode
+	var end Node
 
-	name := t.expect(itemIdentifier, context)
-
-	if t.peekNonSpace().typ != itemRightDelim {
-		pipe = t.expression("yield")
+	// content yield {{yield content}}
+	name = t.nextNonSpace()
+	if name.typ == itemContent {
+		if t.peekNonSpace().typ != itemRightDelim {
+			pipe = t.expression(context)
+		}
+		t.expect(itemRightDelim, context)
+		return t.newYield(name.pos, t.lex.lineNumber(), "", nil, pipe, nil, true)
+	} else if name.typ != itemIdentifier {
+		t.unexpected(name, context)
 	}
-	t.expect(itemRightDelim, context)
-	return t.newYield(name.pos, t.lex.lineNumber(), name.val, pipe)
+	bplist = t.blockParametersList(false, context)
+	typ := t.peekNonSpace().typ
+	if typ != itemRightDelim {
+		if typ == itemContent {
+			t.nextNonSpace()
+			t.expect(itemRightDelim, context)
+			content, end = t.itemList()
+			if end.Type() != nodeEnd {
+				t.errorf("unexpected %s in %s", end, context)
+			}
+		} else {
+			pipe = t.expression("yield")
+			if t.peekNonSpace().typ == itemContent {
+				t.nextNonSpace()
+				t.expect(itemRightDelim, context)
+				content, end = t.itemList()
+				if end.Type() != nodeEnd {
+					t.errorf("unexpected %s in %s", end, context)
+				}
+			} else {
+				t.expect(itemRightDelim, context)
+			}
+		}
+	} else {
+		t.expect(itemRightDelim, context)
+	}
+
+	return t.newYield(name.pos, t.lex.lineNumber(), name.val, bplist, pipe, content, false)
 }
 
 func (t *Template) parseInclude() Node {
@@ -330,15 +428,32 @@ func (t *Template) parseInclude() Node {
 	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
 }
 
-// itemList:
+// itemListBlock:
 //	textOrAction*
 // Terminates at {{end}} or {{else}}, returned separately.
+func (t *Template) itemListBlock() (list *ListNode, next Node) {
+	list = t.newList(t.peekNonSpace().pos)
+	for t.peekNonSpace().typ != itemEOF {
+		n := t.textOrAction()
+		switch n.Type() {
+		case nodeEnd, nodeContent:
+			return list, n
+		}
+		list.append(n)
+	}
+	t.errorf("unexpected EOF")
+	return
+}
+
+// itemListControl:
+//	textOrAction*
+// Terminates at {{end}}, returned separately.
 func (t *Template) itemList() (list *ListNode, next Node) {
 	list = t.newList(t.peekNonSpace().pos)
 	for t.peekNonSpace().typ != itemEOF {
 		n := t.textOrAction()
 		switch n.Type() {
-		case nodeEnd, nodeElse:
+		case nodeEnd, nodeElse, nodeContent:
 			return list, n
 		}
 		list.append(n)
@@ -372,6 +487,8 @@ func (t *Template) action() (n Node) {
 		return t.elseControl()
 	case itemEnd:
 		return t.endControl()
+	case itemContent:
+		return t.contentControl()
 	case itemIf:
 		return t.ifControl()
 	case itemRange:
@@ -382,10 +499,9 @@ func (t *Template) action() (n Node) {
 		return t.parseInclude()
 	case itemYield:
 		return t.parseYield()
-
 	}
-	t.backup()
 
+	t.backup()
 	action := t.newAction(t.peek().pos, t.lex.lineNumber())
 
 	expr := t.assignmentOrExpression("command")
@@ -407,15 +523,15 @@ func (t *Template) logicalExpression(context string) (Expression, item) {
 	}
 	return left, endtoken
 }
-func (t *Template) parserExpression(context string) (Expression, item) {
+func (t *Template) parseExpression(context string) (Expression, item) {
 	expression, endtoken := t.logicalExpression(context)
 	if endtoken.typ == itemTernary {
 		var left, right Expression
-		left, endtoken = t.parserExpression(context)
+		left, endtoken = t.parseExpression(context)
 		if endtoken.typ != itemColon {
 			t.unexpected(endtoken, "ternary expression")
 		}
-		right, endtoken = t.parserExpression(context)
+		right, endtoken = t.parseExpression(context)
 		expression = t.newTernaryExpr(expression.Position(), t.lex.lineNumber(), expression, left, right)
 	}
 	return expression, endtoken
@@ -478,7 +594,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 	var isSet bool
 	var isLet bool
 	var returned item
-	operand, returned = t.parserExpression(context)
+	operand, returned = t.parseExpression(context)
 	pos := operand.Position()
 	if returned.typ == itemComma || returned.typ == itemAssign {
 		isSet = true
@@ -502,7 +618,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 
 			switch returned.typ {
 			case itemComma:
-				operand, returned = t.parserExpression(context)
+				operand, returned = t.parseExpression(context)
 			case itemAssign:
 				isLet = returned.val == ":="
 				break leftloop
@@ -520,7 +636,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 		}
 
 		for {
-			operand, returned = t.parserExpression("assignment")
+			operand, returned = t.parseExpression("assignment")
 			right = append(right, operand)
 			if returned.typ != itemComma {
 				t.backup()
@@ -545,7 +661,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 }
 
 func (t *Template) expression(context string) Expression {
-	expr, tk := t.parserExpression(context)
+	expr, tk := t.parseExpression(context)
 	if expr == nil {
 		t.unexpected(tk, context)
 	}
@@ -671,7 +787,7 @@ RESET:
 
 			//found colon is slice expression
 			if t.peekNonSpace().typ != itemColon {
-				index, next = t.parserExpression("index|slice expression")
+				index, next = t.parseExpression("index|slice expression")
 			} else {
 				next = t.nextNonSpace()
 			}
@@ -703,7 +819,7 @@ func (t *Template) parseArguments() (args []Expression) {
 	if t.peekNonSpace().typ != itemRightParen {
 	loop:
 		for {
-			expr, endtoken := t.parserExpression("call expression")
+			expr, endtoken := t.parseExpression("call expression")
 			args = append(args, expr)
 			switch endtoken.typ {
 			case itemComma:
@@ -806,6 +922,13 @@ func (t *Template) rangeControl() Node {
 // End keyword is past.
 func (t *Template) endControl() Node {
 	return t.newEnd(t.expect(itemRightDelim, "end").pos)
+}
+
+// End:
+//	{{end}}
+// End keyword is past.
+func (t *Template) contentControl() Node {
+	return t.newContent(t.expect(itemRightDelim, "content").pos)
 }
 
 // Else:

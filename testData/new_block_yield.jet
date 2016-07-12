@@ -1,0 +1,54 @@
+{{ extends "base.jet" }}
+{{ block textfield(label,name,value) }}
+    {{label}}: <input type="text" name="{{name}}" value="{{value}}" />
+{{ end }}
+
+{{ block col(md=12,offset=0) }}
+    <div class="col-md-{{size}} col-md-offset-{{offset}}">{{ yield content }}</div>
+{{ end }}
+
+{{ block row() .}}
+    <div class="row">{{ yield content }}</div>
+{{ content }}
+    <div class="col-md-1"></div>
+    <div class="col-md-1"></div>
+    <div class="col-md-1"></div>
+{{ end }}
+
+{{ block header() }}
+    {{ yield row() content}}
+        {{ yield col(md=6) content }}
+{{ yield content }}
+        {{end}}
+    {{end}}
+{{ end }}
+
+{{ include "include.jet" }}
+
+===
+{{extends "base.jet"}}
+{{block textfield(label,name,value)}}
+    {{label}}: <input type="text" name="{{name}}" value="{{value}}" />
+{{end}}
+
+{{block col(md=12,offset=0)}}
+    <div class="col-md-{{size}} col-md-offset-{{offset}}">{{yield content}}</div>
+{{end}}
+
+{{block row() .}}
+    <div class="row">{{yield content}}</div>
+{{content}}
+    <div class="col-md-1"></div>
+    <div class="col-md-1"></div>
+    <div class="col-md-1"></div>
+{{end}}
+
+{{block header()}}
+    {{yield row() content}}
+        {{yield col(md=6) content}}
+{{yield content}}
+        {{end}}
+    {{end}}
+{{end}}
+
+{{include "include.jet"}}

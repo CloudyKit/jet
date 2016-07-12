@@ -66,6 +66,10 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 type Runtime struct {
 	*escapeeWriter
 	*scope
+	content         func(*Runtime, Expression)
+	blockParamentes *BlockParameterList
+	yieldParamentes *BlockParameterList
+
 	context reflect.Value
 }
 
@@ -163,6 +167,27 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 
 func (state *Runtime) Resolve(name string) reflect.Value {
 
+	//todo: benchmark this, make more readable
+	if state.blockParamentes != nil && state.yieldParamentes != nil {
+		if param, index := state.yieldParamentes.Param(name); index != -1 {
+			return state.evalPrimaryExpressionGroup(param)
+		} else if state.yieldParamentes != state.blockParamentes {
+			if param, index = state.blockParamentes.Param(name); index != -1 {
+				var j = 0
+				for i := 0; i < len(state.yieldParamentes.List); i++ {
+					yieldParam := &state.yieldParamentes.List[i]
+					if yieldParam.Identifier == "" {
+						if j == index {
+							return state.evalPrimaryExpressionGroup(yieldParam.Expression)
+						}
+						j++
+					}
+				}
+				return state.evalPrimaryExpressionGroup(param)
+			}
+		}
+	}
+
 	if name == "." {
 		return state.context
 	}
@@ -256,11 +281,58 @@ func (st *Runtime) executeLetList(set *SetNode) {
 	}
 }
 
+func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *BlockParameterList, expression Expression, content *ListNode) {
+	//todo: benchmark, test
+	oldcontentyield := st.content
+	st.content = func(st *Runtime, expression Expression) {
+
+		if content != nil {
+
+			blockp := st.blockParamentes
+			yieldp := st.yieldParamentes
+
+			_oldcontentyield := st.content
+
+			st.content = oldcontentyield
+			st.blockParamentes = blockParam
+			st.yieldParamentes = yieldParam
+			if expression != nil {
+				context := st.context
+				st.context = st.evalPrimaryExpressionGroup(expression)
+				st.executeList(content)
+				st.context = context
+			} else {
+				st.executeList(content)
+			}
+
+			st.content = _oldcontentyield
+
+			st.blockParamentes = blockp
+			st.yieldParamentes = yieldp
+		}
+	}
+
+	st.blockParamentes = blockParam
+	st.yieldParamentes = yieldParam
+
+	if expression != nil {
+		context := st.context
+		st.context = st.evalPrimaryExpressionGroup(expression)
+		st.executeList(block.List)
+		st.context = context
+	} else {
+		st.executeList(block.List)
+	}
+
+	st.content = oldcontentyield
+}
+
 func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {
+
 		case NodeText:
 			node := node.(*TextNode)
 			_, err := st.Writer.Write(node.Text)
@@ -370,19 +442,16 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 		case NodeYield:
 			node := node.(*YieldNode)
-			block, has := st.getBlock(node.Name)
-
-			if has == false || block == nil {
-				node.errorf("unresolved block %q!!", node.Name)
-			}
-
-			if node.Expression != nil {
-				context := st.context
-				st.context = st.evalPrimaryExpressionGroup(node.Expression)
-				st.executeList(block.List)
-				st.context = context
+			if node.IsContent {
+				if st.content != nil {
+					st.content(st, node.Expression)
+				}
 			} else {
-				st.executeList(block.List)
+				block, has := st.getBlock(node.Name)
+				if has == false || block == nil {
+					node.errorf("unresolved block %q!!", node.Name)
+				}
+				st.executeYieldBlock(block, block.Parameters, node.Parameters, node.Expression, node.Content)
 			}
 		case NodeBlock:
 			node := node.(*BlockNode)
@@ -390,14 +459,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			if has == false {
 				block = node
 			}
-			if node.Expression != nil {
-				context := st.context
-				st.context = st.evalPrimaryExpressionGroup(node.Expression)
-				st.executeList(block.List)
-				st.context = context
-			} else {
-				st.executeList(block.List)
-			}
+			st.executeYieldBlock(block, block.Parameters, block.Parameters, block.Expression, block.Content)
 		case NodeInclude:
 			node := node.(*IncludeNode)
 			var Name string

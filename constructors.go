@@ -109,6 +109,10 @@ func (t *Template) newEnd(pos Pos) *endNode {
 	return &endNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeEnd, Pos: pos}}
 }
 
+func (t *Template) newContent(pos Pos) *contentNode {
+	return &contentNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeContent, Pos: pos}}
+}
+
 func (t *Template) newElse(pos Pos, line int) *elseNode {
 	return &elseNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeElse, Pos: pos, Line: line}}
 }
@@ -121,12 +125,12 @@ func (t *Template) newRange(pos Pos, line int, set *SetNode, pipe Expression, li
 	return &RangeNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeRange, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
 }
 
-func (t *Template) newBlock(pos Pos, line int, name string, pipe Expression, listNode *ListNode) *BlockNode {
-	return &BlockNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeBlock, Line: line, Pos: pos}, Name: name, Expression: pipe, List: listNode}
+func (t *Template) newBlock(pos Pos, line int, name string, parameters *BlockParameterList, pipe Expression, listNode, contentListNode *ListNode) *BlockNode {
+	return &BlockNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeBlock, Line: line, Pos: pos}, Name: name, Parameters: parameters, Expression: pipe, List: listNode, Content: contentListNode}
 }
 
-func (t *Template) newYield(pos Pos, line int, name string, pipe Expression) *YieldNode {
-	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Expression: pipe}
+func (t *Template) newYield(pos Pos, line int, name string, bplist *BlockParameterList, pipe Expression, content *ListNode, isContent bool) *YieldNode {
+	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Parameters: bplist, Expression: pipe, Content: content, IsContent: isContent}
 }
 
 func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *IncludeNode {

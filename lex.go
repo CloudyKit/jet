@@ -86,13 +86,14 @@ const (
 	itemKeyword // used only to delimit the keywords
 	itemExtends
 	itemBlock
+	itemYield
+	itemContent
 	itemInclude
 	itemElse
 	itemEnd
 	itemIf
 	itemNil
 	itemRange
-	itemYield
 	itemImport
 	itemAnd
 	itemOr
@@ -110,17 +111,18 @@ var key = map[string]itemType{
 	"block":   itemBlock,
 	"yield":   itemYield,
 
-	"else":  itemElse,
-	"end":   itemEnd,
-	"if":    itemIf,
-	"set":   itemSet,
-	"range": itemRange,
-	"nil":   itemNil,
-	"and":   itemAnd,
-	"or":    itemOr,
-	"not":   itemNot,
-	"isset": itemIsset,
-	"len":   itemLen,
+	"else":    itemElse,
+	"end":     itemEnd,
+	"if":      itemIf,
+	"set":     itemSet,
+	"range":   itemRange,
+	"nil":     itemNil,
+	"and":     itemAnd,
+	"or":      itemOr,
+	"not":     itemNot,
+	"isset":   itemIsset,
+	"len":     itemLen,
+	"content": itemContent,
 }
 
 const eof = -1

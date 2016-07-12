@@ -83,6 +83,7 @@ const (
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
 	NodeRange                      //A range action.
+	nodeContent
 	//NodeWith                       //A with action.
 	NodeBlock
 	NodeInclude
@@ -346,6 +347,16 @@ func (e *endNode) String() string {
 	return "{{end}}"
 }
 
+//endNode represents an {{end}} action.
+//It does not appear in the final parse tree.
+type contentNode struct {
+	NodeBase
+}
+
+func (e *contentNode) String() string {
+	return "{{content}}"
+}
+
 //elseNode represents an {{else}} action. Does not appear in the final tree.
 type elseNode struct {
 	NodeBase //The line number in the input. Deprecated: Kept for compatibility.
@@ -434,33 +445,99 @@ type RangeNode struct {
 	BranchNode
 }
 
+type BlockParameter struct {
+	Identifier string
+	Expression Expression
+}
+
+type BlockParameterList struct {
+	NodeBase
+	List []BlockParameter
+}
+
+func (bplist *BlockParameterList) Param(name string) (Expression, int) {
+	for i := 0; i < len(bplist.List); i++ {
+		param := &bplist.List[i]
+		if param.Identifier == name {
+			return param.Expression, i
+		}
+	}
+	return nil, -1
+}
+
+func (bplist *BlockParameterList) String() (str string) {
+	buff := bytes.NewBuffer(nil)
+	for _, bp := range bplist.List {
+		if bp.Identifier == "" {
+			fmt.Fprintf(buff, "%s,", bp.Expression)
+		} else {
+			if bp.Expression == nil {
+				fmt.Fprintf(buff, "%s,", bp.Identifier)
+			} else {
+				fmt.Fprintf(buff, "%s=%s,", bp.Identifier, bp.Expression)
+			}
+		}
+	}
+	if buff.Len() > 0 {
+		str = buff.String()[0 : buff.Len()-1]
+	}
+	return
+}
+
 //BlockNode represents a {{block }} action.
 type BlockNode struct {
-	NodeBase              //The line number in the input. Deprecated: Kept for compatibility.
-	Name       string     //The name of the template (unquoted).
+	NodeBase        //The line number in the input. Deprecated: Kept for compatibility.
+	Name     string //The name of the template (unquoted).
+
+	Parameters *BlockParameterList
 	Expression Expression //The command to evaluate as dot for the template.
-	List       *ListNode
+
+	List    *ListNode
+	Content *ListNode
 }
 
 func (t *BlockNode) String() string {
-	if t.Expression == nil {
-		return fmt.Sprintf("{{block %s}}%s{{end}}", t.Name, t.List)
+	if t.Content != nil {
+		if t.Expression == nil {
+			return fmt.Sprintf("{{block %s(%s)}}%s{{content}}%s{{end}}", t.Name, t.Parameters, t.List, t.Content)
+		}
+		return fmt.Sprintf("{{block %s(%s) %s}}%s{{content}}%s{{end}}", t.Name, t.Parameters, t.Expression, t.List, t.Content)
 	}
-	return fmt.Sprintf("{{block %s %s}}%s{{end}}", t.Name, t.Expression, t.List)
+	if t.Expression == nil {
+		return fmt.Sprintf("{{block %s(%s)}}%s{{end}}", t.Name, t.Parameters, t.List)
+	}
+	return fmt.Sprintf("{{block %s(%s) %s}}%s{{end}}", t.Name, t.Parameters, t.Expression, t.List)
 }
 
 //YieldNode represents a {{yield}} action
 type YieldNode struct {
-	NodeBase              //The line number in the input. Deprecated: Kept for compatibility.
-	Name       string     //The name of the template (unquoted).
+	NodeBase          //The line number in the input. Deprecated: Kept for compatibility.
+	Name       string //The name of the template (unquoted).
+	Parameters *BlockParameterList
 	Expression Expression //The command to evaluate as dot for the template.
+	Content    *ListNode
+	IsContent  bool
 }
 
 func (t *YieldNode) String() string {
-	if t.Expression == nil {
-		return fmt.Sprintf("{{yield %s}}", t.Name)
+	if t.IsContent {
+		if t.Expression == nil {
+			return "{{yield content}}"
+		}
+		return fmt.Sprintf("{{yield content %s}}", t.Expression)
 	}
-	return fmt.Sprintf("{{yield %s %s}}", t.Name, t.Expression)
+
+	if t.Content != nil {
+		if t.Expression == nil {
+			return fmt.Sprintf("{{yield %s(%s) content}}%s{{end}}", t.Name, t.Parameters, t.Content)
+		}
+		return fmt.Sprintf("{{yield %s(%s) %s content}}%s{{end}}", t.Name, t.Parameters, t.Expression, t.Content)
+	}
+
+	if t.Expression == nil {
+		return fmt.Sprintf("{{yield %s(%s)}}", t.Name, t.Parameters)
+	}
+	return fmt.Sprintf("{{yield %s(%s) %s}}", t.Name, t.Parameters, t.Expression)
 }
 
 //IncludeNode represents a {{include }} action.
