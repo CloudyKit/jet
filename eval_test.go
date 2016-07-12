@@ -94,26 +94,26 @@ func TestEvalActionNode(t *testing.T) {
 	evalTestCase(t, data, nil, "actionNode_Field2", `Oi {{ user.Name }}<{{ user.Email }}>`, `Oi José Santos<email@example.com>`)
 	evalTestCase(t, data, nil, "actionNode_Method", `Oi {{ user.Format: "%s<%s>" }}`, `Oi José Santos<email@example.com>`)
 
-	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2 + 1))
-	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2 + 1 + 4))
-	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2 + 1 + 4 - 3))
-	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4 * 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2 + 4 * 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4 * 2 + 4))
-	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2 + 4 * 2 + 4))
-	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1.23*1 }}`, fmt.Sprint(1 * 1.23))
-	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3 % 2))
-	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1 * 3) % 2))
-	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2 * 5) / 3 % 1))
+	evalTestCase(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2+1))
+	evalTestCase(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2+1+4))
+	evalTestCase(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
+	evalTestCase(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4*2+4))
+	evalTestCase(t, data, nil, "actionNode_MultAdd2", `{{ 2+4*2+4 }}`, fmt.Sprint(2+4*2+4))
+	evalTestCase(t, data, nil, "actionNode_MultFloat", `{{ 1.23*1 }}`, fmt.Sprint(1*1.23))
+	evalTestCase(t, data, nil, "actionNode_Mod", `{{ 3%2 }}`, fmt.Sprint(3%2))
+	evalTestCase(t, data, nil, "actionNode_MultMod", `{{ (1*3)%2 }}`, fmt.Sprint((1*3)%2))
+	evalTestCase(t, data, nil, "actionNode_MultDivMod", `{{ (2*5)/ 3 %1 }}`, fmt.Sprint((2*5)/3%1))
 
-	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2 * 5) == 10))
-	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2 * 5) == 5))
-	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2 * 5) == 5 || true))
-	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2 * 5) == 5 || false))
+	evalTestCase(t, data, nil, "actionNode_Comparation", `{{ (2*5)==10 }}`, fmt.Sprint((2*5) == 10))
+	evalTestCase(t, data, nil, "actionNode_Comparatation2", `{{ (2*5)==5 }}`, fmt.Sprint((2*5) == 5))
+	evalTestCase(t, data, nil, "actionNode_Logical", `{{ (2*5)==5 || true }}`, fmt.Sprint((2*5) == 5 || true))
+	evalTestCase(t, data, nil, "actionNode_Logical2", `{{ (2*5)==5 || false }}`, fmt.Sprint((2*5) == 5 || false))
 
-	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5 * 5 > 2 * 12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5 * 5 >= 2 * 12.5))
-	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5 * 5 > 2 * 12.5) == (5 * 5 > 2 * 12.5)))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5*5 > 2*12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5*5 >= 2*12.5))
+	evalTestCase(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5*5 > 2*12.5) == (5*5 > 2*12.5)))
 }
 
 func TestEvalIfNode(t *testing.T) {
@@ -153,6 +153,7 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 		"{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}",
 		"\n<div class=\"col-md-12 col-md-offset-0\"></div>\n\t\t\n\t\t\n<div class=\"row 12\">\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t</div>\n\t\t\n\t\t\n<div class=\"header\">\n\t\n<div class=\"row 12\">\n\t\t\n<div class=\"col-md-6 col-md-offset-0\">\n\n<h1>Hey</h1>\n\t\t\n\t\t</div>\n\t\t\n\t</div>\n\t\t\n</div>\n\t\t",
 	)
+
 }
 
 func TestEvalRangeNode(t *testing.T) {
@@ -268,11 +269,14 @@ func init() {
 	if err != nil {
 		println(err.Error())
 	}
+
 	evalTemplateSet.AddGlobal("dummy", dummy)
 	evalTemplateSet.LoadTemplate("actionNode_dummy", `hello {{dummy("WORLD")}}`)
 	evalTemplateSet.LoadTemplate("noAllocFn", `hello {{ "José" }} {{1}} {{ "José" }}`)
 	evalTemplateSet.LoadTemplate("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
 	evalTemplateSet.LoadTemplate("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
+
+	evalTemplateSet.LoadTemplate("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
 }
 
 var ww io.Writer = (*devNull)(nil)
@@ -378,4 +382,18 @@ func BenchmarkRangeSimpleSetStd(b *testing.B) {
 			b.Error(err.Error())
 		}
 	}
+}
+
+func BenchmarkNewBlockYield(b *testing.B) {
+	t, _ := evalTemplateSet.GetTemplate("BenchNewBlock")
+	b.SetParallelism(10000)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			err := t.Execute(ww, nil, nil)
+			if err != nil {
+				b.Error(err.Error())
+			}
+		}
+	})
+
 }

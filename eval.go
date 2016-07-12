@@ -282,11 +282,12 @@ func (st *Runtime) executeLetList(set *SetNode) {
 }
 
 func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *BlockParameterList, expression Expression, content *ListNode) {
-	//todo: benchmark, test
-	oldcontentyield := st.content
-	st.content = func(st *Runtime, expression Expression) {
+	//after benchmark with sync.Pool, realize this allocation is not a bottleneck
+	//it's improves a bit the peformance in 1.6 but decreases in 1.7,
 
-		if content != nil {
+	oldcontentyield := st.content
+	if content != nil {
+		st.content = func(st *Runtime, expression Expression) {
 
 			blockp := st.blockParamentes
 			yieldp := st.yieldParamentes
