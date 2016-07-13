@@ -206,8 +206,8 @@ func TestEvalIndexExpression(t *testing.T) {
 	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_1", `{{.["name"]}}`, "value")
 	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_2", `{{.["non_existant_key"]}}`, "")
 	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_3", `{{isset(.["non_existant_key"]) ? "key does exist" : "key does not exist"}}`, "key does not exist")
-	//evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_4", `{{if v, ok := .["name"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does exist and has the value 'value'")
-	//evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_5", `{{if v, ok := .["non_existant_key"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does not exist")
+	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_4", `{{if v, ok := .["name"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does exist and has the value 'value'")
+	evalTestCase(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_5", `{{if v, ok := .["non_existant_key"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does not exist")
 	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	evalTestCase(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }

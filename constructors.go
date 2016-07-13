@@ -35,8 +35,8 @@ func (t *Template) newBuiltinExpr(pos Pos, line int, name string, nodetype NodeT
 	return &BuiltinExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodetype, Pos: pos, Line: line}, Name: name}
 }
 
-func (t *Template) newSet(pos Pos, line int, isLet bool, left, right []Expression) *SetNode {
-	return &SetNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSet, Pos: pos, Line: line}, Let: isLet, Left: left, Right: right}
+func (t *Template) newSet(pos Pos, line int, isLet, isIndexExprGetLookup bool, left, right []Expression) *SetNode {
+	return &SetNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSet, Pos: pos, Line: line}, Let: isLet, IndexExprGetLookup: isIndexExprGetLookup, Left: left, Right: right}
 }
 
 func (t *Template) newCallExpr(pos Pos, line int, expr Expression) *CallExprNode {

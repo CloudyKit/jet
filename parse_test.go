@@ -86,3 +86,8 @@ func TestParseTemplateIndexSliceExpression(t *testing.T) {
 	p := ParserTestCase{t}
 	p.TestPrintFile("index_slice_expression.jet")
 }
+
+func TestParseTemplateAssignment(t *testing.T) {
+	p := ParserTestCase{t}
+	p.TestPrintFile("assignment.jet")
+}

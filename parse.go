@@ -644,16 +644,22 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 			}
 		}
 
+		var isIndexExprGetLookup bool
+
 		if context == "range" {
 			if len(left) > 2 || len(right) > 1 {
 				t.errorf("unexpected number of operands in assign on range")
 			}
 		} else {
 			if len(left) != len(right) {
-				t.errorf("unexpected number of operands in assign on range")
+				if len(left) == 2 && len(right) == 1 && right[0].Type() == NodeIndexExpr {
+					isIndexExprGetLookup = true
+				} else {
+					t.errorf("unexpected number of operands in assign on range")
+				}
 			}
 		}
-		operand = t.newSet(pos, line, isLet, left, right)
+		operand = t.newSet(pos, line, isLet, isIndexExprGetLookup, left, right)
 		return
 
 	}

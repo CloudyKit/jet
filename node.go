@@ -171,6 +171,9 @@ type ActionNode struct {
 
 func (a *ActionNode) String() string {
 	if a.Set != nil {
+		if a.Pipe == nil {
+			return fmt.Sprintf("{{%s}}", a.Set)
+		}
 		return fmt.Sprintf("{{%s;%s}}", a.Set, a.Pipe)
 	}
 	return fmt.Sprintf("{{%s}}", a.Pipe)
@@ -369,9 +372,10 @@ func (e *elseNode) String() string {
 //SetNode represents a set action, ident( ',' ident)* '=' expression ( ',' expression )*
 type SetNode struct {
 	NodeBase
-	Let   bool
-	Left  []Expression
-	Right []Expression
+	Let                bool
+	IndexExprGetLookup bool
+	Left               []Expression
+	Right              []Expression
 }
 
 func (set *SetNode) String() string {
