@@ -24,6 +24,12 @@ import (
 	"text/template"
 )
 
+var defaultExtensions = []string{
+	".html.jet",
+	".jet.html",
+	".jet",
+}
+
 var defaultVariables = map[string]reflect.Value{
 	"lower":     reflect.ValueOf(strings.ToLower),
 	"upper":     reflect.ValueOf(strings.ToUpper),

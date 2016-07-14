@@ -115,8 +115,8 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 }
 
 func (st Runtime) YieldTemplate(name string, context interface{}) {
-	t, exists := st.set.getTemplate(name)
-	if !exists {
+	t, err := st.set.GetTemplate(name)
+	if err != nil {
 		panic(fmt.Errorf("include: template %q was not found", name))
 	}
 
@@ -497,9 +497,9 @@ func (st *Runtime) executeList(list *ListNode) {
 				node.errorf("unexpected expression type %q in template yielding", getTypeString(name))
 			}
 
-			t, exists := st.set.getTemplate(Name)
-			if !exists {
-				node.errorf("template %q was not found!!", node.Name)
+			t, err := st.set.getTemplate(Name, node.TemplateName)
+			if err != nil {
+				node.error(err)
 			} else {
 				st.newScope()
 				st.blocks = t.processedBlocks

@@ -163,7 +163,7 @@ func (t *Template) recover(errp *error) {
 
 func (s *Set) parse(name, text string) (t *Template, err error) {
 	t = &Template{Name: name, text: text, set: s, passedBlocks: make(map[string]*BlockNode)}
-	//defer t.recover(&err)
+	defer t.recover(&err)
 
 	t.ParseName = t.Name
 	t.startParse(lex(t.Name, text))
@@ -210,12 +210,12 @@ func (t *Template) parseTemplate() (next Node) {
 						t.errorf("Unexpected extends clause, all import clause should come after extends clause")
 					}
 					var err error
-					t.extends, err = t.set.loadTemplate(s, "")
+					t.extends, err = t.set.getTemplateWhileParsing(t.Name, s)
 					if err != nil {
 						t.error(err)
 					}
 				} else {
-					tt, err := t.set.loadTemplate(s, "")
+					tt, err := t.set.getTemplateWhileParsing(t.Name, s)
 					if err != nil {
 						t.error(err)
 					}
