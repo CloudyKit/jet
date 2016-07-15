@@ -1,6 +1,6 @@
 {{ extends "layout.jet" }}
 
-{{ block documentBody }}
+{{ block documentBody() }}
     <h1>List of todos </h1>
     <ul>
         {{ range id,value := . }}
