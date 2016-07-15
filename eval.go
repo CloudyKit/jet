@@ -1251,7 +1251,7 @@ func isFloat(kind reflect.Kind) bool {
 	return kind == reflect.Float32 || kind == reflect.Float64
 }
 
-//checkEquality of two reflect values in the semantic of the jet runtime
+// checkEquality of two reflect values in the semantic of the jet runtime
 func checkEquality(v1, v2 reflect.Value) bool {
 
 	if !v1.IsValid() || !v2.IsValid() {

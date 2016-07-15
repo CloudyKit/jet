@@ -92,8 +92,8 @@ func (s *Set) AddGopathPath(path string) {
 	}
 }
 
-//fileExists checks if the template name exists by walking the list of template paths
-//returns string with the full path of the template and bool true if the template file was found
+// fileExists checks if the template name exists by walking the list of template paths
+// returns string with the full path of the template and bool true if the template file was found
 func (s *Set) fileExists(name string) (string, bool) {
 	for i := 0; i < len(s.dirs); i++ {
 		fileName := path.Join(s.dirs[i], name)
@@ -104,10 +104,10 @@ func (s *Set) fileExists(name string) (string, bool) {
 	return "", false
 }
 
-//resolveName try to resolve a template name, the steps as follow
+// resolveName try to resolve a template name, the steps as follow
 //	1. try provided path
 //	2. try provided path+defaultExtensions
-//ex: set.resolveName("catalog/products.list") with []string{"html.jet","jet"} defaultExtensions set
+// ex: set.resolveName("catalog/products.list") with []string{"html.jet","jet"} defaultExtensions set
 //	try catalog/products.list
 //	try catalog/products.list.html.jet
 //	try catalog/products.list.jet
@@ -142,7 +142,7 @@ func (s *Set) resolveNameSibling(name, sibling string) (newName, fileName string
 	return
 }
 
-//Parse parses the template, this method will link the template to the set but not the set to
+// Parse parses the template, this method will link the template to the set but not the set to
 func (s *Set) Parse(name, content string) (*Template, error) {
 	s.tmx.RLock()
 	t, err := s.parse(name, content)

@@ -1,16 +1,16 @@
-//Copyright 2016 José Santos <henrique_1609@me.com>
+// Copyright 2016 José Santos <henrique_1609@me.com>
 //
-//Licensed under the Apache License, Version 2.0 (the "License");
-//you may not use this file except in compliance with the License.
-//You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-//http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
-//Unless required by applicable law or agreed to in writing, software
-//distributed under the License is distributed on an "AS IS" BASIS,
-//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//See the License for the specific language governing permissions and
-//limitations under the License.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package jet
 
@@ -34,15 +34,15 @@ type Expression interface {
 	Node
 }
 
-//Pos represents a byte position in the original input text from which
-//this template was parsed.
+// Pos represents a byte position in the original input text from which
+// this template was parsed.
 type Pos int
 
 func (p Pos) Position() Pos {
 	return p
 }
 
-//NodeType identifies the type of a parse tree node.
+// NodeType identifies the type of a parse tree node.
 type NodeType int
 
 type NodeBase struct {
@@ -64,8 +64,8 @@ func (node *NodeBase) errorf(format string, v ...interface{}) {
 	panic(fmt.Errorf("Jet Runtime Error(%q:%d): %s", node.TemplateName, node.Line, fmt.Sprintf(format, v...)))
 }
 
-//Type returns itself and provides an easy default implementation
-//for embedding in a Node. Embedded in all non-trivial Nodes.
+// Type returns itself and provides an easy default implementation
+// for embedding in a Node. Embedded in all non-trivial Nodes.
 func (t NodeType) Type() NodeType {
 	return t
 }
@@ -107,9 +107,9 @@ const (
 	endExpressions
 )
 
-//Nodes.
+// Nodes.
 
-//ListNode holds a sequence of nodes.
+// ListNode holds a sequence of nodes.
 type ListNode struct {
 	NodeBase
 	Nodes []Node //The element nodes in lexical order.
@@ -127,7 +127,7 @@ func (l *ListNode) String() string {
 	return b.String()
 }
 
-//TextNode holds plain text.
+// TextNode holds plain text.
 type TextNode struct {
 	NodeBase
 	Text []byte
@@ -137,7 +137,7 @@ func (t *TextNode) String() string {
 	return fmt.Sprintf(textFormat, t.Text)
 }
 
-//PipeNode holds a pipeline with optional declaration
+// PipeNode holds a pipeline with optional declaration
 type PipeNode struct {
 	NodeBase                //The line number in the input. Deprecated: Kept for compatibility.
 	Cmds     []*CommandNode //The commands in lexical order.
@@ -158,9 +158,9 @@ func (p *PipeNode) String() string {
 	return s
 }
 
-//ActionNode holds an action (something bounded by delimiters).
-//Control actions have their own nodes; ActionNode represents simple
-//ones such as field evaluations and parenthesized pipelines.
+// ActionNode holds an action (something bounded by delimiters).
+// Control actions have their own nodes; ActionNode represents simple
+// ones such as field evaluations and parenthesized pipelines.
 type ActionNode struct {
 	NodeBase
 	Set  *SetNode
@@ -177,7 +177,7 @@ func (a *ActionNode) String() string {
 	return fmt.Sprintf("{{%s}}", a.Pipe)
 }
 
-//CommandNode holds a command (a pipeline inside an evaluating action).
+// CommandNode holds a command (a pipeline inside an evaluating action).
 type CommandNode struct {
 	NodeBase
 	Call     bool
@@ -208,7 +208,7 @@ func (c *CommandNode) String() string {
 	return s
 }
 
-//IdentifierNode holds an identifier.
+// IdentifierNode holds an identifier.
 type IdentifierNode struct {
 	NodeBase
 	Ident string //The identifier's name.
@@ -218,7 +218,7 @@ func (i *IdentifierNode) String() string {
 	return i.Ident
 }
 
-//NilNode holds the special identifier 'nil' representing an untyped nil constant.
+// NilNode holds the special identifier 'nil' representing an untyped nil constant.
 type NilNode struct {
 	NodeBase
 }
@@ -227,9 +227,9 @@ func (n *NilNode) String() string {
 	return "nil"
 }
 
-//FieldNode holds a field (identifier starting with '.').
-//The names may be chained ('.x.y').
-//The period is dropped from each ident.
+// FieldNode holds a field (identifier starting with '.').
+// The names may be chained ('.x.y').
+// The period is dropped from each ident.
 type FieldNode struct {
 	NodeBase
 	Ident []string //The identifiers in lexical order.
@@ -243,16 +243,16 @@ func (f *FieldNode) String() string {
 	return s
 }
 
-//ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
-//The names may be chained ('.x.y').
-//The periods are dropped from each ident.
+// ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
+// The names may be chained ('.x.y').
+// The periods are dropped from each ident.
 type ChainNode struct {
 	NodeBase
 	Node  Node
 	Field []string //The identifiers in lexical order.
 }
 
-//Add adds the named field (which should start with a period) to the end of the chain.
+// Add adds the named field (which should start with a period) to the end of the chain.
 func (c *ChainNode) Add(field string) {
 	if len(field) == 0 || field[0] != '.' {
 		panic("no dot in field")
@@ -275,7 +275,7 @@ func (c *ChainNode) String() string {
 	return s
 }
 
-//BoolNode holds a boolean constant.
+// BoolNode holds a boolean constant.
 type BoolNode struct {
 	NodeBase
 	True bool //The value of the boolean constant.
@@ -288,9 +288,9 @@ func (b *BoolNode) String() string {
 	return "false"
 }
 
-//NumberNode holds a number: signed or unsigned integer, float, or complex.
-//The value is parsed and stored under all the types that can represent the value.
-//This simulates in a small amount of code the behavior of Go's ideal constants.
+// NumberNode holds a number: signed or unsigned integer, float, or complex.
+// The value is parsed and stored under all the types that can represent the value.
+// This simulates in a small amount of code the behavior of Go's ideal constants.
 type NumberNode struct {
 	NodeBase
 
@@ -305,8 +305,8 @@ type NumberNode struct {
 	Text       string     //The original textual representation from the input.
 }
 
-//simplifyComplex pulls out any other types that are represented by the complex number.
-//These all require that the imaginary part be zero.
+// simplifyComplex pulls out any other types that are represented by the complex number.
+// These all require that the imaginary part be zero.
 func (n *NumberNode) simplifyComplex() {
 	n.IsFloat = imag(n.Complex128) == 0
 	if n.IsFloat {
@@ -326,7 +326,7 @@ func (n *NumberNode) String() string {
 	return n.Text
 }
 
-//StringNode holds a string constant. The value has been "unquoted".
+// StringNode holds a string constant. The value has been "unquoted".
 type StringNode struct {
 	NodeBase
 
@@ -338,8 +338,8 @@ func (s *StringNode) String() string {
 	return s.Quoted
 }
 
-//endNode represents an {{end}} action.
-//It does not appear in the final parse tree.
+// endNode represents an {{end}} action.
+// It does not appear in the final parse tree.
 type endNode struct {
 	NodeBase
 }
@@ -348,8 +348,8 @@ func (e *endNode) String() string {
 	return "{{end}}"
 }
 
-//endNode represents an {{end}} action.
-//It does not appear in the final parse tree.
+// endNode represents an {{end}} action.
+// It does not appear in the final parse tree.
 type contentNode struct {
 	NodeBase
 }
@@ -358,7 +358,7 @@ func (e *contentNode) String() string {
 	return "{{content}}"
 }
 
-//elseNode represents an {{else}} action. Does not appear in the final tree.
+// elseNode represents an {{else}} action. Does not appear in the final tree.
 type elseNode struct {
 	NodeBase //The line number in the input. Deprecated: Kept for compatibility.
 }
@@ -367,7 +367,7 @@ func (e *elseNode) String() string {
 	return "{{else}}"
 }
 
-//SetNode represents a set action, ident( ',' ident)* '=' expression ( ',' expression )*
+// SetNode represents a set action, ident( ',' ident)* '=' expression ( ',' expression )*
 type SetNode struct {
 	NodeBase
 	Let                bool
@@ -402,7 +402,7 @@ func (set *SetNode) String() string {
 	return s
 }
 
-//BranchNode is the common representation of if, range, and with.
+// BranchNode is the common representation of if, range, and with.
 type BranchNode struct {
 	NodeBase
 	Set        *SetNode
@@ -437,12 +437,12 @@ func (b *BranchNode) String() string {
 	}
 }
 
-//IfNode represents an {{if}} action and its commands.
+// IfNode represents an {{if}} action and its commands.
 type IfNode struct {
 	BranchNode
 }
 
-//RangeNode represents a {{range}} action and its commands.
+// RangeNode represents a {{range}} action and its commands.
 type RangeNode struct {
 	BranchNode
 }
@@ -486,7 +486,7 @@ func (bplist *BlockParameterList) String() (str string) {
 	return
 }
 
-//BlockNode represents a {{block }} action.
+// BlockNode represents a {{block }} action.
 type BlockNode struct {
 	NodeBase        //The line number in the input. Deprecated: Kept for compatibility.
 	Name     string //The name of the template (unquoted).
@@ -511,7 +511,7 @@ func (t *BlockNode) String() string {
 	return fmt.Sprintf("{{block %s(%s) %s}}%s{{end}}", t.Name, t.Parameters, t.Expression, t.List)
 }
 
-//YieldNode represents a {{yield}} action
+// YieldNode represents a {{yield}} action
 type YieldNode struct {
 	NodeBase          //The line number in the input. Deprecated: Kept for compatibility.
 	Name       string //The name of the template (unquoted).
@@ -542,7 +542,7 @@ func (t *YieldNode) String() string {
 	return fmt.Sprintf("{{yield %s(%s) %s}}", t.Name, t.Parameters, t.Expression)
 }
 
-//IncludeNode represents a {{include }} action.
+// IncludeNode represents a {{include }} action.
 type IncludeNode struct {
 	NodeBase
 	Name       Expression
@@ -566,38 +566,38 @@ func (node *binaryExprNode) String() string {
 	return fmt.Sprintf("%s %s %s", node.Left, node.Operator.val, node.Right)
 }
 
-//AdditiveExprNode represents an add or subtract expression
-//ex: expression ( '+' | '-' ) expression
+// AdditiveExprNode represents an add or subtract expression
+// ex: expression ( '+' | '-' ) expression
 type AdditiveExprNode struct {
 	binaryExprNode
 }
 
-//MultiplicativeExprNode represents a multiplication, division, or module expression
-//ex: expression ( '*' | '/' | '%' ) expression
+// MultiplicativeExprNode represents a multiplication, division, or module expression
+// ex: expression ( '*' | '/' | '%' ) expression
 type MultiplicativeExprNode struct {
 	binaryExprNode
 }
 
-//LogicalExprNode represents a boolean expression, 'and' or 'or'
-//ex: expression ( '&&' | '||' ) expression
+// LogicalExprNode represents a boolean expression, 'and' or 'or'
+// ex: expression ( '&&' | '||' ) expression
 type LogicalExprNode struct {
 	binaryExprNode
 }
 
-//ComparativeExprNode represents a comparative expression
-//ex: expression ( '==' | '!=' ) expression
+// ComparativeExprNode represents a comparative expression
+// ex: expression ( '==' | '!=' ) expression
 type ComparativeExprNode struct {
 	binaryExprNode
 }
 
-//NumericComparativeExprNode represents a numeric comparative expression
-//ex: expression ( '<' | '>' | '<=' | '>=' ) expression
+// NumericComparativeExprNode represents a numeric comparative expression
+// ex: expression ( '<' | '>' | '<=' | '>=' ) expression
 type NumericComparativeExprNode struct {
 	binaryExprNode
 }
 
-//NotExprNode represents a negate expression
-//ex: '!' expression
+// NotExprNode represents a negate expression
+// ex: '!' expression
 type NotExprNode struct {
 	NodeBase
 	Expr Expression
@@ -607,8 +607,8 @@ func (s *NotExprNode) String() string {
 	return fmt.Sprintf("!%s", s.Expr)
 }
 
-//CallExprNode represents a call expression
-//ex: expression '(' (expression (',' expression)* )? ')'
+// CallExprNode represents a call expression
+// ex: expression '(' (expression (',' expression)* )? ')'
 type CallExprNode struct {
 	NodeBase
 	BaseExpr Expression
@@ -626,8 +626,8 @@ func (s *CallExprNode) String() string {
 	return fmt.Sprintf("%s(%s)", s.BaseExpr, arguments)
 }
 
-//TernaryExprNod represents a ternary expression,
-//ex: expression '?' expression ':' expression
+// TernaryExprNod represents a ternary expression,
+// ex: expression '?' expression ':' expression
 type TernaryExprNode struct {
 	NodeBase
 	Boolean, Left, Right Expression

@@ -86,7 +86,7 @@ func (t *Template) newNil(pos Pos) *NilNode {
 }
 
 func (t *Template) newField(pos Pos, ident string) *FieldNode {
-	return &FieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
+	return &FieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} //[1:] to drop leading period
 }
 
 func (t *Template) newChain(pos Pos, node Node) *ChainNode {
@@ -148,11 +148,11 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 		n.IsInt = true
 		n.Uint64 = uint64(_rune)
 		n.IsUint = true
-		n.Float64 = float64(_rune) // odd but those are the rules.
+		n.Float64 = float64(_rune) //odd but those are the rules.
 		n.IsFloat = true
 		return n, nil
 	case itemComplex:
-		// fmt.Sscan can parse the pair, so let it do the work.
+		//fmt.Sscan can parse the pair, so let it do the work.
 		if _, err := fmt.Sscan(text, &n.Complex128); err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 		n.simplifyComplex()
 		return n, nil
 	}
-	// Imaginary constants can only be complex unless they are zero.
+	//Imaginary constants can only be complex unless they are zero.
 	if len(text) > 0 && text[len(text)-1] == 'i' {
 		f, err := strconv.ParseFloat(text[:len(text)-1], 64)
 		if err == nil {
