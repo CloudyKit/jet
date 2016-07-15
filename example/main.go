@@ -2,10 +2,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
+	"fmt"
 	"github.com/CloudyKit/jet"
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 )
 
 var views = jet.NewHTMLSet("./views")
@@ -19,6 +23,14 @@ func main() {
 	//todo: remove in production
 	views.SetDevelopmentMode(true)
 
+	views.AddGlobalFunc("base64", func(a jet.Arguments) reflect.Value {
+		a.RequireNumOfArguments("base64", 1, 1)
+
+		buffer := bytes.NewBuffer(nil)
+		fmt.Fprint(buffer, a.Get(0))
+
+		return reflect.ValueOf(base64.URLEncoding.EncodeToString(buffer.Bytes()))
+	})
 	var todos = map[string]*tTODO{
 		"add an show todo page":   &tTODO{Text: "Add an show todo page to the example project", Done: true},
 		"add an add todo page":    &tTODO{Text: "Add an add todo page to the example project"},

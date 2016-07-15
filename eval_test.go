@@ -169,6 +169,12 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_Add", `{{ 2+1 }}`, fmt.Sprint(2+1))
 	RunJetTest(t, data, nil, "actionNode_Add3", `{{ 2+1+4 }}`, fmt.Sprint(2+1+4))
 	RunJetTest(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
+
+	RunJetTest(t, data, nil, "actionNode_AddIntString", `{{ 2+"1" }}`, "3")
+	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "12")
+
+	//this is an error RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"-2 }}`, "12")
+
 	RunJetTest(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
 	RunJetTest(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
 	RunJetTest(t, data, nil, "actionNode_MultAdd1", `{{ 4*2+4 }}`, fmt.Sprint(4*2+4))

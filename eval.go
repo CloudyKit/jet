@@ -19,6 +19,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 )
 
@@ -859,6 +860,17 @@ func toInt(v reflect.Value) int64 {
 		return int64(v.Float())
 	} else if isUint(kind) {
 		return int64(v.Uint())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseInt(v.String(), 10, 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to int64", v.Type()))
 	return 0
@@ -868,12 +880,21 @@ func toUint(v reflect.Value) uint64 {
 	kind := v.Kind()
 	if isUint(kind) {
 		return v.Uint()
-	}
-	if isInt(kind) {
+	} else if isInt(kind) {
 		return uint64(v.Int())
-	}
-	if isFloat(kind) {
+	} else if isFloat(kind) {
 		return uint64(v.Float())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseUint(v.String(), 10, 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to uint64", v.Type()))
 	return 0
@@ -883,12 +904,21 @@ func toFloat(v reflect.Value) float64 {
 	kind := v.Kind()
 	if isFloat(kind) {
 		return v.Float()
-	}
-	if isInt(kind) {
+	} else if isInt(kind) {
 		return float64(v.Int())
-	}
-	if isUint(kind) {
+	} else if isUint(kind) {
 		return float64(v.Uint())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseFloat(v.String(), 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to float64", v.Type()))
 	return 0
@@ -994,6 +1024,12 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				left = reflect.ValueOf(left.Uint() + toUint(right))
 			} else {
 				left = reflect.ValueOf(left.Uint() - toUint(right))
+			}
+		} else if kind == reflect.String {
+			if isAdditive {
+				left = reflect.ValueOf(left.String() + fmt.Sprint(right))
+			} else {
+				node.Right.errorf("minus signal is not allowed with strings")
 			}
 		} else {
 			node.Left.errorf("a non numeric value in additive expression")
