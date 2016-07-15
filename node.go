@@ -101,8 +101,6 @@ const (
 	NodeLogicalExpr
 	NodeCallExpr
 	NodeNotExpr
-	NodeIssetExpr
-	NodeLenExpr
 	NodeTernaryExpr
 	NodeIndexExpr
 	NodeSliceExpr
@@ -626,24 +624,6 @@ func (s *CallExprNode) String() string {
 		arguments += expr.String()
 	}
 	return fmt.Sprintf("%s(%s)", s.BaseExpr, arguments)
-}
-
-//ex: builtinToken '(' (expression (',' expression)* )? ')'
-type BuiltinExprNode struct {
-	NodeBase
-	Name string
-	Args []Expression
-}
-
-func (s *BuiltinExprNode) String() string {
-	arguments := ""
-	for i, expr := range s.Args {
-		if i > 0 {
-			arguments += ", "
-		}
-		arguments += expr.String()
-	}
-	return fmt.Sprintf("%s(%s)", s.Name, arguments)
 }
 
 //TernaryExprNod represents a ternary expression,

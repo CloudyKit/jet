@@ -30,23 +30,54 @@ var defaultExtensions = []string{
 	".jet",
 }
 
-var defaultVariables = map[string]reflect.Value{
-	"lower":     reflect.ValueOf(strings.ToLower),
-	"upper":     reflect.ValueOf(strings.ToUpper),
-	"hasPrefix": reflect.ValueOf(strings.HasPrefix),
-	"hasSuffix": reflect.ValueOf(strings.HasSuffix),
-	"repeat":    reflect.ValueOf(strings.Repeat),
-	"replace":   reflect.ValueOf(strings.Replace),
-	"split":     reflect.ValueOf(strings.Split),
-	"trimSpace": reflect.ValueOf(strings.TrimSpace),
-	"map":       reflect.ValueOf(newMap),
-	"html":      reflect.ValueOf(html.EscapeString),
-	"url":       reflect.ValueOf(url.QueryEscape),
-	"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
-	"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
-	"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
-	"writeJson": reflect.ValueOf(jsonRenderer),
-	"json":      reflect.ValueOf(json.Marshal),
+var defaultVariables map[string]reflect.Value
+
+func init() {
+	defaultVariables = map[string]reflect.Value{
+		"lower":     reflect.ValueOf(strings.ToLower),
+		"upper":     reflect.ValueOf(strings.ToUpper),
+		"hasPrefix": reflect.ValueOf(strings.HasPrefix),
+		"hasSuffix": reflect.ValueOf(strings.HasSuffix),
+		"repeat":    reflect.ValueOf(strings.Repeat),
+		"replace":   reflect.ValueOf(strings.Replace),
+		"split":     reflect.ValueOf(strings.Split),
+		"trimSpace": reflect.ValueOf(strings.TrimSpace),
+		"map":       reflect.ValueOf(newMap),
+		"html":      reflect.ValueOf(html.EscapeString),
+		"url":       reflect.ValueOf(url.QueryEscape),
+		"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
+		"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
+		"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
+		"writeJson": reflect.ValueOf(jsonRenderer),
+		"json":      reflect.ValueOf(json.Marshal),
+		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
+			for i := 0; i < len(a.argExpr); i++ {
+				if !a.runtime.isSet(a.argExpr[i]) {
+					return valueBoolFALSE
+				}
+			}
+			return valueBoolTRUE
+		})),
+		"len": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
+
+			expression := a.Get(0)
+
+			if expression.Kind() == reflect.Ptr {
+				expression = expression.Elem()
+			}
+
+			switch expression.Kind() {
+			case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
+				return reflect.ValueOf(expression.Len())
+			case reflect.Struct:
+				return reflect.ValueOf(expression.NumField())
+			}
+
+			a.Panicf("inválid value type %s in len builtin", expression.Type())
+			return reflect.Value{}
+		})),
+	}
+
 }
 
 func jsonRenderer(v interface{}) RendererFunc {

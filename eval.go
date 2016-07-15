@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	funcType       = reflect.TypeOf(Func(nil))
 	stringerType   = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 	rangerType     = reflect.TypeOf((*Ranger)(nil)).Elem()
 	rendererType   = reflect.TypeOf((*Renderer)(nil)).Elem()
@@ -66,11 +67,13 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 type Runtime struct {
 	*escapeeWriter
 	*scope
-	content         func(*Runtime, Expression)
-	blockParamentes *BlockParameterList
-	yieldParamentes *BlockParameterList
+	content func(*Runtime, Expression)
 
-	context reflect.Value
+	blockParameters *BlockParameterList
+	yieldParameters *BlockParameterList
+
+	translator Translator
+	context    reflect.Value
 }
 
 func (st *Runtime) newScope() {
@@ -168,14 +171,14 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 func (state *Runtime) Resolve(name string) reflect.Value {
 
 	//todo: benchmark this, make more readable
-	if state.blockParamentes != nil && state.yieldParamentes != nil {
-		if param, index := state.yieldParamentes.Param(name); index != -1 {
+	if state.blockParameters != nil && state.yieldParameters != nil {
+		if param, index := state.yieldParameters.Param(name); index != -1 {
 			return state.evalPrimaryExpressionGroup(param)
-		} else if state.yieldParamentes != state.blockParamentes {
-			if param, index = state.blockParamentes.Param(name); index != -1 {
+		} else if state.yieldParameters != state.blockParameters {
+			if param, index = state.blockParameters.Param(name); index != -1 {
 				var j = 0
-				for i := 0; i < len(state.yieldParamentes.List); i++ {
-					yieldParam := &state.yieldParamentes.List[i]
+				for i := 0; i < len(state.yieldParameters.List); i++ {
+					yieldParam := &state.yieldParameters.List[i]
 					if yieldParam.Identifier == "" {
 						if j == index {
 							return state.evalPrimaryExpressionGroup(yieldParam.Expression)
@@ -312,14 +315,14 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 	if content != nil {
 		st.content = func(st *Runtime, expression Expression) {
 
-			blockp := st.blockParamentes
-			yieldp := st.yieldParamentes
+			blockp := st.blockParameters
+			yieldp := st.yieldParameters
 
 			_oldcontentyield := st.content
 
 			st.content = oldcontentyield
-			st.blockParamentes = blockParam
-			st.yieldParamentes = yieldParam
+			st.blockParameters = blockParam
+			st.yieldParameters = yieldParam
 			if expression != nil {
 				context := st.context
 				st.context = st.evalPrimaryExpressionGroup(expression)
@@ -331,13 +334,13 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 
 			st.content = _oldcontentyield
 
-			st.blockParamentes = blockp
-			st.yieldParamentes = yieldp
+			st.blockParameters = blockp
+			st.yieldParameters = yieldp
 		}
 	}
 
-	st.blockParamentes = blockParam
-	st.yieldParamentes = yieldParam
+	st.blockParameters = blockParam
+	st.yieldParameters = yieldParam
 
 	if expression != nil {
 		context := st.context
@@ -557,22 +560,22 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		if baseExpr.Kind() != reflect.Func {
 			node.errorf("node %q is not func", node)
 		}
-		return st.evalCallExpression(baseExpr, node.Args)[0]
-	case NodeLenExpr:
-		node := node.(*BuiltinExprNode)
-		expression := st.evalPrimaryExpressionGroup(node.Args[0])
-
-		if expression.Kind() == reflect.Ptr {
-			expression = expression.Elem()
-		}
-
-		switch expression.Kind() {
-		case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
-			return reflect.ValueOf(expression.Len())
-		case reflect.Struct:
-			return reflect.ValueOf(expression.NumField())
-		}
-		node.errorf("inválid value type %s in len builtin", expression.Type())
+		return st.evalCallExpression(baseExpr, node.Args)
+	//case NodeLenExpr:
+	//	node := node.(*BuiltinExprNode)
+	//	expression := st.evalPrimaryExpressionGroup(node.Args[0])
+	//
+	//	if expression.Kind() == reflect.Ptr {
+	//		expression = expression.Elem()
+	//	}
+	//
+	//	switch expression.Kind() {
+	//	case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
+	//		return reflect.ValueOf(expression.Len())
+	//	case reflect.Struct:
+	//		return reflect.ValueOf(expression.NumField())
+	//	}
+	//	node.errorf("inválid value type %s in len builtin", expression.Type())
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
 
@@ -639,29 +642,29 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 
 		return baseExpression.Slice(index, length)
 
-	case NodeIssetExpr:
-		node := node.(*BuiltinExprNode)
-		for i := 0; i < len(node.Args); i++ {
-			if !st.Isset(node.Args[i]) {
-				return valueBoolFALSE
-			}
-		}
-		return valueBoolTRUE
+		//case NodeIssetExpr:
+		//	node := node.(*BuiltinExprNode)
+		//	for i := 0; i < len(node.Args); i++ {
+		//		if !st.isSet(node.Args[i]) {
+		//			return valueBoolFALSE
+		//		}
+		//	}
+		//	return valueBoolTRUE
 	}
 	return st.evalBaseExpressionGroup(node)
 }
 
-func (st *Runtime) Isset(node Node) bool {
+func (st *Runtime) isSet(node Node) bool {
 	nodeType := node.Type()
 
 	switch nodeType {
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
-		if !st.Isset(node.Base) {
+		if !st.isSet(node.Base) {
 			return false
 		}
 
-		if !st.Isset(node.Index) {
+		if !st.isSet(node.Index) {
 			return false
 		}
 
@@ -1062,12 +1065,25 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	return reflect.Value{}
 }
 
-func (st *Runtime) evalCallExpression(fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
-	i := len(args) + len(values)
-	if i <= 10 {
-		return reflect_Call10(i, st, fn, args, values...)
+func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args []Expression, values ...reflect.Value) reflect.Value {
+
+	if funcType.AssignableTo(baseExpr.Type()) {
+		return baseExpr.Interface().(Func)(Arguments{runtime: st, argExpr: args, argVal: values})
 	}
-	return reflect_Call(make([]reflect.Value, i, i), st, fn, args, values...)
+
+	i := len(args) + len(values)
+	var returns []reflect.Value
+	if i <= 10 {
+		returns = reflect_Call10(i, st, baseExpr, args, values...)
+	} else {
+		returns = reflect_Call(make([]reflect.Value, i, i), st, baseExpr, args, values...)
+	}
+
+	if len(returns) == 0 {
+		return reflect.Value{}
+	}
+
+	return returns[0]
 }
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
@@ -1078,11 +1094,7 @@ func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool
 				st.evalSafeWriter(term, node)
 				return reflect.Value{}, true
 			}
-			returned := st.evalCallExpression(term, node.Args)
-			if len(returned) == 0 {
-				return reflect.Value{}, false
-			}
-			return returned[0], false
+			return st.evalCallExpression(term, node.Args), false
 		} else {
 			node.Args[0].errorf("command %q type %s is not func", node.Args[0], term.Type())
 		}
@@ -1101,7 +1113,7 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
-	//todo:  sync.Pool ?
+
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
@@ -1118,11 +1130,7 @@ func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Va
 			st.evalSafeWriter(term, node, value)
 			return reflect.Value{}, true
 		}
-		returned := st.evalCallExpression(term, node.Args, value)
-		if len(returned) == 0 {
-			return reflect.Value{}, false
-		}
-		return returned[0], false
+		return st.evalCallExpression(term, node.Args, value), false
 	} else {
 		node.BaseExpr.errorf("pipe command %q type %s is not func", node.BaseExpr, term.Type())
 	}
@@ -1512,7 +1520,7 @@ type chanRanger struct {
 	v reflect.Value
 }
 
-func (s *chanRanger) Range() (index, value reflect.Value, end bool) {
+func (s *chanRanger) Range() (_, value reflect.Value, end bool) {
 	value, end = s.v.Recv()
 	if end {
 		pool_chanRanger.Put(s)

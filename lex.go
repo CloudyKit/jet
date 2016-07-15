@@ -98,9 +98,8 @@ const (
 	itemAnd
 	itemOr
 	itemNot
-	itemSet
-	itemIsset
-	itemLen
+	itemMSG
+	itemTrans
 )
 
 var key = map[string]itemType{
@@ -111,18 +110,19 @@ var key = map[string]itemType{
 	"block":   itemBlock,
 	"yield":   itemYield,
 
-	"else":    itemElse,
-	"end":     itemEnd,
-	"if":      itemIf,
-	"set":     itemSet,
-	"range":   itemRange,
-	"nil":     itemNil,
-	"and":     itemAnd,
-	"or":      itemOr,
-	"not":     itemNot,
-	"isset":   itemIsset,
-	"len":     itemLen,
+	"else": itemElse,
+	"end":  itemEnd,
+	"if":   itemIf,
+
+	"range": itemRange,
+	"nil":   itemNil,
+	"and":   itemAnd,
+	"or":    itemOr,
+	"not":   itemNot,
+
 	"content": itemContent,
+	"msg":     itemMSG,
+	"trans":   itemTrans,
 }
 
 const eof = -1
@@ -254,20 +254,24 @@ const (
 
 func lexText(l *lexer) stateFn {
 	for {
-		if strings.HasPrefix(l.input[l.pos:], leftDelim) {
-			if l.pos > l.start {
-				l.emit(itemText)
+		if i := strings.IndexByte(l.input[l.pos:], '{'); i == -1 {
+			l.pos = Pos(len(l.input))
+			break
+		} else {
+			l.pos += Pos(i)
+			if strings.HasPrefix(l.input[l.pos:], leftDelim) {
+				if l.pos > l.start {
+					l.emit(itemText)
+				}
+				return lexLeftDelim
 			}
-			return lexLeftDelim
-		}
-
-		if strings.HasPrefix(l.input[l.pos:], leftComment) {
-			if l.pos > l.start {
-				l.emit(itemText)
+			if strings.HasPrefix(l.input[l.pos:], leftComment) {
+				if l.pos > l.start {
+					l.emit(itemText)
+				}
+				return lexComment
 			}
-			return lexComment
 		}
-
 		if l.next() == eof {
 			break
 		}

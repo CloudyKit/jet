@@ -31,10 +31,6 @@ func (t *Template) newTernaryExpr(pos Pos, line int, boolean, left, right Expres
 	return &TernaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTernaryExpr, Pos: pos, Line: line}, Boolean: boolean, Left: left, Right: right}
 }
 
-func (t *Template) newBuiltinExpr(pos Pos, line int, name string, nodetype NodeType) *BuiltinExprNode {
-	return &BuiltinExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodetype, Pos: pos, Line: line}, Name: name}
-}
-
 func (t *Template) newSet(pos Pos, line int, isLet, isIndexExprGetLookup bool, left, right []Expression) *SetNode {
 	return &SetNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSet, Pos: pos, Line: line}, Let: isLet, IndexExprGetLookup: isIndexExprGetLookup, Left: left, Right: right}
 }
@@ -141,18 +137,18 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 	n := &NumberNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumber, Pos: pos}, Text: text}
 	switch typ {
 	case itemCharConstant:
-		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+		_rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
 		if err != nil {
 			return nil, err
 		}
 		if tail != "'" {
 			return nil, fmt.Errorf("malformed character constant: %s", text)
 		}
-		n.Int64 = int64(rune)
+		n.Int64 = int64(_rune)
 		n.IsInt = true
-		n.Uint64 = uint64(rune)
+		n.Uint64 = uint64(_rune)
 		n.IsUint = true
-		n.Float64 = float64(rune) // odd but those are the rules.
+		n.Float64 = float64(_rune) // odd but those are the rules.
 		n.IsFloat = true
 		return n, nil
 	case itemComplex:

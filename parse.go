@@ -700,7 +700,7 @@ loop:
 	for {
 		switch token.typ {
 		case itemBool, itemCharConstant, itemComplex, itemField, itemIdentifier,
-			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot, itemIsset, itemLen:
+			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot:
 			t.backup()
 			pipe.append(t.command(nil))
 			token = t.nextNonSpace()
@@ -908,16 +908,16 @@ func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line
 }
 
 // If:
-//	{{if pipeline}} itemList {{end}}
-//	{{if pipeline}} itemList {{else}} itemList {{end}}
+//	{{if expression}} itemList {{end}}
+//	{{if expression}} itemList {{else}} itemList {{end}}
 // If keyword is past.
 func (t *Template) ifControl() Node {
 	return t.newIf(t.parseControl(true, "if"))
 }
 
 // Range:
-//	{{range pipeline}} itemList {{end}}
-//	{{range pipeline}} itemList {{else}} itemList {{end}}
+//	{{range expression}} itemList {{end}}
+//	{{range expression}} itemList {{else}} itemList {{end}}
 // Range keyword is past.
 func (t *Template) rangeControl() Node {
 	return t.newRange(t.parseControl(false, "range"))
@@ -930,9 +930,9 @@ func (t *Template) endControl() Node {
 	return t.newEnd(t.expect(itemRightDelim, "end").pos)
 }
 
-// End:
-//	{{end}}
-// End keyword is past.
+// Content:
+//	{{content}}
+// Content keyword is past.
 func (t *Template) contentControl() Node {
 	return t.newContent(t.expect(itemRightDelim, "content").pos)
 }
@@ -955,26 +955,14 @@ func (t *Template) elseControl() Node {
 //	function (identifier)
 //	.
 //	.Field
-//	$
-//	'(' pipeline ')'
+//	variable
+//	'(' expression ')'
 // A term is a simple "expression".
 // A nil return means the next item is not a term.
 func (t *Template) term() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemError:
 		t.errorf("%s", token.val)
-	case itemLen:
-		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeLenExpr)
-		t.expect(itemLeftParen, "builtin len call")
-		node.Args = []Expression{t.expression("builtin len call")}
-		t.expect(itemRightParen, "builtin len call")
-		return node
-	case itemIsset:
-		node := t.newBuiltinExpr(token.pos, t.lex.lineNumber(), token.val, NodeIssetExpr)
-		t.expect(itemLeftParen, "builtin isset call")
-		node.Args = t.parseArguments()
-		t.expect(itemRightParen, "builtin isset call")
-		return node
 	case itemIdentifier:
 		return t.newIdentifier(token.val, token.pos, t.lex.lineNumber())
 	case itemNil:

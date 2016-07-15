@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 	"text/template"
@@ -27,30 +28,30 @@ var (
 
 	ww    io.Writer = (*devNull)(nil)
 	users           = []*User{
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Mario Santos", "mario@gmail.com"},
-		&User{"Joel Silva", "joelsilva@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
-		&User{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Mario Santos", "mario@gmail.com"},
+		{"Joel Silva", "joelsilva@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
+		{"Luis Santana", "luis.santana@gmail.com"},
 	}
 
 	stdSet = template.New("base")
@@ -297,6 +298,8 @@ func TestEvalSliceExpression(t *testing.T) {
 func TestEvalBuiltinExpression(t *testing.T) {
 	var data = make(VarMap)
 	RunJetTest(t, data, nil, "LenExpression_1", `{{len("111")}}`, "3")
+	RunJetTest(t, data, nil, "LenExpression_2", `{{isset(data)?len(data):0}}`, "0")
+	RunJetTest(t, data, []string{"", "", "", ""}, "LenExpression_3", `{{len(.)}}`, "4")
 }
 
 func TestEvalAutoescape(t *testing.T) {
@@ -420,4 +423,29 @@ func BenchmarkNewBlockYield(b *testing.B) {
 		}
 	})
 
+}
+
+func BenchmarkDynamicFunc(b *testing.B) {
+
+	var variables = VarMap{}.Set("dummy", dummy)
+	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
+	for i := 0; i < b.N; i++ {
+		err := t.Execute(ww, variables, nil)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
+}
+
+func BenchmarkJetFunc(b *testing.B) {
+	var variables = VarMap{}.SetFunc("dummy", func(a Arguments) reflect.Value {
+		return reflect.ValueOf(dummy(a.Get(0).String()))
+	})
+	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
+	for i := 0; i < b.N; i++ {
+		err := t.Execute(ww, variables, nil)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
 }

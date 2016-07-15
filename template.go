@@ -45,6 +45,10 @@ func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bo
 	return
 }
 
+func (s *Set) AddGlobalFunc(key string, fn Func) (interface{}, bool) {
+	return s.AddGlobal(key, fn)
+}
+
 // NewSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewSet(dir ...string) *Set {
 	return &Set{dirs: dir, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
@@ -108,8 +112,6 @@ func (s *Set) fileExists(name string) (string, bool) {
 //	try catalog/products.list.html.jet
 //	try catalog/products.list.jet
 func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, foundFile bool) {
-	//todo: remove
-	//println("names:" ,name)
 	newName = name
 	if _, foundLoaded = s.templates[newName]; foundLoaded {
 		return
@@ -159,8 +161,12 @@ func (s *Set) loadFromFile(name, fileName string) (template *Template, err error
 func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Template, err error) {
 	name = path.Clean(name)
 	if s.developmentMode {
-		if _, fileName, _, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
+		if newName, fileName, foundLoaded, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
 			template, err = s.loadFromFile(name, fileName)
+		} else if foundLoaded {
+			template = s.templates[newName]
+		} else {
+			err = fmt.Errorf("template %s can't be loaded", name)
 		}
 		return
 	}
@@ -325,23 +331,39 @@ func (t *Template) addBlocks(blocks map[string]*BlockNode) {
 
 type VarMap map[string]reflect.Value
 
-func (scope VarMap) Set(name string, v interface{}) {
+func (scope VarMap) Set(name string, v interface{}) VarMap {
 	scope[name] = reflect.ValueOf(v)
+	return scope
+}
+
+func (scope VarMap) SetFunc(name string, v Func) VarMap {
+	scope[name] = reflect.ValueOf(v)
+	return scope
+}
+
+func (scope VarMap) SetWriter(name string, v SafeWriter) VarMap {
+	scope[name] = reflect.ValueOf(v)
+	return scope
 }
 
 // Execute executes the template in the w Writer
-func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
+func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) error {
+	return t.ExecuteI18N(nil, w, variables, data)
+}
+
+type Translator interface {
+	Msg(key, defaultValue string) string
+	Trans(format, defaultFormat string, v ...interface{}) string
+}
+
+func (t *Template) ExecuteI18N(translator Translator, w io.Writer, variables VarMap, data interface{}) (err error) {
 	st := pool_State.Get().(*Runtime)
 	defer st.recover(&err)
 
-	if data != nil {
-		st.context = reflect.ValueOf(data)
-	}
-
 	st.blocks = t.processedBlocks
-	st.set = t.set
-
+	st.translator = translator
 	st.variables = variables
+	st.set = t.set
 	st.Writer = w
 
 	// resolve extended template
@@ -349,7 +371,10 @@ func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err
 		t = t.extends
 	}
 
-	// execute the extended root
+	if data != nil {
+		st.context = reflect.ValueOf(data)
+	}
+
 	st.executeList(t.root)
 	return
 }
