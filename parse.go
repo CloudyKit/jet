@@ -317,20 +317,8 @@ func (t *Template) parseYield() Node {
 }
 
 func (t *Template) parseInclude() Node {
-	var name string
-	token := t.nextNonSpace()
 
-	switch token.typ {
-	case itemString, itemRawString:
-		s, err := unquote(token.val)
-		if err != nil {
-			t.error(err)
-		}
-		name = s
-	default:
-		t.unexpected(token, "include invocation")
-	}
-
+	name := t.expression("include")
 	var pipe Expression
 	if t.nextNonSpace().typ != itemRightDelim {
 		t.backup()
@@ -339,10 +327,7 @@ func (t *Template) parseInclude() Node {
 
 	}
 
-	// will suspend the parsing of the current template and try to load the included template
-	t.set.loadTemplate(name, "")
-
-	return t.newInclude(token.pos, t.lex.lineNumber(), name, pipe)
+	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
 }
 
 // itemList:
