@@ -177,7 +177,7 @@ func (s *Set) parse(name, text string) (t *Template, err error) {
 		t.addBlocks(_import.processedBlocks)
 	}
 	t.addBlocks(t.passedBlocks)
-	return t, nil
+	return t, err
 }
 
 func (t *Template) expectString(context string) string {

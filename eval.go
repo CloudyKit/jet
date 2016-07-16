@@ -219,7 +219,6 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
-	isDev := st.set.developmentMode
 	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var is bool
@@ -227,7 +226,7 @@ func (st *Runtime) recover(err *error) {
 			panic(recovered)
 		}
 		*err, is = recovered.(error)
-		if isDev || !is {
+		if !is {
 			panic(recovered)
 		}
 	}
@@ -357,6 +356,7 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 
 func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
+
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {

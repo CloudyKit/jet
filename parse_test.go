@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-var parseSet = NewSet("./testData")
+var parseSet = NewSet(nil, "./testData")
 
 type ParserTestCase struct {
 	*testing.T

@@ -18,13 +18,15 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 )
 
 var (
-	JetTestingSet = NewSet()
+	JetTestingSet = NewSet(nil)
 
 	ww    io.Writer = (*devNull)(nil)
 	users           = []*User{
@@ -327,17 +329,27 @@ func TestFileResolve(t *testing.T) {
 	}
 }
 
-func TestBugInGetValueWithPtrMethod(t *testing.T) {
-	var data = make(VarMap)
+func TestSet_Parse(t *testing.T) {
+	set := NewHTMLSet("./testData/resolve")
 
-	type ComplexType struct {
-		User User
+	var c int64 = 100
+
+	group := &sync.WaitGroup{}
+	for i, l := int64(0), c; i < l; i++ {
+		(func() {
+			template, _ := set.Parse("TestTemplate", `{{extends "sub/extend"}}`)
+			RunJetTestWithTemplate(t, template, nil, nil, "simple - simple.jet - extension.jet.html")
+			if len(set.templates) > 0 {
+				t.Fail()
+			}
+			group.Add(1)
+			runtime.SetFinalizer(template, func(ob interface{}) {
+				group.Done()
+			})
+		})()
 	}
-
-	data.Set("complex", &ComplexType{})
-
-	RunJetTest(t, data, nil, "BugInGetValueWithPtrMethod",
-		`{{complex.User.GetName()}}`, ``)
+	runtime.GC()
+	group.Wait()
 }
 
 func BenchmarkSimpleAction(b *testing.B) {

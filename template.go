@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"text/template"
 )
@@ -20,8 +21,8 @@ type Set struct {
 	templates         map[string]*Template // parsed templates
 	escapee           SafeWriter           // escapee to use at runtime
 	globals           VarMap               // global scope for this template set
-	tmx               sync.RWMutex         // template parsing mutex
-	gmx               sync.RWMutex         // global variables map mutex
+	tmx               *sync.RWMutex        // template parsing mutex
+	gmx               *sync.RWMutex        // global variables map mutex
 	defaultExtensions []string
 	developmentMode   bool
 }
@@ -50,18 +51,13 @@ func (s *Set) AddGlobalFunc(key string, fn Func) (interface{}, bool) {
 }
 
 // NewSet creates a new set, dir specifies a list of directories entries to search for templates
-func NewSet(dir ...string) *Set {
-	return &Set{dirs: dir, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
+func NewSet(escapee SafeWriter, dir ...string) *Set {
+	return &Set{dirs: dir, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
 }
 
 // NewHTMLSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewHTMLSet(dir ...string) *Set {
-	return &Set{dirs: dir, escapee: template.HTMLEscape, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
-}
-
-// NewSafeSet creates a new set, dir specifies a list of directories entries to search for templates
-func NewSafeSet(escapee SafeWriter, dir ...string) *Set {
-	return &Set{dirs: dir, escapee: escapee, templates: make(map[string]*Template)}
+	return NewSet(template.HTMLEscape, dir...)
 }
 
 // AddPath add path to the lookup list, when loading a template the Set will
@@ -75,8 +71,7 @@ func (s *Set) AddPath(path string) {
 func (s *Set) AddGopathPath(path string) {
 	paths := filepath.SplitList(os.Getenv("GOPATH"))
 	for i := 0; i < len(paths); i++ {
-		path, err := filepath.Abs(filepath.Join(paths[i], path))
-
+		path, err := filepath.Abs(filepath.Join(paths[i], "src", path))
 		if err != nil {
 			panic(errors.New("Can't add this path err: " + err.Error()))
 		}
@@ -107,7 +102,7 @@ func (s *Set) fileExists(name string) (string, bool) {
 // resolveName try to resolve a template name, the steps as follow
 //	1. try provided path
 //	2. try provided path+defaultExtensions
-// ex: set.resolveName("catalog/products.list") with []string{"html.jet","jet"} defaultExtensions set
+// ex: set.resolveName("catalog/products.list") with defaultExtensions set to []string{".html.jet",".jet"}
 //	try catalog/products.list
 //	try catalog/products.list.html.jet
 //	try catalog/products.list.jet
@@ -135,18 +130,28 @@ func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, f
 }
 
 func (s *Set) resolveNameSibling(name, sibling string) (newName, fileName string, foundLoaded, foundFile, isRelativeName bool) {
-	if newName, fileName, foundLoaded, foundFile = s.resolveName(name); sibling != "" && !foundFile && !foundFile {
-		newName, fileName, foundLoaded, foundFile = s.resolveName(path.Join(path.Dir(sibling), name))
-		isRelativeName = true
+	if sibling != "" {
+		i := strings.LastIndex(sibling, "/")
+		if i != -1 {
+			if newName, fileName, foundLoaded, foundFile = s.resolveName(path.Join(sibling[:i+1], name)); foundFile || foundLoaded {
+				isRelativeName = true
+				return
+			}
+		}
 	}
+	newName, fileName, foundLoaded, foundFile = s.resolveName(name)
 	return
 }
 
 // Parse parses the template, this method will link the template to the set but not the set to
 func (s *Set) Parse(name, content string) (*Template, error) {
-	s.tmx.RLock()
-	t, err := s.parse(name, content)
-	s.tmx.RUnlock()
+	sc := *s
+	sc.developmentMode = true
+
+	sc.tmx.RLock()
+	t, err := sc.parse(name, content)
+	sc.tmx.RUnlock()
+
 	return t, err
 }
 
@@ -160,9 +165,10 @@ func (s *Set) loadFromFile(name, fileName string) (template *Template, err error
 
 func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Template, err error) {
 	name = path.Clean(name)
+
 	if s.developmentMode {
 		if newName, fileName, foundLoaded, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
-			template, err = s.loadFromFile(name, fileName)
+			template, err = s.loadFromFile(newName, fileName)
 		} else if foundLoaded {
 			template = s.templates[newName]
 		} else {
@@ -173,13 +179,14 @@ func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Templa
 
 	if newName, fileName, foundLoaded, foundPath, isRelative := s.resolveNameSibling(name, parentName); foundPath {
 		template, err = s.loadFromFile(newName, fileName)
+		s.templates[newName] = template
+
 		if !isRelative {
 			s.templates[name] = template
 		}
-		s.templates[newName] = template
 	} else if foundLoaded {
 		template = s.templates[newName]
-		if !isRelative {
+		if !isRelative && name != newName {
 			s.templates[name] = template
 		}
 	} else {
@@ -191,6 +198,7 @@ func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Templa
 // getTemplate gets a template already loaded by name
 func (s *Set) getTemplate(name, sibling string) (template *Template, err error) {
 	name = path.Clean(name)
+
 	if s.developmentMode {
 		s.tmx.RLock()
 		defer s.tmx.RUnlock()
@@ -209,9 +217,10 @@ func (s *Set) getTemplate(name, sibling string) (template *Template, err error) 
 	//fast path
 	s.tmx.RLock()
 	newName, fileName, foundLoaded, foundFile, isRelative := s.resolveNameSibling(name, sibling)
+
 	if foundLoaded {
-		s.tmx.RUnlock()
 		template = s.templates[newName]
+		s.tmx.RUnlock()
 		if !isRelative && name != newName {
 			// creates an alias
 			s.tmx.Lock()
