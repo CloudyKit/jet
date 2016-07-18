@@ -187,6 +187,9 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 						j++
 					}
 				}
+				if param == nil {
+					return valueBoolFALSE
+				}
 				return state.evalPrimaryExpressionGroup(param)
 			}
 		}
