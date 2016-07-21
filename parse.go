@@ -16,7 +16,6 @@ package jet
 import (
 	"bytes"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 )
@@ -147,17 +146,17 @@ func (t *Template) unexpected(token item, context string) {
 
 // recover is the handler that turns panics into returns from the top level of Parse.
 func (t *Template) recover(errp *error) {
-	e := recover()
-	if e != nil {
-		if _, ok := e.(runtime.Error); ok {
-			panic(e)
-		}
-		if t != nil {
-			t.lex.drain()
-			t.stopParse()
-		}
-		*errp = e.(error)
-	}
+	//e := recover()
+	//if e != nil {
+	//	if _, ok := e.(runtime.Error); ok {
+	//		panic(e)
+	//	}
+	//	if t != nil {
+	//		t.lex.drain()
+	//		t.stopParse()
+	//	}
+	//	*errp = e.(error)
+	//}
 	return
 }
 
@@ -289,26 +288,27 @@ func (t *Template) blockParametersList(isDeclaring bool, context string) *BlockP
 		next := t.nextNonSpace()
 		if next.typ == itemIdentifier {
 			identifier := next.val
-			switch t.peekNonSpace().typ {
+			next2 := t.nextNonSpace()
+			switch next2.typ {
 			case itemComma, itemRightParen:
 				block.List = append(block.List, BlockParameter{Identifier: identifier})
-				next = t.nextNonSpace()
+				next = next2
 			case itemAssign:
-				t.nextNonSpace()
 				expression, next = t.parseExpression(context)
 				block.List = append(block.List, BlockParameter{Identifier: identifier, Expression: expression})
 			default:
 				if !isDeclaring {
-					switch next.typ {
+					switch next2.typ {
 					case itemComma, itemRightParen:
 					default:
-						t.backup()
+						t.backup2(next)
 						expression, next = t.parseExpression(context)
 						block.List = append(block.List, BlockParameter{Expression: expression})
 					}
+				} else {
+					t.unexpected(next2, context)
 				}
 			}
-
 		} else if !isDeclaring {
 			switch next.typ {
 			case itemComma, itemRightParen:

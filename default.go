@@ -47,6 +47,7 @@ func init() {
 		"url":       reflect.ValueOf(url.QueryEscape),
 		"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
 		"safeJs":    reflect.ValueOf(SafeWriter(template.JSEscape)),
+		"raw":       reflect.ValueOf(SafeWriter(unsafePrinter)),
 		"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 		"writeJson": reflect.ValueOf(jsonRenderer),
 		"json":      reflect.ValueOf(json.Marshal),

@@ -174,25 +174,52 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 	//todo: benchmark this, make more readable
 	if state.blockParameters != nil && state.yieldParameters != nil {
 		if param, index := state.yieldParameters.Param(name); index != -1 {
-			return state.evalPrimaryExpressionGroup(param)
+
+			blockParameters := state.blockParameters
+			yieldParameters := state.yieldParameters
+
+			state.yieldParameters = nil
+			state.blockParameters = nil
+
+			value := state.evalPrimaryExpressionGroup(param)
+
+			state.blockParameters = blockParameters
+			state.yieldParameters = yieldParameters
+
+			return value
 		} else if state.yieldParameters != state.blockParameters {
 			if param, index = state.blockParameters.Param(name); index != -1 {
 				var j = 0
+
 				for i := 0; i < len(state.yieldParameters.List); i++ {
 					yieldParam := &state.yieldParameters.List[i]
 					if yieldParam.Identifier == "" {
 						if j == index {
-							return state.evalPrimaryExpressionGroup(yieldParam.Expression)
+							param = yieldParam.Expression
+							break
 						}
 						j++
 					}
 				}
+
 				if param == nil {
 					return valueBoolFALSE
 				}
-				return state.evalPrimaryExpressionGroup(param)
+
+				blockParameters := state.blockParameters
+				yieldParameters := state.yieldParameters
+
+				state.yieldParameters = nil
+				state.blockParameters = nil
+
+				value := state.evalPrimaryExpressionGroup(param)
+
+				state.blockParameters = blockParameters
+				state.yieldParameters = yieldParameters
+				return value
 			}
 		}
+
 	}
 
 	if name == "." {

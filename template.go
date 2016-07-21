@@ -33,20 +33,25 @@ func (s *Set) SetDevelopmentMode(b bool) *Set {
 	return s
 }
 
-// AddGlobal add or set a global variable into the Set
-func (s *Set) AddGlobal(key string, i interface{}) (val interface{}, override bool) {
-	s.gmx.Lock()
-	if s.globals == nil {
-		s.globals = make(VarMap)
-	} else {
-		val, override = s.globals[key]
-	}
-	s.globals[key] = reflect.ValueOf(i)
-	s.gmx.Unlock()
+func (a *Set) LookupGlobal(key string) (val interface{}, found bool) {
+	a.gmx.RLock()
+	val, found = a.globals[key]
+	a.gmx.RUnlock()
 	return
 }
 
-func (s *Set) AddGlobalFunc(key string, fn Func) (interface{}, bool) {
+// AddGlobal add or set a global variable into the Set
+func (s *Set) AddGlobal(key string, i interface{}) *Set {
+	s.gmx.Lock()
+	if s.globals == nil {
+		s.globals = make(VarMap)
+	}
+	s.globals[key] = reflect.ValueOf(i)
+	s.gmx.Unlock()
+	return s
+}
+
+func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
 	return s.AddGlobal(key, fn)
 }
 
