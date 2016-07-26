@@ -16,6 +16,7 @@ package jet
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -146,17 +147,17 @@ func (t *Template) unexpected(token item, context string) {
 
 // recover is the handler that turns panics into returns from the top level of Parse.
 func (t *Template) recover(errp *error) {
-	//e := recover()
-	//if e != nil {
-	//	if _, ok := e.(runtime.Error); ok {
-	//		panic(e)
-	//	}
-	//	if t != nil {
-	//		t.lex.drain()
-	//		t.stopParse()
-	//	}
-	//	*errp = e.(error)
-	//}
+	e := recover()
+	if e != nil {
+		if _, ok := e.(runtime.Error); ok {
+			panic(e)
+		}
+		if t != nil {
+			t.lex.drain()
+			t.stopParse()
+		}
+		*errp = e.(error)
+	}
 	return
 }
 
