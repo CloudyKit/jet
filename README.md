@@ -5,7 +5,7 @@
 Jet is a template engine developed to be easy to use, powerful, dynamic, secure and very fast.
 
 * supports template inheritance with `extends`, `import` and `include` statements
-* sescriptive error messages with file name and line number
+* descriptive error messages with file name and line number
 * auto-escape
 * simple C-like expressions
 * very fast execution, jet can execute templates faster than some pre-compiled template engines
