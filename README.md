@@ -1,35 +1,33 @@
-# Jet Template Engine for GO [![Build Status](https://travis-ci.org/CloudyKit/jet.svg?branch=master)](https://travis-ci.org/CloudyKit/jet)
+# Jet Template Engine for Go [![Build Status](https://travis-ci.org/CloudyKit/jet.svg?branch=master)](https://travis-ci.org/CloudyKit/jet)
 
 [![Join the chat at https://gitter.im/CloudyKit/jet](https://badges.gitter.im/CloudyKit/jet.svg)](https://gitter.im/CloudyKit/jet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Jet is a template engine developed to be easy to use, powerful, dynamic,secure and very fast.
+Jet is a template engine developed to be easy to use, powerful, dynamic, secure and very fast.
 
-* Support template inheritance extends,imports and includes statements.
-* Descriptive error messages with file name and line number.
-* Auto-escape.
-* Simple C like Expression.
-* Very fast execution, jet can execute templates faster then some pre-compiled template engines
-* Very light in terms of allocations and memory foot print.
-* Simple and familiar syntax.
-* Ease to use.
+* supports template inheritance with `extends`, `import` and `include` statements
+* sescriptive error messages with file name and line number
+* auto-escape
+* simple C-like expressions
+* very fast execution, jet can execute templates faster than some pre-compiled template engines
+* very light in terms of allocations and memory footprint
+* simple and familiar syntax
+* easy to use
 
-[Documentation Wiki](https://github.com/CloudyKit/jet/wiki)
+You may find the documentation in the [Wiki](https://github.com/CloudyKit/jet/wiki).
 
-#### Intellij Plugin
+#### IntelliJ Plugin
 
-If you use intellij there is a plugin available in https://github.com/jhsx/GoJetPlugin
-There is also a very good Go plugin for intellij ("https://github.com/go-lang-plugin-org/go-lang-idea-plugin")
-GoJetPlugin + Go-lang-idea-plugin = Happiness :D
+If you use IntelliJ there is a plugin available at https://github.com/jhsx/GoJetPlugin.
+There is also a very good Go plugin for IntelliJ ("https://github.com/go-lang-plugin-org/go-lang-idea-plugin").
+GoJetPlugin + Go-lang-idea-plugin = happiness!
 
 ### Examples
 
 #### Simple
 
 ```HTML
-
-Hey {{name}}!
-No Escape {{ "<a href=\""\">Link</a>" |unsafe}}
-
+Hey {{ name }}!
+No escaping: {{ "<a href=\"\">Link</a>" |unsafe }}
 ```
 
 #### Extends
@@ -37,65 +35,61 @@ No Escape {{ "<a href=\""\">Link</a>" |unsafe}}
 ```HTML
 {{extends "common/layout.jet"}}
 
-
 {{block Content}}
-	{{.PageHeader}}
-    {* this is a comment *}
-    {{.PageContent |unsafe}}
+  {{ .PageHeader }}
+  {* this is a comment *}
+  {{ .PageContent |unsafe }}
 {{end}}
 ```
-
 
 #### Range
 
 ```HTML
 {{extends "common/layout.jet"}}
 
-
 {{block Content}}
-	{{.PageHeader}}
-
-    {{range .Result}}
-    	<div>
-            <div class="result-header">{{.Title}}</div>
-            <div class="result-description">{{.Description}}
-            <a href="{{.Linkme()}}">Read more</a></div>
-        </div>
-    {{end}}
+  {{ .PageHeader }}
+  {{range .Result}}
+    <div>
+      <div class="result-header">{{ .Title }}</div>
+      <div class="result-description">
+        {{ .Description }}
+        <a href="{{ .Linkme() }}">Read more</a>
+      </div>
+    </div>
+  {{end}}
 {{end}}
 ```
 
-#### Import Extends Yield
+#### Import, extends, yield
 
 ```HTML
 {{extends "common/layout.jet"}}
 {{import "common/menu.jet"}}
 
 {{block Header}}
-<!-- this block commes from "common/menu.jet" -->
-<nav class="nav">{{yield menu}}</nav>
+  <!-- this block comes from "common/menu.jet" -->
+  <nav class="nav">{{yield menu}}</nav>
 {{end}}
 
 {{block Content}}
-	{{.PageHeader}}
-
-    {{range .Result}}
-    	<div>
-        	<div class="result-header">{{.Title}}</div>
-            <div class="result-description">{{.Description}}
-            <a href="{{.Linkme()}}">Read more</a></div>
-        </div>
-    {{end}}
+  {{ .PageHeader }}
+  {{range .Result}}
+    <div>
+      <div class="result-header">{{ .Title }}</div>
+      <div class="result-description">
+        {{ .Description }}
+        <a href="{{ .Linkme() }}">Read more</a>
+      </div>
+    </div>
+  {{end}}
 {{end}}
 ```
+
 #### Faster than some pre-compiled template engines
 
-Benchmark consist of range over a slice of data printing the values,
-the benchmark is based on "https://github.com/SlinSo/goTemplateBenchmark",
-
-Jet performs better than all template engines without pre-compilation, and peforms better than gorazor,
-Ftmpl, Egon which are pre-compiled to go.
-
+The benchmark consists of a range over a slice of data printing the values, the benchmark is based on "https://github.com/SlinSo/goTemplateBenchmark", Jet performs better than all template engines without pre-compilation,
+and performs better than gorazor, Ftmpl, Egon which are pre-compiled to go.
 
 ###### Benchmarks
 
@@ -151,9 +145,9 @@ ok  	github.com/SlinSo/goTemplateBenchmark	36.200s
 
 #### Contributing
 
-Any contribution is welcome, if you find a bug please report.
+Any contribution is welcome, if you find a bug please report it.
 
 #### Thanks
 
--   @golang developers, for the awesome language, and std library
--   @SlinSo for the benchmarks that i used as base to show the results above
+- @golang developers for the awesome language and the standard library
+- @SlinSo for the benchmarks that I used as a base to show the results above
