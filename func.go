@@ -18,12 +18,14 @@ import (
 	"reflect"
 )
 
+// Arguments holds the arguments passed to jet.Func
 type Arguments struct {
 	runtime *Runtime
 	argExpr []Expression
 	argVal  []reflect.Value
 }
 
+// Get gets an argument by index
 func (a *Arguments) Get(argumentIndex int) reflect.Value {
 	if argumentIndex < len(a.argVal) {
 		return a.argVal[argumentIndex]
@@ -34,17 +36,23 @@ func (a *Arguments) Get(argumentIndex int) reflect.Value {
 	return reflect.Value{}
 }
 
+// Panicf panic with formatted text error message
 func (a *Arguments) Panicf(format string, v ...interface{}) {
 	panic(fmt.Errorf(format, v...))
 }
 
+// RequireNumOfArguments panic if the num of arguments is not in the range specified by the min and max num of arguments
+// case there is no min pass -1 or case there is no max pass -1
 func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 	num := len(a.argExpr) + len(a.argVal)
-	if num < min {
+	if min >= 0 && num < min {
 		a.Panicf("unexpected number of arguments in a call to %s", funcname)
-	} else if num > max {
+	} else if max >= 0 && num > max {
 		a.Panicf("unexpected number of arguments in a call to %s", funcname)
 	}
 }
 
+// Func function implementing this type are called directly, which is faster than calling through reflect.
+// if a function is being called many times in the execution of a template, you may consider implement
+// a wrapper to that func implementing a Func
 type Func func(Arguments) reflect.Value

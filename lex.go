@@ -243,8 +243,6 @@ func (l *lexer) run() {
 	close(l.items)
 }
 
-// state functions
-
 const (
 	leftDelim    = "{{"
 	rightDelim   = "}}"
@@ -252,6 +250,7 @@ const (
 	rightComment = "*}"
 )
 
+// state functions
 func lexText(l *lexer) stateFn {
 	for {
 		if i := strings.IndexByte(l.input[l.pos:], '{'); i == -1 {

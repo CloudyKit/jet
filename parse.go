@@ -25,7 +25,7 @@ func unquote(text string) (string, error) {
 	return strconv.Unquote(text)
 }
 
-// parser is the representation of a single parsed template.
+// Template is the representation of a single parsed template.
 type Template struct {
 	Name      string // name of the template represented by the tree.
 	ParseName string // name of the top-level template during parsing, for error messages.
@@ -329,16 +329,10 @@ func (t *Template) blockParametersList(isDeclaring bool, context string) *BlockP
 	return block
 }
 
-// parseDefinition parses a {{block Ident pipeline?}} ...  {{end}} template definition and
-// installs the definition in the treeSet map.  The "define" keyword has already
-// been scanned.
 func (t *Template) parseBlock() Node {
 
 	const context = "block clause"
-
-	var (
-		pipe Expression
-	)
+	var pipe Expression
 
 	name := t.expect(itemIdentifier, context)
 	bplist := t.blockParametersList(true, context)
@@ -368,11 +362,14 @@ func (t *Template) parseBlock() Node {
 
 func (t *Template) parseYield() Node {
 	const context = "yield clause"
-	var pipe Expression
-	var name item
-	var bplist *BlockParameterList
-	var content *ListNode
-	var end Node
+
+	var (
+		pipe    Expression
+		name    item
+		bplist  *BlockParameterList
+		content *ListNode
+		end     Node
+	)
 
 	// content yield {{yield content}}
 	name = t.nextNonSpace()
@@ -416,9 +413,10 @@ func (t *Template) parseYield() Node {
 }
 
 func (t *Template) parseInclude() Node {
+	var pipe Expression
 
 	name := t.expression("include")
-	var pipe Expression
+
 	if t.nextNonSpace().typ != itemRightDelim {
 		t.backup()
 		pipe = t.expression("include")
@@ -477,11 +475,6 @@ func (t *Template) textOrAction() Node {
 	return nil
 }
 
-// Action:
-//	control
-//	command ("|" command)*
-// Left delim is past. Now get actions.
-// First word could be a keyword such as range.
 func (t *Template) action() (n Node) {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemElse:
@@ -524,6 +517,7 @@ func (t *Template) logicalExpression(context string) (Expression, item) {
 	}
 	return left, endtoken
 }
+
 func (t *Template) parseExpression(context string) (Expression, item) {
 	expression, endtoken := t.logicalExpression(context)
 	if endtoken.typ == itemTernary {
@@ -676,8 +670,6 @@ func (t *Template) expression(context string) Expression {
 	return expr
 }
 
-// Pipeline:
-//	declarations? command ('|' command)*
 func (t *Template) pipeline(context string, baseExprMutate Expression) (pipe *PipeNode) {
 	pos := t.peekNonSpace().pos
 	pipe = t.newPipeline(pos, t.lex.lineNumber())
@@ -722,10 +714,6 @@ loop:
 	return
 }
 
-// command:
-//	operand (:(space operand)*)?
-// space-separated arguments up to a pipeline character or right delimiter.
-// we consume the pipe character but leave the right delim to terminate the action.
 func (t *Template) command(baseExpr Expression) *CommandNode {
 	cmd := t.newCommand(t.peekNonSpace().pos)
 

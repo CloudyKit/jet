@@ -95,6 +95,8 @@ func unsafePrinter(w io.Writer, b []byte) {
 	w.Write(b)
 }
 
+// SafeWriter escapee func, func implementing this type will write direct in the writer skipping the escape
+// faze, use this type to create special types of escapee funcs
 type SafeWriter func(io.Writer, []byte)
 
 func newMap(values ...interface{}) (nmap map[string]interface{}) {

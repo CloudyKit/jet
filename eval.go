@@ -36,16 +36,22 @@ var (
 	}
 )
 
+// Renderer any resulting value from an expression in an action that implements this
+// interface will not be printed, instead, we will invoke his Render() method which will be responsible
+// to render his self
 type Renderer interface {
 	Render(*Runtime)
 }
 
+// RendererFunc func implementing interface Renderer
 type RendererFunc func(*Runtime)
 
 func (renderer RendererFunc) Render(r *Runtime) {
 	renderer(r)
 }
 
+// Ranger a value implementing a ranger interface is able to iterate on his value
+// and can be used directly in a range statement
 type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
 }
@@ -65,6 +71,7 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
+// Runtime this type holds the state of the execution of an template
 type Runtime struct {
 	*escapeeWriter
 	*scope
@@ -118,6 +125,7 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
+// YieldTemplate yields a template same as include
 func (st Runtime) YieldTemplate(name string, context interface{}) {
 	t, err := st.set.GetTemplate(name)
 	if err != nil {
@@ -136,6 +144,7 @@ func (st Runtime) YieldTemplate(name string, context interface{}) {
 	st.executeList(Root)
 }
 
+// Set sets variable ${name} in the current template scope
 func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
 }
@@ -169,6 +178,7 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 	return true
 }
 
+// Resolve resolves a value from the execution context
 func (state *Runtime) Resolve(name string) reflect.Value {
 
 	//todo: benchmark this, make more readable
