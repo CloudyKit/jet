@@ -8,7 +8,7 @@ Jet is a template engine developed to be easy to use, powerful, dynamic, secure 
 * descriptive error messages with file name and line number
 * auto-escape
 * simple C-like expressions
-* very fast execution, jet can execute templates faster than some pre-compiled template engines
+* very fast execution, Jet can execute templates faster than some pre-compiled template engines
 * very light in terms of allocations and memory footprint
 * simple and familiar syntax
 * easy to use
@@ -89,7 +89,7 @@ No escaping: {{ "<a href=\"\">Link</a>" |unsafe }}
 #### Faster than some pre-compiled template engines
 
 The benchmark consists of a range over a slice of data printing the values, the benchmark is based on "https://github.com/SlinSo/goTemplateBenchmark", Jet performs better than all template engines without pre-compilation,
-and performs better than gorazor, Ftmpl, Egon which are pre-compiled to go.
+and performs better than gorazor, Ftmpl, Egon which are pre-compiled to Go.
 
 ###### Benchmarks
 
