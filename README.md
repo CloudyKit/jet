@@ -2,94 +2,39 @@
 
 [![Join the chat at https://gitter.im/CloudyKit/jet](https://badges.gitter.im/CloudyKit/jet.svg)](https://gitter.im/CloudyKit/jet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Jet is a template engine developed to be easy to use, powerful, dynamic, secure and very fast.
+Jet is a template engine developed to be easy to use, powerful, dynamic, yet secure and very fast.
 
 * supports template inheritance with `extends`, `import` and `include` statements
-* descriptive error messages with file name and line number
+* descriptive error messages with filename and line number
 * auto-escape
 * simple C-like expressions
-* very fast execution, Jet can execute templates faster than some pre-compiled template engines
+* very fast execution – Jet can execute templates faster than some pre-compiled template engines
 * very light in terms of allocations and memory footprint
 * simple and familiar syntax
 * easy to use
 
-You may find the documentation in the [Wiki](https://github.com/CloudyKit/jet/wiki).
+You can find the documentation in the [wiki](https://github.com/CloudyKit/jet/wiki).
+
+#### Upgrade to v2
+
+The last release of v1 was v1.2 which is available at https://github.com/CloudyKit/jet/releases/tag/v1.2 and the tag v1.2.
+
+To upgrade to v2 a few updates to your templates are necessary – these are explained in the [upgrade guide](https://github.com/CloudyKit/jet/wiki/Upgrade-to-v2).
 
 #### IntelliJ Plugin
 
 If you use IntelliJ there is a plugin available at https://github.com/jhsx/GoJetPlugin.
-There is also a very good Go plugin for IntelliJ ("https://github.com/go-lang-plugin-org/go-lang-idea-plugin").
+There is also a very good Go plugin for IntelliJ – see https://github.com/go-lang-plugin-org/go-lang-idea-plugin.
 GoJetPlugin + Go-lang-idea-plugin = happiness!
 
 ### Examples
 
-#### Simple
-
-```HTML
-Hey {{ name }}!
-No escaping: {{ "<a href=\"\">Link</a>" |unsafe }}
-```
-
-#### Extends
-
-```HTML
-{{extends "common/layout.jet"}}
-
-{{block Content}}
-  {{ .PageHeader }}
-  {* this is a comment *}
-  {{ .PageContent |unsafe }}
-{{end}}
-```
-
-#### Range
-
-```HTML
-{{extends "common/layout.jet"}}
-
-{{block Content}}
-  {{ .PageHeader }}
-  {{range .Result}}
-    <div>
-      <div class="result-header">{{ .Title }}</div>
-      <div class="result-description">
-        {{ .Description }}
-        <a href="{{ .Linkme() }}">Read more</a>
-      </div>
-    </div>
-  {{end}}
-{{end}}
-```
-
-#### Import, extends, yield
-
-```HTML
-{{extends "common/layout.jet"}}
-{{import "common/menu.jet"}}
-
-{{block Header}}
-  <!-- this block comes from "common/menu.jet" -->
-  <nav class="nav">{{yield menu}}</nav>
-{{end}}
-
-{{block Content}}
-  {{ .PageHeader }}
-  {{range .Result}}
-    <div>
-      <div class="result-header">{{ .Title }}</div>
-      <div class="result-description">
-        {{ .Description }}
-        <a href="{{ .Linkme() }}">Read more</a>
-      </div>
-    </div>
-  {{end}}
-{{end}}
-```
+You can find examples in the [wiki](https://github.com/CloudyKit/jet/wiki/Jet-template-syntax).
 
 #### Faster than some pre-compiled template engines
 
-The benchmark consists of a range over a slice of data printing the values, the benchmark is based on "https://github.com/SlinSo/goTemplateBenchmark", Jet performs better than all template engines without pre-compilation,
-and performs better than gorazor, Ftmpl, Egon which are pre-compiled to Go.
+The benchmark consists of a range over a slice of data printing the values, the benchmark is based on https://github.com/SlinSo/goTemplateBenchmark, Jet performs better than all template engines without pre-compilation,
+and performs better than gorazor, Ftmpl and Egon, all of which are pre-compiled to Go.
 
 ###### Benchmarks
 
@@ -145,7 +90,7 @@ ok  	github.com/SlinSo/goTemplateBenchmark	36.200s
 
 #### Contributing
 
-Any contribution is welcome, if you find a bug please report it.
+All contributions are welcome – if you find a bug please report it.
 
 #### Thanks
 
