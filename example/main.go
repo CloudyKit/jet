@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/CloudyKit/jet"
 	"log"
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
+
+	"github.com/CloudyKit/jet"
 )
 
 var views = jet.NewHTMLSet("./views")
@@ -20,7 +22,7 @@ type tTODO struct {
 }
 
 func main() {
-	//todo: remove in production
+	// remove in production
 	views.SetDevelopmentMode(true)
 
 	views.AddGlobalFunc("base64", func(a jet.Arguments) reflect.Value {
@@ -46,5 +48,13 @@ func main() {
 		view.Execute(w, nil, todos)
 	})
 
-	http.ListenAndServe(os.Getenv("PORT"), nil)
+	port := os.Getenv("PORT")
+	if len(port) == 0 {
+		port = ":8080"
+	} else if !strings.HasPrefix(":", port) {
+		port = ":" + port
+	}
+
+	log.Println("Serving on " + port)
+	http.ListenAndServe(port, nil)
 }

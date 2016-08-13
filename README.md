@@ -31,6 +31,13 @@ GoJetPlugin + Go-lang-idea-plugin = happiness!
 
 You can find examples in the [wiki](https://github.com/CloudyKit/jet/wiki/Jet-template-syntax).
 
+### Running the example application
+
+An example application is available in the repository. Use `go get -u github.com/CloudyKit/jet` or clone the repository into `$GOPATH/github.com/CloudyKit/jet`, then do:
+```
+  $ go run example/main.go
+```
+
 #### Faster than some pre-compiled template engines
 
 The benchmark consists of a range over a slice of data printing the values, the benchmark is based on https://github.com/SlinSo/goTemplateBenchmark, Jet performs better than all template engines without pre-compilation,
