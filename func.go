@@ -18,14 +18,14 @@ import (
 	"reflect"
 )
 
-// Arguments holds the arguments passed to jet.Func
+// Arguments holds the arguments passed to jet.Func.
 type Arguments struct {
 	runtime *Runtime
 	argExpr []Expression
 	argVal  []reflect.Value
 }
 
-// Get gets an argument by index
+// Get gets an argument by index.
 func (a *Arguments) Get(argumentIndex int) reflect.Value {
 	if argumentIndex < len(a.argVal) {
 		return a.argVal[argumentIndex]
@@ -36,13 +36,13 @@ func (a *Arguments) Get(argumentIndex int) reflect.Value {
 	return reflect.Value{}
 }
 
-// Panicf panic with formatted text error message
+// Panicf panics with formatted error message.
 func (a *Arguments) Panicf(format string, v ...interface{}) {
 	panic(fmt.Errorf(format, v...))
 }
 
-// RequireNumOfArguments panic if the num of arguments is not in the range specified by the min and max num of arguments
-// case there is no min pass -1 or case there is no max pass -1
+// RequireNumOfArguments panics if the number of arguments is not in the range specified by min and max.
+// In case there is no minimum pass -1, in case there is no maximum pass -1 respectively.
 func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 	num := len(a.argExpr) + len(a.argVal)
 	if min >= 0 && num < min {
@@ -52,7 +52,7 @@ func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 	}
 }
 
-// Func function implementing this type are called directly, which is faster than calling through reflect.
-// if a function is being called many times in the execution of a template, you may consider implement
-// a wrapper to that func implementing a Func
+// Func function implementing this type is called directly, which is faster than calling through reflect.
+// If a function is being called many times in the execution of a template, you may consider implementing
+// a wrapper for that function implementing a Func.
 type Func func(Arguments) reflect.Value
