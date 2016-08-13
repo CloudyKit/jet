@@ -1,0 +1,8 @@
+{{extends "layouts/application.jet"}}
+
+{{block documentBody()}}
+  <h1>Show TODO (uses custom renderer)</h1>
+  <p>
+    {{ . }}
+  </p>
+{{end}}
