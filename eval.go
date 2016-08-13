@@ -77,9 +77,6 @@ type Runtime struct {
 	*scope
 	content func(*Runtime, Expression)
 
-	blockParameters *BlockParameterList
-	yieldParameters *BlockParameterList
-
 	translator Translator
 	context    reflect.Value
 }
@@ -180,57 +177,6 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 
 // Resolve resolves a value from the execution context
 func (state *Runtime) Resolve(name string) reflect.Value {
-
-	//todo: benchmark this, make more readable
-	if state.blockParameters != nil && state.yieldParameters != nil {
-		if param, index := state.yieldParameters.Param(name); index != -1 {
-
-			blockParameters := state.blockParameters
-			yieldParameters := state.yieldParameters
-
-			state.yieldParameters = nil
-			state.blockParameters = nil
-
-			value := state.evalPrimaryExpressionGroup(param)
-
-			state.blockParameters = blockParameters
-			state.yieldParameters = yieldParameters
-
-			return value
-		} else if state.yieldParameters != state.blockParameters {
-			if param, index = state.blockParameters.Param(name); index != -1 {
-				var j = 0
-
-				for i := 0; i < len(state.yieldParameters.List); i++ {
-					yieldParam := &state.yieldParameters.List[i]
-					if yieldParam.Identifier == "" {
-						if j == index {
-							param = yieldParam.Expression
-							break
-						}
-						j++
-					}
-				}
-
-				if param == nil {
-					return valueBoolFALSE
-				}
-
-				blockParameters := state.blockParameters
-				yieldParameters := state.yieldParameters
-
-				state.yieldParameters = nil
-				state.blockParameters = nil
-
-				value := state.evalPrimaryExpressionGroup(param)
-
-				state.blockParameters = blockParameters
-				state.yieldParameters = yieldParameters
-				return value
-			}
-		}
-
-	}
 
 	if name == "." {
 		return state.context
@@ -348,21 +294,36 @@ func (st *Runtime) executeLetList(set *SetNode) {
 }
 
 func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *BlockParameterList, expression Expression, content *ListNode) {
-	//after benchmark with sync.Pool, realize this allocation is not a bottleneck
-	//it's improves a bit the peformance in 1.6 but decreases in 1.7,
 
-	oldcontentyield := st.content
+	needNewScope := len(blockParam.List) > 0 || len(yieldParam.List) > 0
+	if needNewScope {
+		st.newScope()
+		for i := 0; i < len(yieldParam.List); i++ {
+			p := &yieldParam.List[i]
+			st.variables[p.Identifier] = st.evalPrimaryExpressionGroup(p.Expression)
+		}
+		for i := 0; i < len(blockParam.List); i++ {
+			p := &blockParam.List[i]
+			if _, found := st.variables[p.Identifier]; !found {
+				if p.Expression == nil {
+					st.variables[p.Identifier] = valueBoolFALSE
+				} else {
+					st.variables[p.Identifier] = st.evalPrimaryExpressionGroup(p.Expression)
+				}
+			}
+		}
+	}
+
+	mycontent := st.content
 	if content != nil {
+		myscope := st.scope
 		st.content = func(st *Runtime, expression Expression) {
+			outscope := st.scope
+			outcontent := st.content
 
-			blockp := st.blockParameters
-			yieldp := st.yieldParameters
+			st.scope = myscope
+			st.content = mycontent
 
-			_oldcontentyield := st.content
-
-			st.content = oldcontentyield
-			st.blockParameters = blockParam
-			st.yieldParameters = yieldParam
 			if expression != nil {
 				context := st.context
 				st.context = st.evalPrimaryExpressionGroup(expression)
@@ -372,15 +333,10 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 				st.executeList(content)
 			}
 
-			st.content = _oldcontentyield
-
-			st.blockParameters = blockp
-			st.yieldParameters = yieldp
+			st.scope = outscope
+			st.content = outcontent
 		}
 	}
-
-	st.blockParameters = blockParam
-	st.yieldParameters = yieldParam
 
 	if expression != nil {
 		context := st.context
@@ -391,7 +347,10 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 		st.executeList(block.List)
 	}
 
-	st.content = oldcontentyield
+	st.content = mycontent
+	if needNewScope {
+		st.releaseScope()
+	}
 }
 
 func (st *Runtime) executeList(list *ListNode) {
@@ -602,21 +561,6 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			node.errorf("node %q is not func", node)
 		}
 		return st.evalCallExpression(baseExpr, node.Args)
-	//case NodeLenExpr:
-	//	node := node.(*BuiltinExprNode)
-	//	expression := st.evalPrimaryExpressionGroup(node.Args[0])
-	//
-	//	if expression.Kind() == reflect.Ptr {
-	//		expression = expression.Elem()
-	//	}
-	//
-	//	switch expression.Kind() {
-	//	case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
-	//		return reflect.ValueOf(expression.Len())
-	//	case reflect.Struct:
-	//		return reflect.ValueOf(expression.NumField())
-	//	}
-	//	node.errorf("inválid value type %s in len builtin", expression.Type())
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
 
@@ -682,15 +626,6 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		}
 
 		return baseExpression.Slice(index, length)
-
-		//case NodeIssetExpr:
-		//	node := node.(*BuiltinExprNode)
-		//	for i := 0; i < len(node.Args); i++ {
-		//		if !st.isSet(node.Args[i]) {
-		//			return valueBoolFALSE
-		//		}
-		//	}
-		//	return valueBoolTRUE
 	}
 	return st.evalBaseExpressionGroup(node)
 }

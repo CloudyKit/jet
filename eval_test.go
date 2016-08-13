@@ -234,6 +234,11 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 		"\n<div class=\"col-md-12 col-md-offset-0\"></div>\n\t\t\n\t\t\n<div class=\"row 12\">\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t</div>\n\t\t\n\t\t\n<div class=\"header\">\n\t\n<div class=\"row 12\">\n\t\t\n<div class=\"col-md-6 col-md-offset-0\">\n\n<h1>Hey</h1>\n\t\t\n\t\t</div>\n\t\t\n\t</div>\n\t\t\n</div>\n\t\t",
 	)
 
+	JetTestingSet.LoadTemplate("BlockContentLib", "{{block col(columns)}}\n    <div class=\"col {{columns}}\">{{yield content}}</div>\n{{end}}\n{{block row(cols=\"\")}}\n    <div class=\"row\">\n        {{if len(cols) > 0}}\n            {{yield col(columns=cols) content}}{{yield content}}{{end}}\n        {{else}}\n            {{yield content}}\n        {{end}}\n    </div>\n{{end}}")
+	RunJetTest(t, nil, nil, "BlockContentParam",
+		`{{import "BlockContentLib"}}{{yield row(cols="12") content}}{{cols}}{{end}}`,
+		"\n    <div class=\"row\">\n        \n            \n    <div class=\"col 12\">12</div>\n\n        \n    </div>\n")
+
 }
 
 func TestEvalRangeNode(t *testing.T) {
