@@ -1,17 +1,17 @@
 {{ extends "base.jet" }}
-{{ block mainMenu }}{{ end }}
-{{ block mainContent}}
-    {{ yield mainMenu pipeValue}}
-    {{ block subContent request.Post("Name") }} {{ end }}
+{{ block mainMenu() }}{{ end }}
+{{ block mainContent() }}
+    {{ yield mainMenu() pipeValue}}
+    {{ block subContent() request.Post("Name") }} {{ end }}
     {{ include "include.jet" }}
 {{ end }}
 {{ include "include.jet" }}
-
 ===
-{{extends "base.jet"}}{{block mainMenu}}{{end}}
-{{block mainContent}}
-    {{yield mainMenu pipeValue}}
-    {{block subContent request.Post("Name")}} {{end}}
+{{extends "base.jet"}}
+{{block mainMenu()}}{{end}}
+{{block mainContent()}}
+    {{yield mainMenu() pipeValue}}
+    {{block subContent() request.Post("Name")}} {{end}}
     {{include "include.jet"}}
 {{end}}
 {{include "include.jet"}}

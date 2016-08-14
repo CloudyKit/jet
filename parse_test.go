@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-var parseSet = NewSet("./testData")
+var parseSet = NewSet(nil, "./testData")
 
 type ParserTestCase struct {
 	*testing.T
@@ -79,9 +79,15 @@ func TestParseTemplateExpressions(t *testing.T) {
 func TestParseTemplateBlockYield(t *testing.T) {
 	p := ParserTestCase{t}
 	p.TestPrintFile("block_yield.jet")
+	p.TestPrintFile("new_block_yield.jet")
 }
 
 func TestParseTemplateIndexSliceExpression(t *testing.T) {
 	p := ParserTestCase{t}
 	p.TestPrintFile("index_slice_expression.jet")
+}
+
+func TestParseTemplateAssignment(t *testing.T) {
+	p := ParserTestCase{t}
+	p.TestPrintFile("assignment.jet")
 }

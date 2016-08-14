@@ -31,12 +31,8 @@ func (t *Template) newTernaryExpr(pos Pos, line int, boolean, left, right Expres
 	return &TernaryExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTernaryExpr, Pos: pos, Line: line}, Boolean: boolean, Left: left, Right: right}
 }
 
-func (t *Template) newBuiltinExpr(pos Pos, line int, name string, nodetype NodeType) *BuiltinExprNode {
-	return &BuiltinExprNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodetype, Pos: pos, Line: line}, Name: name}
-}
-
-func (t *Template) newSet(pos Pos, line int, isLet bool, left, right []Expression) *SetNode {
-	return &SetNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSet, Pos: pos, Line: line}, Let: isLet, Left: left, Right: right}
+func (t *Template) newSet(pos Pos, line int, isLet, isIndexExprGetLookup bool, left, right []Expression) *SetNode {
+	return &SetNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSet, Pos: pos, Line: line}, Let: isLet, IndexExprGetLookup: isIndexExprGetLookup, Left: left, Right: right}
 }
 
 func (t *Template) newCallExpr(pos Pos, line int, expr Expression) *CallExprNode {
@@ -90,7 +86,7 @@ func (t *Template) newNil(pos Pos) *NilNode {
 }
 
 func (t *Template) newField(pos Pos, ident string) *FieldNode {
-	return &FieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
+	return &FieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} //[1:] to drop leading period
 }
 
 func (t *Template) newChain(pos Pos, node Node) *ChainNode {
@@ -109,6 +105,10 @@ func (t *Template) newEnd(pos Pos) *endNode {
 	return &endNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeEnd, Pos: pos}}
 }
 
+func (t *Template) newContent(pos Pos) *contentNode {
+	return &contentNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeContent, Pos: pos}}
+}
+
 func (t *Template) newElse(pos Pos, line int) *elseNode {
 	return &elseNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeElse, Pos: pos, Line: line}}
 }
@@ -121,12 +121,12 @@ func (t *Template) newRange(pos Pos, line int, set *SetNode, pipe Expression, li
 	return &RangeNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeRange, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
 }
 
-func (t *Template) newBlock(pos Pos, line int, name string, pipe Expression, listNode *ListNode) *BlockNode {
-	return &BlockNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeBlock, Line: line, Pos: pos}, Name: name, Expression: pipe, List: listNode}
+func (t *Template) newBlock(pos Pos, line int, name string, parameters *BlockParameterList, pipe Expression, listNode, contentListNode *ListNode) *BlockNode {
+	return &BlockNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeBlock, Line: line, Pos: pos}, Name: name, Parameters: parameters, Expression: pipe, List: listNode, Content: contentListNode}
 }
 
-func (t *Template) newYield(pos Pos, line int, name string, pipe Expression) *YieldNode {
-	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Expression: pipe}
+func (t *Template) newYield(pos Pos, line int, name string, bplist *BlockParameterList, pipe Expression, content *ListNode, isContent bool) *YieldNode {
+	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Parameters: bplist, Expression: pipe, Content: content, IsContent: isContent}
 }
 
 func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *IncludeNode {
@@ -137,22 +137,22 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 	n := &NumberNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumber, Pos: pos}, Text: text}
 	switch typ {
 	case itemCharConstant:
-		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+		_rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
 		if err != nil {
 			return nil, err
 		}
 		if tail != "'" {
 			return nil, fmt.Errorf("malformed character constant: %s", text)
 		}
-		n.Int64 = int64(rune)
+		n.Int64 = int64(_rune)
 		n.IsInt = true
-		n.Uint64 = uint64(rune)
+		n.Uint64 = uint64(_rune)
 		n.IsUint = true
-		n.Float64 = float64(rune) // odd but those are the rules.
+		n.Float64 = float64(_rune) //odd but those are the rules.
 		n.IsFloat = true
 		return n, nil
 	case itemComplex:
-		// fmt.Sscan can parse the pair, so let it do the work.
+		//fmt.Sscan can parse the pair, so let it do the work.
 		if _, err := fmt.Sscan(text, &n.Complex128); err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 		n.simplifyComplex()
 		return n, nil
 	}
-	// Imaginary constants can only be complex unless they are zero.
+	//Imaginary constants can only be complex unless they are zero.
 	if len(text) > 0 && text[len(text)-1] == 'i' {
 		f, err := strconv.ParseFloat(text[:len(text)-1], 64)
 		if err == nil {

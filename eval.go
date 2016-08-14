@@ -19,10 +19,12 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 )
 
 var (
+	funcType       = reflect.TypeOf(Func(nil))
 	stringerType   = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 	rangerType     = reflect.TypeOf((*Ranger)(nil)).Elem()
 	rendererType   = reflect.TypeOf((*Renderer)(nil)).Elem()
@@ -34,16 +36,22 @@ var (
 	}
 )
 
+// Renderer any resulting value from an expression in an action that implements this
+// interface will not be printed, instead, we will invoke his Render() method which will be responsible
+// to render his self
 type Renderer interface {
 	Render(*Runtime)
 }
 
+// RendererFunc func implementing interface Renderer
 type RendererFunc func(*Runtime)
 
 func (renderer RendererFunc) Render(r *Runtime) {
 	renderer(r)
 }
 
+// Ranger a value implementing a ranger interface is able to iterate on his value
+// and can be used directly in a range statement
 type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
 }
@@ -63,10 +71,14 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
+// Runtime this type holds the state of the execution of an template
 type Runtime struct {
 	*escapeeWriter
 	*scope
-	context reflect.Value
+	content func(*Runtime, Expression)
+
+	translator Translator
+	context    reflect.Value
 }
 
 func (st *Runtime) newScope() {
@@ -110,9 +122,10 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
+// YieldTemplate yields a template same as include
 func (st Runtime) YieldTemplate(name string, context interface{}) {
-	t, exists := st.set.getTemplate(name)
-	if !exists {
+	t, err := st.set.GetTemplate(name)
+	if err != nil {
 		panic(fmt.Errorf("include: template %q was not found", name))
 	}
 
@@ -128,6 +141,7 @@ func (st Runtime) YieldTemplate(name string, context interface{}) {
 	st.executeList(Root)
 }
 
+// Set sets variable ${name} in the current template scope
 func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
 }
@@ -161,6 +175,7 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 	return true
 }
 
+// Resolve resolves a value from the execution context
 func (state *Runtime) Resolve(name string) reflect.Value {
 
 	if name == "." {
@@ -190,7 +205,6 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
-	isDev := st.set.developmentMode
 	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var is bool
@@ -198,7 +212,7 @@ func (st *Runtime) recover(err *error) {
 			panic(recovered)
 		}
 		*err, is = recovered.(error)
-		if isDev || !is {
+		if !is {
 			panic(recovered)
 		}
 	}
@@ -245,22 +259,107 @@ RESTART:
 }
 
 func (st *Runtime) executeSetList(set *SetNode) {
-	for i := 0; i < len(set.Left); i++ {
-		st.executeSet(set.Left[i], st.evalPrimaryExpressionGroup(set.Right[i]))
+	if set.IndexExprGetLookup {
+		value := st.evalPrimaryExpressionGroup(set.Right[0])
+		st.executeSet(set.Left[0], value)
+		if value.IsValid() {
+			st.executeSet(set.Left[1], valueBoolTRUE)
+		} else {
+			st.executeSet(set.Left[1], valueBoolFALSE)
+		}
+	} else {
+		for i := 0; i < len(set.Left); i++ {
+			st.executeSet(set.Left[i], st.evalPrimaryExpressionGroup(set.Right[i]))
+		}
 	}
 }
 
 func (st *Runtime) executeLetList(set *SetNode) {
-	for i := 0; i < len(set.Left); i++ {
-		st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+	if set.IndexExprGetLookup {
+		value := st.evalPrimaryExpressionGroup(set.Right[0])
+
+		st.variables[set.Left[0].(*IdentifierNode).Ident] = value
+
+		if value.IsValid() {
+			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolTRUE
+		} else {
+			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolFALSE
+		}
+
+	} else {
+		for i := 0; i < len(set.Left); i++ {
+			st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+		}
+	}
+}
+
+func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *BlockParameterList, expression Expression, content *ListNode) {
+
+	needNewScope := len(blockParam.List) > 0 || len(yieldParam.List) > 0
+	if needNewScope {
+		st.newScope()
+		for i := 0; i < len(yieldParam.List); i++ {
+			p := &yieldParam.List[i]
+			st.variables[p.Identifier] = st.evalPrimaryExpressionGroup(p.Expression)
+		}
+		for i := 0; i < len(blockParam.List); i++ {
+			p := &blockParam.List[i]
+			if _, found := st.variables[p.Identifier]; !found {
+				if p.Expression == nil {
+					st.variables[p.Identifier] = valueBoolFALSE
+				} else {
+					st.variables[p.Identifier] = st.evalPrimaryExpressionGroup(p.Expression)
+				}
+			}
+		}
+	}
+
+	mycontent := st.content
+	if content != nil {
+		myscope := st.scope
+		st.content = func(st *Runtime, expression Expression) {
+			outscope := st.scope
+			outcontent := st.content
+
+			st.scope = myscope
+			st.content = mycontent
+
+			if expression != nil {
+				context := st.context
+				st.context = st.evalPrimaryExpressionGroup(expression)
+				st.executeList(content)
+				st.context = context
+			} else {
+				st.executeList(content)
+			}
+
+			st.scope = outscope
+			st.content = outcontent
+		}
+	}
+
+	if expression != nil {
+		context := st.context
+		st.context = st.evalPrimaryExpressionGroup(expression)
+		st.executeList(block.List)
+		st.context = context
+	} else {
+		st.executeList(block.List)
+	}
+
+	st.content = mycontent
+	if needNewScope {
+		st.releaseScope()
 	}
 }
 
 func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
+
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {
+
 		case NodeText:
 			node := node.(*TextNode)
 			_, err := st.Writer.Write(node.Text)
@@ -370,19 +469,16 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 		case NodeYield:
 			node := node.(*YieldNode)
-			block, has := st.getBlock(node.Name)
-
-			if has == false || block == nil {
-				node.errorf("unresolved block %q!!", node.Name)
-			}
-
-			if node.Expression != nil {
-				context := st.context
-				st.context = st.evalPrimaryExpressionGroup(node.Expression)
-				st.executeList(block.List)
-				st.context = context
+			if node.IsContent {
+				if st.content != nil {
+					st.content(st, node.Expression)
+				}
 			} else {
-				st.executeList(block.List)
+				block, has := st.getBlock(node.Name)
+				if has == false || block == nil {
+					node.errorf("unresolved block %q!!", node.Name)
+				}
+				st.executeYieldBlock(block, block.Parameters, node.Parameters, node.Expression, node.Content)
 			}
 		case NodeBlock:
 			node := node.(*BlockNode)
@@ -390,14 +486,7 @@ func (st *Runtime) executeList(list *ListNode) {
 			if has == false {
 				block = node
 			}
-			if node.Expression != nil {
-				context := st.context
-				st.context = st.evalPrimaryExpressionGroup(node.Expression)
-				st.executeList(block.List)
-				st.context = context
-			} else {
-				st.executeList(block.List)
-			}
+			st.executeYieldBlock(block, block.Parameters, block.Parameters, block.Expression, block.Content)
 		case NodeInclude:
 			node := node.(*IncludeNode)
 			var Name string
@@ -411,9 +500,9 @@ func (st *Runtime) executeList(list *ListNode) {
 				node.errorf("unexpected expression type %q in template yielding", getTypeString(name))
 			}
 
-			t, exists := st.set.getTemplate(Name)
-			if !exists {
-				node.errorf("template %q was not found!!", node.Name)
+			t, err := st.set.getTemplate(Name, node.TemplateName)
+			if err != nil {
+				node.error(err)
 			} else {
 				st.newScope()
 				st.blocks = t.processedBlocks
@@ -471,22 +560,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		if baseExpr.Kind() != reflect.Func {
 			node.errorf("node %q is not func", node)
 		}
-		return st.evalCallExpression(baseExpr, node.Args)[0]
-	case NodeLenExpr:
-		node := node.(*BuiltinExprNode)
-		expression := st.evalPrimaryExpressionGroup(node.Args[0])
-
-		if expression.Kind() == reflect.Ptr {
-			expression = expression.Elem()
-		}
-
-		switch expression.Kind() {
-		case reflect.Array, reflect.Chan, reflect.Slice, reflect.Map, reflect.String:
-			return reflect.ValueOf(expression.Len())
-		case reflect.Struct:
-			return reflect.ValueOf(expression.NumField())
-		}
-		node.errorf("inválid value type %s in len builtin", expression.Type())
+		return st.evalCallExpression(baseExpr, node.Args)
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
 
@@ -552,30 +626,21 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		}
 
 		return baseExpression.Slice(index, length)
-
-	case NodeIssetExpr:
-		node := node.(*BuiltinExprNode)
-		for i := 0; i < len(node.Args); i++ {
-			if !st.Isset(node.Args[i]) {
-				return valueBoolFALSE
-			}
-		}
-		return valueBoolTRUE
 	}
 	return st.evalBaseExpressionGroup(node)
 }
 
-func (st *Runtime) Isset(node Node) bool {
+func (st *Runtime) isSet(node Node) bool {
 	nodeType := node.Type()
 
 	switch nodeType {
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
-		if !st.Isset(node.Base) {
+		if !st.isSet(node.Base) {
 			return false
 		}
 
-		if !st.Isset(node.Index) {
+		if !st.isSet(node.Index) {
 			return false
 		}
 
@@ -770,6 +835,17 @@ func toInt(v reflect.Value) int64 {
 		return int64(v.Float())
 	} else if isUint(kind) {
 		return int64(v.Uint())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseInt(v.String(), 10, 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to int64", v.Type()))
 	return 0
@@ -779,12 +855,21 @@ func toUint(v reflect.Value) uint64 {
 	kind := v.Kind()
 	if isUint(kind) {
 		return v.Uint()
-	}
-	if isInt(kind) {
+	} else if isInt(kind) {
 		return uint64(v.Int())
-	}
-	if isFloat(kind) {
+	} else if isFloat(kind) {
 		return uint64(v.Float())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseUint(v.String(), 10, 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to uint64", v.Type()))
 	return 0
@@ -794,12 +879,21 @@ func toFloat(v reflect.Value) float64 {
 	kind := v.Kind()
 	if isFloat(kind) {
 		return v.Float()
-	}
-	if isInt(kind) {
+	} else if isInt(kind) {
 		return float64(v.Int())
-	}
-	if isUint(kind) {
+	} else if isUint(kind) {
 		return float64(v.Uint())
+	} else if kind == reflect.String {
+		n, e := strconv.ParseFloat(v.String(), 0)
+		if e != nil {
+			panic(e)
+		}
+		return n
+	} else if kind == reflect.Bool {
+		if v.Bool() {
+			return 0
+		}
+		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to float64", v.Type()))
 	return 0
@@ -906,6 +1000,12 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 			} else {
 				left = reflect.ValueOf(left.Uint() - toUint(right))
 			}
+		} else if kind == reflect.String {
+			if isAdditive {
+				left = reflect.ValueOf(left.String() + fmt.Sprint(right))
+			} else {
+				node.Right.errorf("minus signal is not allowed with strings")
+			}
 		} else {
 			node.Left.errorf("a non numeric value in additive expression")
 		}
@@ -976,12 +1076,25 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	return reflect.Value{}
 }
 
-func (st *Runtime) evalCallExpression(fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
-	i := len(args) + len(values)
-	if i <= 10 {
-		return reflect_Call10(i, st, fn, args, values...)
+func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args []Expression, values ...reflect.Value) reflect.Value {
+
+	if funcType.AssignableTo(baseExpr.Type()) {
+		return baseExpr.Interface().(Func)(Arguments{runtime: st, argExpr: args, argVal: values})
 	}
-	return reflect_Call(make([]reflect.Value, i, i), st, fn, args, values...)
+
+	i := len(args) + len(values)
+	var returns []reflect.Value
+	if i <= 10 {
+		returns = reflect_Call10(i, st, baseExpr, args, values...)
+	} else {
+		returns = reflect_Call(make([]reflect.Value, i, i), st, baseExpr, args, values...)
+	}
+
+	if len(returns) == 0 {
+		return reflect.Value{}
+	}
+
+	return returns[0]
 }
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
@@ -992,11 +1105,7 @@ func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool
 				st.evalSafeWriter(term, node)
 				return reflect.Value{}, true
 			}
-			returned := st.evalCallExpression(term, node.Args)
-			if len(returned) == 0 {
-				return reflect.Value{}, false
-			}
-			return returned[0], false
+			return st.evalCallExpression(term, node.Args), false
 		} else {
 			node.Args[0].errorf("command %q type %s is not func", node.Args[0], term.Type())
 		}
@@ -1015,7 +1124,7 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
-	//todo:  sync.Pool ?
+
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
@@ -1032,11 +1141,7 @@ func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Va
 			st.evalSafeWriter(term, node, value)
 			return reflect.Value{}, true
 		}
-		returned := st.evalCallExpression(term, node.Args, value)
-		if len(returned) == 0 {
-			return reflect.Value{}, false
-		}
-		return returned[0], false
+		return st.evalCallExpression(term, node.Args, value), false
 	} else {
 		node.BaseExpr.errorf("pipe command %q type %s is not func", node.BaseExpr, term.Type())
 	}
@@ -1121,7 +1226,7 @@ func isFloat(kind reflect.Kind) bool {
 	return kind == reflect.Float32 || kind == reflect.Float64
 }
 
-//checkEquality of two reflect values in the semantic of the jet runtime
+// checkEquality of two reflect values in the semantic of the jet runtime
 func checkEquality(v1, v2 reflect.Value) bool {
 
 	if !v1.IsValid() || !v2.IsValid() {
@@ -1426,7 +1531,7 @@ type chanRanger struct {
 	v reflect.Value
 }
 
-func (s *chanRanger) Range() (index, value reflect.Value, end bool) {
+func (s *chanRanger) Range() (_, value reflect.Value, end bool) {
 	value, end = s.v.Recv()
 	if end {
 		pool_chanRanger.Put(s)
