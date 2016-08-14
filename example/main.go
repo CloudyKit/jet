@@ -40,12 +40,11 @@ func (dt *doneTODOs) New(todos map[string]*tTODO) *doneTODOs {
 // Range satisfies the jet.Ranger interface and only returns TODOs that are done,
 // even when the list contains TODOs that are not done.
 func (dt *doneTODOs) Range() (reflect.Value, reflect.Value, bool) {
-	//log.Printf("Range called. Current index is %v, keys are %+v, list is %+v", dt.i, dt.keys, dt.list)
 	for dt.i < dt.len {
 		key := dt.keys[dt.i]
 		dt.i++
 		if dt.list[key].Done {
-			return reflect.ValueOf(key), reflect.ValueOf(dt.list[key]), (dt.i < dt.len)
+			return reflect.ValueOf(key), reflect.ValueOf(dt.list[key]), false
 		}
 	}
 	return reflect.Value{}, reflect.Value{}, true
