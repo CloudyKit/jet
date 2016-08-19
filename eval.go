@@ -81,6 +81,11 @@ type Runtime struct {
 	context    reflect.Value
 }
 
+// Context returns the current context value
+func (r *Runtime) Context() reflect.Value {
+	return r.context
+}
+
 func (st *Runtime) newScope() {
 	st.scope = &scope{parent: st.scope, variables: make(VarMap), blocks: st.blocks}
 }

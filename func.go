@@ -52,6 +52,16 @@ func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 	}
 }
 
+// NumOfArguments returns the number of arguments
+func (a *Arguments) NumOfArguments() int {
+	return len(a.argExpr) + len(a.argVal)
+}
+
+// Runtime get the Runtime context
+func (a *Arguments) Runtime() *Runtime {
+	return a.runtime
+}
+
 // Func function implementing this type is called directly, which is faster than calling through reflect.
 // If a function is being called many times in the execution of a template, you may consider implementing
 // a wrapper for that function implementing a Func.
