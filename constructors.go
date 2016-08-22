@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package jet
 
 import (
@@ -219,7 +220,6 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 	return n, nil
 }
 
-// NewIdentifier returns a new IdentifierNode with the given identifier name.
 func (t *Template) newIdentifier(ident string, pos Pos, line int) *IdentifierNode {
 	return &IdentifierNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeIdentifier, Pos: pos, Line: line}, Ident: ident}
 }
