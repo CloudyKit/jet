@@ -334,6 +334,14 @@ func TestFileResolve(t *testing.T) {
 	}
 }
 
+func TestIncludeIfNotExists(t *testing.T) {
+	set := NewHTMLSet("./testData/includeIfNotExists")
+	RunJetTestWithSet(t, set, nil, nil, "existent", "", "Hi, i exist!!")
+	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
+	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
+	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
+}
+
 func TestSet_Parse(t *testing.T) {
 	set := NewHTMLSet("./testData/resolve")
 
