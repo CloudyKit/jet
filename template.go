@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Jet is faster and dynamic template engine for the Go programming language, set features
+// includes very fast execution, dynamic and flexible language, inheritance, low number of allocations,
+// special interfaces to allow even further optimizations.
+//
 package jet
 
 import (
@@ -28,8 +32,9 @@ import (
 	"text/template"
 )
 
-// Set responsible to load and cache templates, also holds some runtime data
-// passed to Runtime at evaluating time.
+// Set is responsible to load,invoke parse and cache templates and relations
+// every jet template is associated with one set.
+// create a set with jet.NewSet(escapeeFn) returns a pointer to the Set
 type Set struct {
 	dirs              []string             // directories for look to template files
 	templates         map[string]*Template // parsed templates

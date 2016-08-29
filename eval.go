@@ -974,12 +974,40 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 }
 
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
-	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
+
 	isAdditive := node.Operator.typ == itemAdd
+	if node.Left == nil {
+		right := st.evalPrimaryExpressionGroup(node.Right)
+		kind := right.Kind()
+		// todo: optimize
+		// todo:
+		if isInt(kind) {
+			if isAdditive {
+				return reflect.ValueOf(+right.Int())
+			} else {
+				return reflect.ValueOf(-right.Int())
+			}
+		} else if isUint(kind) {
+			if isAdditive {
+				return right
+			} else {
+				return reflect.ValueOf(-int64(right.Uint()))
+			}
+		} else if isFloat(kind) {
+			if isAdditive {
+				return reflect.ValueOf(+right.Float())
+			} else {
+				return reflect.ValueOf(-right.Float())
+			}
+		}
+		node.Left.errorf("a non numeric value in additive expression")
+	}
+
+	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
 	kind := left.Kind()
 	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
 	// this is necessary for expressions like 4+1.23
-	needFloatPromotion := !isFloat(kind) && isFloat(right.Kind())
+	needFloatPromotion := !isFloat(kind) && kind != reflect.String && isFloat(right.Kind())
 	if needFloatPromotion {
 		if isInt(kind) {
 			if isAdditive {
@@ -1077,14 +1105,16 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		return resolved
 	case NodeNumber:
 		node := node.(*NumberNode)
-		if node.IsUint {
-			return reflect.ValueOf(&node.Uint64).Elem()
+		if node.IsFloat {
+			return reflect.ValueOf(&node.Float64).Elem()
 		}
+
 		if node.IsInt {
 			return reflect.ValueOf(&node.Int64).Elem()
 		}
-		if node.IsFloat {
-			return reflect.ValueOf(&node.Float64).Elem()
+
+		if node.IsUint {
+			return reflect.ValueOf(&node.Uint64).Elem()
 		}
 	}
 	node.errorf("unexpected node type %s in unary expression evaluating", node)

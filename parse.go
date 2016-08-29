@@ -572,11 +572,15 @@ func (t *Template) multiplicativeExpression(context string) (left Expression, en
 
 func (t *Template) unaryExpression(context string) (Expression, item) {
 	next := t.nextNonSpace()
-	if next.typ == itemNot {
+	switch next.typ {
+	case itemNot:
 		expr, endToken := t.comparativeExpression(context)
 		return t.newNotExpr(expr.Position(), t.lex.lineNumber(), expr), endToken
+	case itemMinus, itemAdd:
+		return t.newAdditiveExpr(next.pos, t.lex.lineNumber(), nil, t.operand(), next), t.nextNonSpace()
+	default:
+		t.backup()
 	}
-	t.backup()
 	operand := t.operand()
 	return operand, t.nextNonSpace()
 }
@@ -831,9 +835,6 @@ func (t *Template) parseArguments() (args []Expression) {
 
 func (t *Template) checkPipeline(pipe *PipeNode, context string) {
 
-	// GetProductById productId -> Field Name -> html
-	// GetProductById productId -> Method GetCategories -> Select
-
 	// Reject empty pipelines
 	if len(pipe.Cmds) == 0 {
 		t.errorf("missing value for %s", context)
@@ -854,9 +855,6 @@ func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line
 
 	expression = t.assignmentOrExpression(context)
 	pos = expression.Position()
-	//if expression == nil {
-	//	println("nil here",t.lex.input[0:t.lex.pos])
-	//}
 	if expression.Type() == NodeSet {
 		set = expression.(*SetNode)
 		if context != "range" {

@@ -141,6 +141,7 @@ type lexer struct {
 	lastPos    Pos       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
+	lastType   itemType
 }
 
 // next returns the next rune in the input.
@@ -169,6 +170,7 @@ func (l *lexer) backup() {
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
+	l.lastType = t
 	l.items <- item{t, l.start, l.input[l.start:l.pos]}
 	l.start = l.pos
 }
@@ -336,8 +338,39 @@ func lexInsideAction(l *lexer) stateFn {
 	case r == '%':
 		l.emit(itemMod)
 	case r == '-':
+
+		if r := l.peek(); '0' <= r && r <= '9' &&
+			itemAdd != l.lastType &&
+			itemMinus != l.lastType &&
+			itemNumber != l.lastType &&
+			itemIdentifier != l.lastType &&
+			itemString != l.lastType &&
+			itemRawString != l.lastType &&
+			itemCharConstant != l.lastType &&
+			itemBool != l.lastType &&
+			itemField != l.lastType &&
+			itemChar != l.lastType &&
+			itemTrans != l.lastType {
+			l.backup()
+			return lexNumber
+		}
 		l.emit(itemMinus)
 	case r == '+':
+		if r := l.peek(); '0' <= r && r <= '9' &&
+			itemAdd != l.lastType &&
+			itemMinus != l.lastType &&
+			itemNumber != l.lastType &&
+			itemIdentifier != l.lastType &&
+			itemString != l.lastType &&
+			itemRawString != l.lastType &&
+			itemCharConstant != l.lastType &&
+			itemBool != l.lastType &&
+			itemField != l.lastType &&
+			itemChar != l.lastType &&
+			itemTrans != l.lastType {
+			l.backup()
+			return lexNumber
+		}
 		l.emit(itemAdd)
 	case r == '?':
 		l.emit(itemTernary)
@@ -565,13 +598,13 @@ func (l *lexer) scanNumber() bool {
 	if l.accept(".") {
 		l.acceptRun(digits)
 	}
-	//if l.accept("eE") {
-	//	l.accept("+-")
-	//	l.acceptRun("0123456789")
-	//}
-	// Is it imaginary?
-	//l.accept("i")
-	// Next thing mustn't be alphanumeric.
+	if l.accept("eE") {
+		l.accept("+-")
+		l.acceptRun("0123456789")
+	}
+	//Is it imaginary?
+	l.accept("i")
+	//Next thing mustn't be alphanumeric.
 	if isAlphaNumeric(l.peek()) {
 		l.next()
 		return false

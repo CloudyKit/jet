@@ -43,14 +43,26 @@ func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{ .Field }}`, itemLeftDelim, itemField, itemRightDelim)
 	lexerTestCase(t, `{{ "value" }}`, itemLeftDelim, itemString, itemRightDelim)
 	lexerTestCase(t, `{{ call: value }}`, itemLeftDelim, itemIdentifier, itemColon, itemIdentifier, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices+1}}`, itemLeftDelim, itemField, itemAdd, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices-1}}`, itemLeftDelim, itemField, itemMinus, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices*1}}`, itemLeftDelim, itemField, itemMul, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices/1}}`, itemLeftDelim, itemField, itemDiv, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices%1}}`, itemLeftDelim, itemField, itemMod, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices=1}}`, itemLeftDelim, itemField, itemAssign, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices:=1}}`, itemLeftDelim, itemField, itemAssign, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices!1}}`, itemLeftDelim, itemField, itemNot, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices==1}}`, itemLeftDelim, itemField, itemEquals, itemNumber, itemRightDelim)
-	lexerTestCase(t, `{{.NumberOfRepairedDevices&&1}}`, itemLeftDelim, itemField, itemAnd, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex+1}}`, itemLeftDelim, itemField, itemAdd, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex-1}}`, itemLeftDelim, itemField, itemMinus, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex*1}}`, itemLeftDelim, itemField, itemMul, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex/1}}`, itemLeftDelim, itemField, itemDiv, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex%1}}`, itemLeftDelim, itemField, itemMod, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex=1}}`, itemLeftDelim, itemField, itemAssign, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{Ex:=1}}`, itemLeftDelim, itemIdentifier, itemAssign, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex!1}}`, itemLeftDelim, itemField, itemNot, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex==1}}`, itemLeftDelim, itemField, itemEquals, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{.Ex&&1}}`, itemLeftDelim, itemField, itemAnd, itemNumber, itemRightDelim)
+
+}
+
+func TestLexNegatives(t *testing.T) {
+
+	lexerTestCase(t, `{{ -1 }}`, itemLeftDelim, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ 5 + -1 }}`, itemLeftDelim, itemNumber, itemAdd, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ 5 * -1 }}`, itemLeftDelim, itemNumber, itemMul, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ 5 / +1 }}`, itemLeftDelim, itemNumber, itemDiv, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ 5 % -1 }}`, itemLeftDelim, itemNumber, itemMod, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ 5 == -1000 }}`, itemLeftDelim, itemNumber, itemEquals, itemNumber, itemRightDelim)
+
 }
