@@ -540,7 +540,7 @@ func (l *lexer) atTerminator() bool {
 		return true
 	}
 	switch r {
-	case eof, '.', ',', '|', ':', ')', '=', '(', ';', '?', '[', ']', '+', '-', '/', '%', '*', '&', '!':
+	case eof, '.', ',', '|', ':', ')', '=', '(', ';', '?', '[', ']', '+', '-', '/', '%', '*', '&', '!', '<', '>':
 		return true
 	}
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will

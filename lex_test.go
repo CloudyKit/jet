@@ -66,3 +66,7 @@ func TestLexNegatives(t *testing.T) {
 	lexerTestCase(t, `{{ 5 == -1000 }}`, itemLeftDelim, itemNumber, itemEquals, itemNumber, itemRightDelim)
 
 }
+
+func TestLexer_Bug35(t *testing.T) {
+	lexerTestCase(t, `{{if x>y}}blahblah...{{end}}`, itemLeftDelim, itemIf, itemIdentifier, itemGreat, itemIdentifier, itemRightDelim, itemText, itemLeftDelim, itemEnd, itemRightDelim)
+}

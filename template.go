@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Jet is faster and dynamic template engine for the Go programming language, set features
-// includes very fast execution, dynamic and flexible language, inheritance, low number of allocations,
+// Jet is a fast and dynamic template engine for the Go programming language, set of features
+// includes very fast template execution, a dynamic and flexible language, template inheritance, low number of allocations,
 // special interfaces to allow even further optimizations.
-//
+
 package jet
 
 import (
