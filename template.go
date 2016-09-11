@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,6 +38,7 @@ import (
 // create a set with jet.NewSet(escapeeFn) returns a pointer to the Set
 type Set struct {
 	dirs              []string             // directories for look to template files
+	fsCache           http.FileSystem      // lookup templates using an http file system
 	templates         map[string]*Template // parsed templates
 	escapee           SafeWriter           // escapee to use at runtime
 	globals           VarMap               // global scope for this template set
@@ -90,6 +92,12 @@ func (s *Set) AddPath(path string) {
 	s.dirs = append([]string{path}, s.dirs...)
 }
 
+// SetFileSystem sets the boxed file system for use when looking up templates.
+func (s *Set) SetFileSystem(fs http.FileSystem) *Set {
+	s.fsCache = fs
+	return s
+}
+
 // AddGopathPath add path based on GOPATH env to the lookup list, when loading a template the Set will
 // look into the lookup list for the file matching the provided name.
 func (s *Set) AddGopathPath(path string) {
@@ -113,7 +121,13 @@ func (s *Set) AddGopathPath(path string) {
 
 // fileExists checks if the template name exists by walking the list of template paths
 // returns string with the full path of the template and bool true if the template file was found
+// This also handles looking up the name via the http file system if it was set.
 func (s *Set) fileExists(name string) (string, bool) {
+	if s.fsCache != nil {
+		if _, err := s.fsCache.Open(name); err == nil {
+			return name, true
+		}
+	}
 	for i := 0; i < len(s.dirs); i++ {
 		fileName := path.Join(s.dirs[i], name)
 		if _, err := os.Stat(fileName); err == nil {
@@ -181,6 +195,15 @@ func (s *Set) Parse(name, content string) (*Template, error) {
 
 func (s *Set) loadFromFile(name, fileName string) (template *Template, err error) {
 	var content []byte
+	if s.fsCache != nil {
+		if file, fsErr := s.fsCache.Open(name); fsErr == nil {
+			if content, err = ioutil.ReadAll(file); err == nil {
+				template, err = s.parse(name, string(content))
+				return
+			}
+		}
+	}
+
 	if content, err = ioutil.ReadFile(fileName); err == nil {
 		template, err = s.parse(name, string(content))
 	}

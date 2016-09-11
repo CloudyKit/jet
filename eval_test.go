@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
@@ -353,6 +354,16 @@ func TestFileResolve(t *testing.T) {
 	//for key, _ := range set.templates {
 	//	t.Log(key)
 	//}
+}
+
+func TestFileSystemResolve(t *testing.T) {
+	set := NewHTMLSet()
+	fs := http.Dir("testData/includeIfNotExists")
+	set.SetFileSystem(fs)
+	RunJetTestWithSet(t, set, nil, nil, "existent", "", "Hi, i exist!!")
+	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
+	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
+	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
 }
 
 func TestIncludeIfNotExists(t *testing.T) {
