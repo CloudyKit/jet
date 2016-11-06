@@ -364,7 +364,6 @@ func TestIncludeIfNotExists(t *testing.T) {
 }
 
 func TestSet_Parse(t *testing.T) {
-	return
 	set := NewHTMLSet("./testData/resolve")
 
 	var c int64 = 100
