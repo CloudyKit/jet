@@ -772,7 +772,11 @@ RESET:
 		}
 	}
 	nodeTYPE := node.Type()
-	if nodeTYPE == NodeIdentifier || nodeTYPE == NodeCallExpr || nodeTYPE == NodeField || nodeTYPE == NodeChain {
+	if nodeTYPE == NodeIdentifier ||
+		nodeTYPE == NodeCallExpr ||
+		nodeTYPE == NodeField ||
+		nodeTYPE == NodeChain ||
+		nodeTYPE == NodeIndexExpr {
 		switch t.nextNonSpace().typ {
 		case itemLeftParen:
 			callExpr := t.newCallExpr(node.Position(), t.lex.lineNumber(), node)

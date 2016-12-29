@@ -583,6 +583,10 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
 		indexType := indexExpression.Type()
 
+		if baseExpression.Kind() == reflect.Interface {
+			baseExpression = baseExpression.Elem()
+		}
+
 		if baseExpression.Kind() == reflect.Ptr {
 			baseExpression = baseExpression.Elem()
 		}
