@@ -167,6 +167,17 @@ func (s *Set) resolveNameSibling(name, sibling string) (newName, fileName string
 	return
 }
 
+// ParseInline parses a template given inline
+func (s *Set) ParseInline(name, content string) (*Template, error) {
+	sc := *s
+
+	sc.tmx.RLock()
+	t, err := sc.parse(name, content)
+	sc.tmx.RUnlock()
+
+	return t, err
+}
+
 // Parse parses the template, this method will link the template to the set but not the set to
 func (s *Set) Parse(name, content string) (*Template, error) {
 	sc := *s

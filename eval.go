@@ -16,12 +16,13 @@ package jet
 
 import (
 	"fmt"
-	"github.com/CloudyKit/fastprinter"
 	"io"
 	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
+
+	"github.com/CloudyKit/fastprinter"
 )
 
 var (
@@ -590,6 +591,9 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		if baseExpression.Kind() == reflect.Ptr {
 			baseExpression = baseExpression.Elem()
 		}
+		if baseExpression.Kind() == reflect.Interface {
+			baseExpression = reflect.ValueOf(baseExpression.Interface())
+		}
 
 		switch baseExpression.Kind() {
 		case reflect.Map:
@@ -597,6 +601,14 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			if !indexType.AssignableTo(key) {
 				if indexType.ConvertibleTo(key) {
 					indexExpression = indexExpression.Convert(key)
+				} else if indexType.Kind() == reflect.Interface {
+					indexExpression = reflect.ValueOf(indexExpression.Interface())
+					indexType = indexExpression.Type()
+					if indexType.ConvertibleTo(key) {
+						indexExpression = indexExpression.Convert(key)
+					} else {
+						node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
+					}
 				} else {
 					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
 				}
@@ -670,6 +682,9 @@ func (st *Runtime) isSet(node Node) bool {
 		if baseExpression.Kind() == reflect.Ptr {
 			baseExpression = baseExpression.Elem()
 		}
+		if baseExpression.Kind() == reflect.Interface {
+			baseExpression = reflect.ValueOf(baseExpression.Interface())
+		}
 
 		switch baseExpression.Kind() {
 		case reflect.Map:
@@ -677,6 +692,14 @@ func (st *Runtime) isSet(node Node) bool {
 			if !indexType.AssignableTo(key) {
 				if indexType.ConvertibleTo(key) {
 					indexExpression = indexExpression.Convert(key)
+				} else if indexType.Kind() == reflect.Interface {
+					indexExpression = reflect.ValueOf(indexExpression.Interface())
+					indexType = indexExpression.Type()
+					if indexType.ConvertibleTo(key) {
+						indexExpression = indexExpression.Convert(key)
+					} else {
+						node.errorf("%s is not! assignable|convertible to map key %s", indexType.String(), key.String())
+					}
 				} else {
 					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
 				}
