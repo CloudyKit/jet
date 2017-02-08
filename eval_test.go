@@ -18,12 +18,15 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"text/template"
+
+	"github.com/CloudyKit/jet/loaders/httpfs"
 )
 
 var (
@@ -312,7 +315,7 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, vars, nil, "IndexExpressionMap_12", `{{nested.nested.nested["nested"]["strings"][0]}}`, "hello")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_13", `{{nested.nested.nested["nested"]["arr"][0]}}`, "hello")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_14", `{{nested["nested"].nested["nested"].name}}`, "value")
-	RunJetTest(t, vars, nil, "IndexExpressionMap_15", `{{nested["nested"]["nested"].nested.name}}`, "value")	
+	RunJetTest(t, vars, nil, "IndexExpressionMap_15", `{{nested["nested"]["nested"].nested.name}}`, "value")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }
@@ -353,6 +356,15 @@ func TestFileResolve(t *testing.T) {
 	//for key, _ := range set.templates {
 	//	t.Log(key)
 	//}
+}
+
+func TestFileSystemResolve(t *testing.T) {
+	fs := http.Dir("testData/includeIfNotExists")
+	set := NewHTMLSetLoader(httpfs.NewLoader(fs))
+	RunJetTestWithSet(t, set, nil, nil, "existent", "", "Hi, i exist!!")
+	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
+	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
+	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
 }
 
 func TestIncludeIfNotExists(t *testing.T) {
