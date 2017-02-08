@@ -27,8 +27,6 @@ import (
 	"strings"
 	"sync"
 	"text/template"
-
-	"github.com/CloudyKit/jet/loaders/osfs"
 )
 
 // Set is responsible to load,invoke parse and cache templates and relations
@@ -85,7 +83,7 @@ func NewHTMLSetLoader(loader Loader) *Set {
 
 // NewSet creates a new set, dirs is a list of directories to be searched for templates
 func NewSet(escapee SafeWriter, dirs ...string) *Set {
-	return NewSetLoader(escapee, osfs.NewLoader(dirs...))
+	return NewSetLoader(escapee, &osFileSystemLoader{dirs: dirs})
 }
 
 // NewHTMLSet creates a new set, dirs is a list of directories to be searched for templates
