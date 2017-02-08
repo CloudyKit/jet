@@ -85,7 +85,7 @@ func NewHTMLSetLoader(loader Loader) *Set {
 
 // NewSet creates a new set, dirs is a list of directories to be searched for templates
 func NewSet(escapee SafeWriter, dirs ...string) *Set {
-	return NewSetLoader(escapee, osfs.New(dirs...))
+	return NewSetLoader(escapee, osfs.NewLoader(dirs...))
 }
 
 // NewHTMLSet creates a new set, dirs is a list of directories to be searched for templates

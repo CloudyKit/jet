@@ -6,7 +6,7 @@ import "io"
 type Loader interface {
 	// Open opens the underlying reader with template content.
 	Open(name string) (io.ReadCloser, error)
-	// Exists checks for template existance and returns full path.
+	// Exists checks for template existence and returns full path.
 	Exists(name string) (string, bool)
 }
 

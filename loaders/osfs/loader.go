@@ -13,7 +13,7 @@ type osFileSystemLoader struct {
 	dirs []string
 }
 
-func New(dirs ...string) *osFileSystemLoader {
+func NewLoader(dirs ...string) *osFileSystemLoader {
 	return &osFileSystemLoader{dirs: dirs}
 }
 

@@ -9,7 +9,7 @@ type httpFileSystemLoader struct {
 	http.FileSystem
 }
 
-func JetLoader(fs http.FileSystem) httpFileSystemLoader {
+func NewLoader(fs http.FileSystem) httpFileSystemLoader {
 	return httpFileSystemLoader{FileSystem: fs}
 }
 
