@@ -19,13 +19,10 @@
 package jet
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -97,31 +94,20 @@ func NewHTMLSet(dir ...string) *Set {
 // AddPath add path to the lookup list, when loading a template the Set will
 // look into the lookup list for the file matching the provided name.
 func (s *Set) AddPath(path string) {
-	loader, ok := s.loader.(*osFileSystem)
-	if !ok {
-		panic(fmt.Sprintf("set.AddPath() not supported when using custom loader of type %T", s.loader))
+	if loader, ok := s.loader.(hasAddPath); ok {
+		loader.AddPath(path)
+	} else {
+		panic(fmt.Sprintf("AddPath() not supported on custom loader of type %T", s.loader))
 	}
-	loader.dirs = append(loader.dirs, path)
 }
 
 // AddGopathPath add path based on GOPATH env to the lookup list, when loading a template the Set will
 // look into the lookup list for the file matching the provided name.
 func (s *Set) AddGopathPath(path string) {
-	paths := filepath.SplitList(os.Getenv("GOPATH"))
-	for i := 0; i < len(paths); i++ {
-		path, err := filepath.Abs(filepath.Join(paths[i], "src", path))
-		if err != nil {
-			panic(errors.New("Can't add this path err: " + err.Error()))
-		}
-
-		if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
-			s.AddPath(path)
-			return
-		}
-	}
-
-	if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
-		s.AddPath(path)
+	if loader, ok := s.loader.(hasAddGopathPath); ok {
+		loader.AddGopathPath(path)
+	} else {
+		panic(fmt.Sprintf("AddGopathPath() not supported on custom loader of type %T", s.loader))
 	}
 }
 

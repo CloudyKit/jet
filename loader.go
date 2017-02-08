@@ -1,17 +1,30 @@
 package jet
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 )
 
+// Loader is a minimal interface required for loading templates.
 type Loader interface {
 	Open(name string) (io.ReadCloser, error)
 	Exists(name string) (string, bool)
 }
 
-// osFileSystem implements Loader interface with os.Files.
+// hasAddPath is an optional Loader interface.
+type hasAddPath interface {
+	AddPath(path string)
+}
+
+// hasAddGopathPath is an optional Loader interface.
+type hasAddGopathPath interface {
+	AddGopathPath(path string)
+}
+
+// osFileSystem implements Loader interface using OS file system (os.File).
 type osFileSystem struct {
 	dirs []string
 }
@@ -31,4 +44,27 @@ func (l *osFileSystem) Exists(name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func (l *osFileSystem) AddPath(path string) {
+	l.dirs = append(l.dirs, path)
+}
+
+func (l *osFileSystem) AddGopathPath(path string) {
+	paths := filepath.SplitList(os.Getenv("GOPATH"))
+	for i := 0; i < len(paths); i++ {
+		path, err := filepath.Abs(filepath.Join(paths[i], "src", path))
+		if err != nil {
+			panic(errors.New("Can't add this path err: " + err.Error()))
+		}
+
+		if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
+			l.AddPath(path)
+			return
+		}
+	}
+
+	if fstats, err := os.Stat(path); os.IsNotExist(err) == false && fstats.IsDir() {
+		l.AddPath(path)
+	}
 }
