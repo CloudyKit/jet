@@ -36,7 +36,7 @@ import (
 // every jet template is associated with one set.
 // create a set with jet.NewSet(escapeeFn) returns a pointer to the Set
 type Set struct {
-	dirs              []string             // directories for look to template files
+	loader            Loader
 	templates         map[string]*Template // parsed templates
 	escapee           SafeWriter           // escapee to use at runtime
 	globals           VarMap               // global scope for this template set
@@ -74,9 +74,19 @@ func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
 	return s.AddGlobal(key, fn)
 }
 
+// NewSetLoader creates a new set with custom Loader
+func NewSetLoader(escapee SafeWriter, loader Loader) *Set {
+	return &Set{loader: loader, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
+}
+
+// NewHTMLSetLoader creates a new set with custom Loader
+func NewHTMLSetLoader(loader Loader) *Set {
+	return NewSetLoader(template.HTMLEscape, loader)
+}
+
 // NewSet creates a new set, dir specifies a list of directories entries to search for templates
 func NewSet(escapee SafeWriter, dir ...string) *Set {
-	return &Set{dirs: dir, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
+	return NewSetLoader(escapee, &osFileSystem{dirs: dir})
 }
 
 // NewHTMLSet creates a new set, dir specifies a list of directories entries to search for templates
@@ -87,7 +97,11 @@ func NewHTMLSet(dir ...string) *Set {
 // AddPath add path to the lookup list, when loading a template the Set will
 // look into the lookup list for the file matching the provided name.
 func (s *Set) AddPath(path string) {
-	s.dirs = append([]string{path}, s.dirs...)
+	loader, ok := s.loader.(*osFileSystem)
+	if !ok {
+		panic(fmt.Sprintf("set.AddPath() not supported when using custom loader of type %T", s.loader))
+	}
+	loader.dirs = append(loader.dirs, path)
 }
 
 // AddGopathPath add path based on GOPATH env to the lookup list, when loading a template the Set will
@@ -111,18 +125,6 @@ func (s *Set) AddGopathPath(path string) {
 	}
 }
 
-// fileExists checks if the template name exists by walking the list of template paths
-// returns string with the full path of the template and bool true if the template file was found
-func (s *Set) fileExists(name string) (string, bool) {
-	for i := 0; i < len(s.dirs); i++ {
-		fileName := path.Join(s.dirs[i], name)
-		if _, err := os.Stat(fileName); err == nil {
-			return fileName, true
-		}
-	}
-	return "", false
-}
-
 // resolveName try to resolve a template name, the steps as follow
 //	1. try provided path
 //	2. try provided path+defaultExtensions
@@ -136,7 +138,7 @@ func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, f
 		return
 	}
 
-	if fileName, foundFile = s.fileExists(name); foundFile {
+	if fileName, foundFile = s.loader.Exists(name); foundFile {
 		return
 	}
 
@@ -145,7 +147,7 @@ func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, f
 		if _, foundLoaded = s.templates[newName]; foundLoaded {
 			return
 		}
-		if fileName, foundFile = s.fileExists(newName); foundFile {
+		if fileName, foundFile = s.loader.Exists(newName); foundFile {
 			return
 		}
 	}
@@ -180,25 +182,27 @@ func (s *Set) Parse(name, content string) (*Template, error) {
 }
 
 func (s *Set) loadFromFile(name, fileName string) (template *Template, err error) {
-	var content []byte
-	if content, err = ioutil.ReadFile(fileName); err == nil {
-		template, err = s.parse(name, string(content))
+	f, err := s.loader.Open(fileName)
+	if err != nil {
+		return nil, err
 	}
-	return
+	defer f.Close()
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	return s.parse(name, string(content))
 }
 
 func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Template, err error) {
 	name = path.Clean(name)
 
 	if s.developmentMode {
-		if newName, fileName, foundLoaded, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
-			template, err = s.loadFromFile(newName, fileName)
-		} else if foundLoaded {
-			template = s.templates[newName]
+		if newName, fileName, _, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
+			return s.loadFromFile(newName, fileName)
 		} else {
-			err = fmt.Errorf("template %s can't be loaded", name)
+			return nil, fmt.Errorf("template %s can't be loaded", name)
 		}
-		return
 	}
 
 	if newName, fileName, foundLoaded, foundPath, isRelative := s.resolveNameSibling(name, parentName); foundPath {
