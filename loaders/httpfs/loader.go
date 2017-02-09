@@ -1,6 +1,7 @@
 package httpfs
 
 import (
+	"github.com/CloudyKit/jet"
 	"io"
 	"net/http"
 )
@@ -9,7 +10,7 @@ type httpFileSystemLoader struct {
 	http.FileSystem
 }
 
-func NewLoader(fs http.FileSystem) httpFileSystemLoader {
+func NewLoader(fs http.FileSystem) jet.Loader {
 	return httpFileSystemLoader{FileSystem: fs}
 }
 
