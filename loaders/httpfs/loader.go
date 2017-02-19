@@ -19,6 +19,9 @@ func NewLoader(fs http.FileSystem) jet.Loader {
 
 // Open opens the file via the internal http.FileSystem. It is the callers duty to close the file.
 func (l *httpFileSystemLoader) Open(name string) (io.ReadCloser, error) {
+	if l.fs == nil {
+		return nil, &os.PathError{Op: "open", Path: name, Err: os.ErrNotExist}
+	}
 	return l.fs.Open(name)
 }
 
