@@ -72,7 +72,8 @@ func (l *OSFileSystemLoader) AddPath(path string) {
 func (l *OSFileSystemLoader) AddGopathPath(path string) {
 	paths := filepath.SplitList(os.Getenv("GOPATH"))
 	for i := 0; i < len(paths); i++ {
-		path, err := filepath.Abs(filepath.Join(paths[i], "src", path))
+		var err error
+		path, err = filepath.Abs(filepath.Join(paths[i], "src", path))
 		if err != nil {
 			panic(errors.New("Can't add this path err: " + err.Error()))
 		}
