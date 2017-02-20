@@ -40,19 +40,19 @@ type hasAddGopathPath interface {
 	AddGopathPath(path string)
 }
 
-// osFileSystemLoader implements Loader interface using OS file system (os.File).
-type osFileSystemLoader struct {
+// OSFileSystemLoader implements Loader interface using OS file system (os.File).
+type OSFileSystemLoader struct {
 	dirs []string
 }
 
 // Open opens a file from OS file system.
-func (l *osFileSystemLoader) Open(name string) (io.ReadCloser, error) {
+func (l *OSFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 	return os.Open(name)
 }
 
 // Exists checks if the template name exists by walking the list of template paths
 // returns string with the full path of the template and bool true if the template file was found
-func (l *osFileSystemLoader) Exists(name string) (string, bool) {
+func (l *OSFileSystemLoader) Exists(name string) (string, bool) {
 	for i := 0; i < len(l.dirs); i++ {
 		fileName := path.Join(l.dirs[i], name)
 		if _, err := os.Stat(fileName); err == nil {
@@ -62,14 +62,18 @@ func (l *osFileSystemLoader) Exists(name string) (string, bool) {
 	return "", false
 }
 
-func (l *osFileSystemLoader) AddPath(path string) {
+// AddPath adds the path to the internal list of paths searched when loading templates.
+func (l *OSFileSystemLoader) AddPath(path string) {
 	l.dirs = append(l.dirs, path)
 }
 
-func (l *osFileSystemLoader) AddGopathPath(path string) {
+// AddGopathPath adds a path located in the GOPATH.
+// Example: l.AddGopathPath("github.com/CloudyKit/jet/example/views")
+func (l *OSFileSystemLoader) AddGopathPath(path string) {
 	paths := filepath.SplitList(os.Getenv("GOPATH"))
 	for i := 0; i < len(paths); i++ {
-		path, err := filepath.Abs(filepath.Join(paths[i], "src", path))
+		var err error
+		path, err = filepath.Abs(filepath.Join(paths[i], "src", path))
 		if err != nil {
 			panic(errors.New("Can't add this path err: " + err.Error()))
 		}
