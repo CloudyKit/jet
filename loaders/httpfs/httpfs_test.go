@@ -1,11 +1,23 @@
 package httpfs
 
 import (
-	"github.com/CloudyKit/jet"
-	"github.com/CloudyKit/jet/jettest"
 	"net/http"
 	"testing"
+
+	"github.com/CloudyKit/jet"
+	"github.com/CloudyKit/jet/jettest"
 )
+
+func TestNilHTTPFileSystem(t *testing.T) {
+	l := NewLoader(nil)
+	if _, err := l.Open("does-not-exist.jet"); err == nil {
+		t.Fatal("Open should have returned an error but didn't.")
+	}
+	fileName, ok := l.Exists("does-not-exists.jet")
+	if fileName != "" || ok != false {
+		t.Fatalf("Exists called on an empty file system should have returned empty and false but returned %q and %+v", fileName, ok)
+	}
+}
 
 func TestHTTPFileSystemResolve(t *testing.T) {
 	fs := http.Dir("testData/includeIfNotExists")
