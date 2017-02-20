@@ -45,6 +45,11 @@ type OSFileSystemLoader struct {
 	dirs []string
 }
 
+// NewOSFileSystemLoader returns an initialized OSFileSystemLoader.
+func NewOSFileSystemLoader(paths ...string) *OSFileSystemLoader {
+	return &OSFileSystemLoader{dirs: paths}
+}
+
 // Open opens a file from OS file system.
 func (l *OSFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 	return os.Open(name)
