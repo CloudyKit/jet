@@ -24,6 +24,6 @@ Finally, for anyone looking for a step-by-step guide on how this is accomplished
 
 Here's the rundown: when the Makefile target executes, it will first run `go generate`. This will look through the Go files in the current directory and search for annotations like you added above: `//go:generate` and run the command there. That runs the asset generation through `vfsgen` and generates the `templates_vfsdata.go` file you see when the build finishes. Through some build tags that are only set on this build (`deploy_build` in this case), only that file is included in the binary and that contains the view files as binary data.
 
-The last thing is to configure the Jet template engine via the multi loader to also use that `http.FileSystem` to looko for templates – that's done in the `main.go` file.
+The last thing is to configure the Jet template engine via the multi loader to also use that `http.FileSystem` to look for templates – that's done in the `main.go` file.
 
-This is it, the templates are now loaded from within the binary. This process can be extended to include more directory trees – just add another folder to the assets directory, configure vfsgen in the generate.go file to fetch that directory tree and you're done. We did that in our projects with locale files as well the whole public folder. As Gophers like to say: Just One Binary™.
+This is it, the templates are now loaded from within the binary. This process can be extended to include more directory trees – just add another folder to the assets directory, configure vfsgen in the generate.go file to fetch that directory tree and you're done. We did that in our projects with locale files as well as the whole public folder. As Gophers like to say: Just One Binary™.
