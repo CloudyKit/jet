@@ -116,7 +116,9 @@ func main() {
 		if err != nil {
 			log.Println("Unexpected template err:", err.Error())
 		}
-		view.Execute(w, jet.VarMap{"showingAllDone": reflect.ValueOf(true)}, (&doneTODOs{}).New(todos))
+		vars := make(jet.VarMap)
+		vars.Set("showingAllDone", true)
+		view.Execute(w, vars, (&doneTODOs{}).New(todos))
 	})
 
 	port := os.Getenv("PORT")
