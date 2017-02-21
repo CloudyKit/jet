@@ -35,7 +35,7 @@ You can find examples in the [wiki](https://github.com/CloudyKit/jet/wiki/Jet-te
 
 An example application is available in the repository. Use `go get -u github.com/CloudyKit/jet` or clone the repository into `$GOPATH/github.com/CloudyKit/jet`, then do:
 ```
-  $ cd example; go run main.go
+  $ cd examples/todos; go run main.go
 ```
 
 #### Faster than some pre-compiled template engines
