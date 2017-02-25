@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Asset packaging example</title>
+  </head>
+  <body>
+    {{block documentBody()}}{{end}}
+  </body>
+</html>

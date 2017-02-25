@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package jet
 
 import (
@@ -50,6 +51,16 @@ func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 	} else if max >= 0 && num > max {
 		a.Panicf("unexpected number of arguments in a call to %s", funcname)
 	}
+}
+
+// NumOfArguments returns the number of arguments
+func (a *Arguments) NumOfArguments() int {
+	return len(a.argExpr) + len(a.argVal)
+}
+
+// Runtime get the Runtime context
+func (a *Arguments) Runtime() *Runtime {
+	return a.runtime
 }
 
 // Func function implementing this type is called directly, which is faster than calling through reflect.

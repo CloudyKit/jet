@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package jet
 
 import (
@@ -175,6 +176,9 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_AddIntString", `{{ 2+"1" }}`, "3")
 	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "12")
 
+	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
+	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
+
 	//this is an error RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"-2 }}`, "12")
 
 	RunJetTest(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
@@ -265,6 +269,8 @@ func TestEvalDefaultFuncs(t *testing.T) {
 	RunJetTest(t, nil, nil, "DefaultFuncs_urlEscape", `<h1>{{url: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>%3Ch1%3EHello+Buddy%21%3C%2Fh1%3E</h1>`)
 
 	RunJetTest(t, nil, &User{"Mario Santos", "mario@gmail.com"}, "DefaultFuncs_json", `{{. |writeJson}}`, "{\"Name\":\"Mario Santos\",\"Email\":\"mario@gmail.com\"}\n")
+
+	RunJetTest(t, nil, nil, "DefaultFuncs_replace", `{{replace("My Name Is", " ", "_", -1)}}`, "My_Name_Is")
 }
 
 func TestEvalIssetAndTernaryExpression(t *testing.T) {
@@ -293,6 +299,23 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_3", `{{isset(.["non_existant_key"]) ? "key does exist" : "key does not exist"}}`, "key does not exist")
 	RunJetTest(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_4", `{{if v, ok := .["name"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does exist and has the value 'value'")
 	RunJetTest(t, nil, map[string]string{"name": "value"}, "IndexExpressionMap_5", `{{if v, ok := .["non_existant_key"]; ok}}key does exist and has the value '{{v}}'{{else}}key does not exist{{end}}`, "key does not exist")
+	RunJetTest(t, nil, map[string]interface{}{"nested": map[string]string{"name": "value"}}, "IndexExpressionMap_6", `{{.["nested"].name}}`, "value")
+
+	vars := make(VarMap)
+	vars.Set("nested", map[string]interface{}{"key": "nested", "nested": map[string]interface{}{"nested": map[string]interface{}{"nested": map[string]interface{}{"name": "value", "strings": []string{"hello"}, "arr": []interface{}{"hello"}}}}})
+
+	//RunJetTest(t, vars, nil, "IndexExpressionMap_6", `{{nested.nested.nested.nested.name}}`, "value")
+	// todo: this test is failing with race detector enabled, but looks like a bug when running with the race detector enabled
+	RunJetTest(t, vars, nil, "IndexExpressionMap_7", `{{nested.nested.nested.nested.strings[0]}}`, "hello")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_8", `{{nested.nested.nested.nested.arr[0]}}`, "hello")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_8_1", `{{nested.nested.nested.nested["arr"][0]}}`, "hello")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_9", `{{nested[nested.key].nested.nested.name}}`, "value")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_10", `{{nested["nested"].nested.nested.name}}`, "value")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_11", `{{nested.nested.nested["nested"].name}}`, "value")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_12", `{{nested.nested.nested["nested"]["strings"][0]}}`, "hello")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_13", `{{nested.nested.nested["nested"]["arr"][0]}}`, "hello")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_14", `{{nested["nested"].nested["nested"].name}}`, "value")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_15", `{{nested["nested"]["nested"].nested.name}}`, "value")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }
@@ -306,6 +329,7 @@ func TestEvalSliceExpression(t *testing.T) {
 	RunJetTest(t, nil, []string{"111", "222", "333", "444"}, "SliceExpressionSlice_6", `{{range .[1:3]}}{{.}}{{end}}`, `222333`)
 
 	RunJetTest(t, nil, []string{"111"}, "SliceExpressionSlice_BugIndex", `{{range k,v:= . }}{{k}}{{end}}`, `0`)
+	RunJetTest(t, nil, []string{"111"}, "SliceExpressionSlice_IfLen", `{{if len(.) > 0}}{{.[0]}}{{end}}`, `111`)
 }
 
 func TestEvalBuiltinExpression(t *testing.T) {
@@ -329,9 +353,17 @@ func TestFileResolve(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "extension.jet.html", "", "extension.jet.html")
 	RunJetTestWithSet(t, set, nil, nil, "./sub/subextend", "", "simple - simple.jet - extension.jet.html")
 	RunJetTestWithSet(t, set, nil, nil, "./sub/extend", "", "simple - simple.jet - extension.jet.html")
-	for key, _ := range set.templates {
-		t.Log(key)
-	}
+	//for key, _ := range set.templates {
+	//	t.Log(key)
+	//}
+}
+
+func TestIncludeIfNotExists(t *testing.T) {
+	set := NewHTMLSet("./testData/includeIfNotExists")
+	RunJetTestWithSet(t, set, nil, nil, "existent", "", "Hi, i exist!!")
+	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
+	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
+	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
 }
 
 func TestSet_Parse(t *testing.T) {

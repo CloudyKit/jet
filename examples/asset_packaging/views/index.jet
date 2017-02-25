@@ -1,0 +1,5 @@
+{{extends "layouts/application.jet"}}
+
+{{block documentBody()}}
+  <h1>Asset Packaging example</h1>
+{{end}}

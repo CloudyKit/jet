@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package jet
 
 import (
@@ -135,6 +136,7 @@ func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *Include
 
 func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
 	n := &NumberNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumber, Pos: pos}, Text: text}
+	// todo: optimize
 	switch typ {
 	case itemCharConstant:
 		_rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
@@ -213,13 +215,14 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 			}
 		}
 	}
+
 	if !n.IsInt && !n.IsUint && !n.IsFloat {
 		return nil, fmt.Errorf("illegal number syntax: %q", text)
 	}
+
 	return n, nil
 }
 
-// NewIdentifier returns a new IdentifierNode with the given identifier name.
 func (t *Template) newIdentifier(ident string, pos Pos, line int) *IdentifierNode {
 	return &IdentifierNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeIdentifier, Pos: pos, Line: line}, Ident: ident}
 }

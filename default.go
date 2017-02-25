@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package jet
 
 import (
@@ -78,9 +79,45 @@ func init() {
 			a.Panicf("inválid value type %s in len builtin", expression.Type())
 			return reflect.Value{}
 		})),
+		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
+
+			a.RequireNumOfArguments("includeIfExists", 1, 2)
+			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
+			if err != nil {
+				return hiddenFALSE
+			}
+
+			a.runtime.newScope()
+			a.runtime.blocks = t.processedBlocks
+			Root := t.root
+			if t.extends != nil {
+				Root = t.extends.root
+			}
+
+			if a.NumOfArguments() > 1 {
+				c := a.runtime.context
+				a.runtime.context = a.Get(1)
+				a.runtime.executeList(Root)
+				a.runtime.context = c
+			} else {
+				a.runtime.executeList(Root)
+			}
+
+			a.runtime.releaseScope()
+
+			return hiddenTRUE
+		})),
 	}
+}
+
+type hiddenBool bool
+
+func (m hiddenBool) Render(r *Runtime) {
 
 }
+
+var hiddenTRUE = reflect.ValueOf(hiddenBool(true))
+var hiddenFALSE = reflect.ValueOf(hiddenBool(false))
 
 func jsonRenderer(v interface{}) RendererFunc {
 	return func(r *Runtime) {
