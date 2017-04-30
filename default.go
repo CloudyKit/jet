@@ -53,7 +53,7 @@ func init() {
 		"writeJson": reflect.ValueOf(jsonRenderer),
 		"json":      reflect.ValueOf(json.Marshal),
 		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
-			a.RequireNumOfArguments("isset", 1, 99999999999)
+			a.RequireNumOfArguments("isset", 1, -1)
 			for i := 0; i < len(a.argExpr); i++ {
 				if !a.runtime.isSet(a.argExpr[i]) {
 					return valueBoolFALSE
