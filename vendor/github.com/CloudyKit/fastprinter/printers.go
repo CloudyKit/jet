@@ -178,7 +178,7 @@ func PrintValue(w io.Writer, v reflect.Value) (int, error) {
 		return PrintUint(w, v.Uint())
 	}
 
-	if k == reflect.Float64 || k == reflect.Float64 {
+	if k == reflect.Float64 || k == reflect.Float32 {
 		return PrintFloat(w, v.Float())
 	}
 

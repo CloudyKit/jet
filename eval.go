@@ -139,9 +139,9 @@ func (st *Runtime) YieldTemplate(name string, context interface{}) {
 	st.newScope()
 	st.blocks = t.processedBlocks
 
-	Root := t.root
+	Root := t.Root
 	if t.extends != nil {
-		Root = t.extends.root
+		Root = t.extends.Root
 	}
 
 	if context != nil {
@@ -526,10 +526,10 @@ func (st *Runtime) executeList(list *ListNode) {
 					context = st.context
 					st.context = st.evalPrimaryExpressionGroup(node.Expression)
 				}
-				Root := t.root
+				Root := t.Root
 				for t.extends != nil {
 					t = t.extends
-					Root = t.root
+					Root = t.Root
 				}
 				st.executeList(Root)
 				st.releaseScope()
@@ -867,7 +867,6 @@ func toInt(v reflect.Value) int64 {
 		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to int64", v.Type()))
-	return 0
 }
 
 func toUint(v reflect.Value) uint64 {
@@ -891,7 +890,6 @@ func toUint(v reflect.Value) uint64 {
 		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to uint64", v.Type()))
-	return 0
 }
 
 func toFloat(v reflect.Value) float64 {
@@ -915,7 +913,6 @@ func toFloat(v reflect.Value) float64 {
 		return 1
 	}
 	panic(fmt.Errorf("type: %q can't be converted to float64", v.Type()))
-	return 0
 }
 
 func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) reflect.Value {
@@ -1545,7 +1542,6 @@ func getRanger(v reflect.Value) Ranger {
 		return chanranger
 	}
 	panic(fmt.Errorf("type %s is not rangeable", tuP))
-	return nil
 }
 
 var (

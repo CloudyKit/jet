@@ -316,7 +316,7 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 
 func (t *Template) String() (template string) {
 	if t.extends != nil {
-		if len(t.root.Nodes) > 0 && len(t.imports) == 0 {
+		if len(t.Root.Nodes) > 0 && len(t.imports) == 0 {
 			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
 		} else {
 			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
@@ -332,11 +332,11 @@ func (t *Template) String() (template string) {
 	}
 
 	if t.extends != nil || len(t.imports) > 0 {
-		if len(t.root.Nodes) > 0 {
-			template += "\n" + t.root.String()
+		if len(t.Root.Nodes) > 0 {
+			template += "\n" + t.Root.String()
 		}
 	} else {
-		template += t.root.String()
+		template += t.Root.String()
 	}
 	return
 }
@@ -398,6 +398,6 @@ func (t *Template) ExecuteI18N(translator Translator, w io.Writer, variables Var
 		st.context = reflect.ValueOf(data)
 	}
 
-	st.executeList(t.root)
+	st.executeList(t.Root)
 	return
 }

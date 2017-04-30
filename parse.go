@@ -37,7 +37,7 @@ type Template struct {
 
 	processedBlocks map[string]*BlockNode
 	passedBlocks    map[string]*BlockNode
-	root            *ListNode // top-level root of the tree.
+	Root            *ListNode // top-level root of the tree.
 
 	text string // text parsed to create the template (or its parent)
 
@@ -113,7 +113,7 @@ func (t *Template) peekNonSpace() (token item) {
 
 // errorf formats the error and terminates processing.
 func (t *Template) errorf(format string, args ...interface{}) {
-	t.root = nil
+	t.Root = nil
 	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.lex.lineNumber(), format)
 	panic(fmt.Errorf(format, args...))
 }
@@ -193,7 +193,7 @@ func (t *Template) expectString(context string) string {
 // parse is the top-level parser for a template, essentially the same
 // It runs to EOF.
 func (t *Template) parseTemplate() (next Node) {
-	t.root = t.newList(t.peek().pos)
+	t.Root = t.newList(t.peek().pos)
 	// {{ extends|import stringLiteral }}
 	for t.peek().typ != itemEOF {
 		delim := t.next()
@@ -238,7 +238,7 @@ func (t *Template) parseTemplate() (next Node) {
 		case nodeEnd, nodeElse, nodeContent:
 			t.errorf("unexpected %s", n)
 		default:
-			t.root.append(n)
+			t.Root.append(n)
 		}
 	}
 	return nil
@@ -246,7 +246,7 @@ func (t *Template) parseTemplate() (next Node) {
 
 // startParse initializes the parser, using the lexer.
 func (t *Template) startParse(lex *lexer) {
-	t.root = nil
+	t.Root = nil
 	t.lex = lex
 }
 

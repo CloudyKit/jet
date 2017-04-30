@@ -89,9 +89,9 @@ func init() {
 
 			a.runtime.newScope()
 			a.runtime.blocks = t.processedBlocks
-			Root := t.root
+			Root := t.Root
 			if t.extends != nil {
-				Root = t.extends.root
+				Root = t.extends.Root
 			}
 
 			if a.NumOfArguments() > 1 {
