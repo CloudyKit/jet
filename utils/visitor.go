@@ -88,7 +88,7 @@ func (vc VisitorContext) Visit(node jet.Node) {
 	case *jet.FieldNode:
 
 	default:
-		panic(fmt.Errorf("unexpected node %t", node))
+		panic(fmt.Errorf("unexpected node %v", node))
 	}
 }
 
@@ -97,15 +97,22 @@ func (vc VisitorContext) visitIncludeNode(includeNode *jet.IncludeNode) {
 }
 
 func (vc VisitorContext) visitBlockNode(blockNode *jet.BlockNode) {
+
 	for _, node := range blockNode.Parameters.List {
 		if node.Expression != nil {
 			vc.visitNode(node.Expression)
 		}
 	}
+
 	if blockNode.Expression != nil {
 		vc.visitNode(blockNode.Expression)
 	}
-	vc.visitNode(blockNode.Content)
+
+	vc.visitListNode(blockNode.List)
+
+	if blockNode.Content != nil {
+		vc.visitNode(blockNode.Content)
+	}
 }
 
 func (vc VisitorContext) visitRangeNode(rangeNode *jet.RangeNode) {
@@ -125,7 +132,11 @@ func (vc VisitorContext) visitBranchNode(branchNode *jet.BranchNode) {
 	if branchNode.Set != nil {
 		vc.visitNode(branchNode.Set)
 	}
-	vc.visitNode(branchNode.Expression)
+
+	if branchNode.Expression != nil {
+		vc.visitNode(branchNode.Expression)
+	}
+
 	vc.visitNode(branchNode.List)
 	if branchNode.ElseList != nil {
 		vc.visitNode(branchNode.ElseList)
