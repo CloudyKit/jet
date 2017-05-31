@@ -160,6 +160,7 @@ func TestEvalActionNode(t *testing.T) {
 	data.Set("user", &User{
 		"José Santos", "email@example.com",
 	})
+	data.Set("msg", "Message")
 
 	RunJetTest(t, nil, nil, "actionNode", `hello {{"world"}}`, `hello world`)
 	RunJetTest(t, data, nil, "actionNode_func", `hello {{lower: "WORLD"}}`, `hello world`)
@@ -178,6 +179,8 @@ func TestEvalActionNode(t *testing.T) {
 
 	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
 	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
+
+	RunJetTest(t, data, nil, "actionNode_msg_field", `{{ msg }}`, "Message")
 
 	//this is an error RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"-2 }}`, "12")
 
