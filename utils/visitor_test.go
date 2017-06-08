@@ -35,17 +35,18 @@ func TestSimpleTemplate(t *testing.T) {
 	)
 
 	Walk(mTemplate, VisitorFunc(func(context VisitorContext, node jet.Node) {
-		var stackState = len(localVariables)
+
+		var stackState = len(localVariables) // saves the state of the local identifiers map
 
 		switch node := node.(type) {
-		case *jet.ActionNode:
-			context.Visit(node)
 		case *jet.SetNode:
-			if node.Let {
+			if node.Let { // check if this is setting a new variable in the current scope
 				for _, ident := range node.Left {
+					// push local identifier
 					localVariables = append(localVariables, ident.String())
 				}
 			}
+			// continue checking nodes down the tree
 			context.Visit(node)
 		case *jet.IdentifierNode:
 
@@ -63,14 +64,27 @@ func TestSimpleTemplate(t *testing.T) {
 				}
 			}
 
+			// push external identifier
 			externalVariables = append(externalVariables, node.Ident)
+		case *jet.ActionNode:
+			// continue without restore state of local identifiers map
+			context.Visit(node)
 		case *jet.BlockNode:
+
+			// iterate over block parameters
 			for _, param := range node.Parameters.List {
+				// store block parameters in the local map
 				localVariables = append(localVariables, param.Identifier)
 			}
+
+			// continue down tree
 			context.Visit(node)
+			// restore local identifiers map
+			localVariables = localVariables[0:stackState]
 		default:
+			// continue down tree
 			context.Visit(node)
+			// restore local identifiers map
 			localVariables = localVariables[0:stackState]
 		}
 
