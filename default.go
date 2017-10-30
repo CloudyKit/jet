@@ -83,6 +83,10 @@ func init() {
 
 			a.RequireNumOfArguments("includeIfExists", 1, 2)
 			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
+			// If template exists but returns an error then panic instead of failing silently
+			if t != nil && err != nil {
+				panic(err)
+			}
 			if err != nil {
 				return hiddenFALSE
 			}
