@@ -364,6 +364,17 @@ func TestIncludeIfNotExists(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
 	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
 	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
+
+	// Check if includeIfExists helper bubbles up runtime errors of included templates
+	tt, err := set.GetTemplate("includeBroken")
+	if err != nil {
+		t.Error(err)
+	}
+	buff := bytes.NewBuffer(nil)
+	err = tt.Execute(buff, nil, nil)
+	if err == nil {
+		t.Error("expected includeIfExists helper to fail with a runtime error but got nil")
+	}
 }
 
 func TestSet_Parse(t *testing.T) {
