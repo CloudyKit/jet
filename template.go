@@ -314,6 +314,17 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 	return
 }
 
+func (s *Set) UnloadTemplate(name string) {
+	if s.developmentMode {
+		return
+	}
+
+	s.tmx.Lock()
+	defer s.tmx.Unlock()
+	delete(s.templates, name)
+	return
+}
+
 func (t *Template) String() (template string) {
 	if t.extends != nil {
 		if len(t.Root.Nodes) > 0 && len(t.imports) == 0 {
