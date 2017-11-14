@@ -300,8 +300,8 @@ func (s *Set) loadTemplate(name, content string, bypassCache bool) (template *Te
 	}
 
 	//fast path
+	var found bool
 	if !bypassCache {
-		var found bool
 		s.tmx.RLock()
 		if template, found = s.templates[name]; found {
 			s.tmx.RUnlock()
@@ -329,7 +329,7 @@ func (s *Set) loadTemplate(name, content string, bypassCache bool) (template *Te
 // Unlike LoadTemplate this will never use the cache to return a template,
 // but it will cache the result.
 // Caching is fully disabled when development mode is active.
-func (s *Set) ReloadTemplate(name, content string) {
+func (s *Set) ReloadTemplate(name, content string) (template *Template, err error) {
 	return s.loadTemplate(name, content, true)
 }
 
