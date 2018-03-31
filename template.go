@@ -22,7 +22,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -143,9 +144,9 @@ func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, f
 
 func (s *Set) resolveNameSibling(name, sibling string) (newName, fileName string, foundLoaded, foundFile, isRelativeName bool) {
 	if sibling != "" {
-		i := strings.LastIndex(sibling, "/")
+		i := strings.LastIndex(sibling, pathSep)
 		if i != -1 {
-			if newName, fileName, foundLoaded, foundFile = s.resolveName(path.Join(sibling[:i+1], name)); foundFile || foundLoaded {
+			if newName, fileName, foundLoaded, foundFile = s.resolveName(filepath.Join(sibling[:i+1], name)); foundFile || foundLoaded {
 				isRelativeName = true
 				return
 			}
@@ -181,7 +182,7 @@ func (s *Set) loadFromFile(name, fileName string) (template *Template, err error
 }
 
 func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Template, err error) {
-	name = path.Clean(name)
+	name = filepath.Clean(name)
 
 	if s.developmentMode {
 		if newName, fileName, _, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
@@ -211,7 +212,7 @@ func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Templa
 
 // getTemplate gets a template already loaded by name
 func (s *Set) getTemplate(name, sibling string) (template *Template, err error) {
-	name = path.Clean(name)
+	name = filepath.Clean(name)
 
 	if s.developmentMode {
 		s.tmx.RLock()
@@ -401,3 +402,5 @@ func (t *Template) ExecuteI18N(translator Translator, w io.Writer, variables Var
 	st.executeList(t.Root)
 	return
 }
+
+const pathSep = string(os.PathSeparator)
