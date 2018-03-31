@@ -36,7 +36,7 @@ func parseArgs() (string, string, error) {
 	const templateArg = "template"
 	set.Usage = func() {
 		argspec := fmt.Sprintf("[options] [-%s] TEMPLATE_NAME", templateArg)
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s %s\n",
+		fmt.Fprintf(set.Output(), "Usage: %s %s\n",
 			os.Args[0], argspec)
 		set.PrintDefaults()
 		println("NOTE: TEMPLATE_NAME can be given either as a named flag or positionally as the last argument")
