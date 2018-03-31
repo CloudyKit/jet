@@ -1,0 +1,2 @@
+title: {{block title()}}default title{{end}}
+body:  {{block body()}}default body{{end}}
