@@ -18,7 +18,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -59,7 +58,7 @@ func (l *OSFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 // returns string with the full path of the template and bool true if the template file was found
 func (l *OSFileSystemLoader) Exists(name string) (string, bool) {
 	for i := 0; i < len(l.dirs); i++ {
-		fileName := path.Join(l.dirs[i], name)
+		fileName := filepath.Join(l.dirs[i], name)
 		if _, err := os.Stat(fileName); err == nil {
 			return fileName, true
 		}

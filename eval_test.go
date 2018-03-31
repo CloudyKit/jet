@@ -108,7 +108,7 @@ func RunJetTestWithSet(t *testing.T, set *Set, variables VarMap, context interfa
 	}
 
 	if err != nil {
-		t.Errorf("Parsing error: %s %s %s", err.Error(), testName, testContent)
+		t.Errorf("Parsing error: `%s` in test `%s` of content `%s`", err.Error(), testName, testContent)
 		return
 	}
 	RunJetTestWithTemplate(t, tt, variables, context, testExpected)
