@@ -17,8 +17,10 @@ package jettest
 import (
 	"bytes"
 	"fmt"
-	"github.com/CloudyKit/jet"
+	"strings"
 	"testing"
+
+	"github.com/CloudyKit/jet"
 )
 
 // TestingSet holds a template set for running tests
@@ -58,13 +60,13 @@ func RunWithTemplate(t *testing.T, tt *jet.Template, variables jet.VarMap, conte
 		{
 			Name: fmt.Sprintf("\tJetTest(%s)", tt.Name),
 			F: func(t *testing.T) {
-				buff := bytes.NewBuffer(nil)
-				err := tt.Execute(buff, variables, context)
+				var buf bytes.Buffer
+				err := tt.Execute(&buf, variables, context)
 				if err != nil {
 					t.Errorf("Eval error: %q executing %s", err.Error(), tt.Name)
 					return
 				}
-				result := buff.String()
+				result := strings.Replace(buf.String(), "\r\n", "\n", -1)
 				if result != testExpected {
 					t.Errorf("Result error expected %q got %q on %s", testExpected, result, tt.Name)
 				}
