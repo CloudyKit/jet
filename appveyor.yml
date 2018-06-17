@@ -13,3 +13,6 @@ install:
   - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
   - go version
   - go env
+
+test_script:
+  - go test -v ./...
