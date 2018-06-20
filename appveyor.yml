@@ -22,3 +22,13 @@ build: off
 
 test_script:
   - go test -v ./...
+  - cd examples/asset_packaging/
+  - go get -u github.com/shurcooL/vfsgen
+  - go generate
+  - go build -tags=deploy_build -o bin/app main.go
+  - cd bin
+  - ls -la
+  - START /B app.exe
+  - ps: $curl = curl http://localhost:9090
+  - ps: $curl
+  - ps: if ($curl.StatusCode -ne 200) { $host.SetShouldExit(1) }
