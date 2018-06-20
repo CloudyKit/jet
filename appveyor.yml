@@ -2,6 +2,10 @@ version: "{build}"
 
 os: Windows Server 2012 R2
 
+# scripts that are called at very beginning, before repo cloning
+init:
+  - git config --global core.autocrlf true
+
 clone_folder: c:\gopath\src\github.com\CloudyKit\jet
 
 environment:
