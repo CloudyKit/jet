@@ -1042,6 +1042,14 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				}
 			}
 		}
+	} else if leftValue, err := getInterfaceStringAsString(left); err == nil {
+		if rightValue, err := getInterfaceStringAsString(right); err == nil {
+			if isAdditive {
+				return reflect.ValueOf(leftValue + rightValue)
+			} else {
+				node.Left.errorf("cannot substract two strings")
+			}
+		}
 	}
 	node.Left.errorf("unhandled value in additive expression")
 
