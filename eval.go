@@ -15,6 +15,7 @@
 package jet
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -991,86 +992,58 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 	return left
 }
 
+func getInterfaceIntFloatAsString(src reflect.Value) (string, error) {
+	switch res := src.Interface().(type) {
+	case int:
+		return strconv.Itoa(res), nil
+	case float64:
+		return strconv.FormatFloat(res, 'E', -1, 64), nil
+	}
+	return "", errors.New("a non numeric value in additive expression")
+}
+
+func getInterfaceStringAsString(src reflect.Value) (string, error) {
+	switch res := src.Interface().(type) {
+	case string:
+		return res, nil
+	}
+	return "", errors.New("a non numeric value in additive expression")
+}
+
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
 
 	isAdditive := node.Operator.typ == itemAdd
 	if node.Left == nil {
 		right := st.evalPrimaryExpressionGroup(node.Right)
-		kind := right.Kind()
-		// todo: optimize
-		// todo:
-		if isInt(kind) {
-			if isAdditive {
-				return reflect.ValueOf(+right.Int())
-			} else {
-				return reflect.ValueOf(-right.Int())
-			}
-		} else if isUint(kind) {
-			if isAdditive {
-				return right
-			} else {
-				return reflect.ValueOf(-int64(right.Uint()))
-			}
-		} else if isFloat(kind) {
-			if isAdditive {
-				return reflect.ValueOf(+right.Float())
-			} else {
-				return reflect.ValueOf(-right.Float())
+
+		if rightValue, err := getInterfaceIntFloatAsString(right); err == nil {
+			if rightRes, err := strconv.ParseFloat(rightValue, 64); err == nil {
+				if isAdditive {
+					return reflect.ValueOf(+rightRes)
+				} else {
+					return reflect.ValueOf(-rightRes)
+				}
 			}
 		}
+
 		node.Left.errorf("a non numeric value in additive expression")
 	}
 
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
-	kind := left.Kind()
-	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
-	// this is necessary for expressions like 4+1.23
-	needFloatPromotion := !isFloat(kind) && kind != reflect.String && isFloat(right.Kind())
-	if needFloatPromotion {
-		if isInt(kind) {
-			if isAdditive {
-				left = reflect.ValueOf(float64(left.Int()) + right.Float())
-			} else {
-				left = reflect.ValueOf(float64(left.Int()) - right.Float())
+	if leftValue, err := getInterfaceIntFloatAsString(left); err == nil {
+		if rightValue, err := getInterfaceIntFloatAsString(right); err == nil {
+			if leftRes, err := strconv.ParseFloat(leftValue, 64); err == nil {
+				if rightRes, err := strconv.ParseFloat(rightValue, 64); err == nil {
+					if isAdditive {
+						return reflect.ValueOf(leftRes + rightRes)
+					} else {
+						return reflect.ValueOf(leftRes - rightRes)
+					}
+				}
 			}
-		} else if isUint(kind) {
-			if isAdditive {
-				left = reflect.ValueOf(float64(left.Uint()) + right.Float())
-			} else {
-				left = reflect.ValueOf(float64(left.Uint()) - right.Float())
-			}
-		} else {
-			node.Left.errorf("a non numeric value in additive expression")
-		}
-	} else {
-		if isInt(kind) {
-			if isAdditive {
-				left = reflect.ValueOf(left.Int() + toInt(right))
-			} else {
-				left = reflect.ValueOf(left.Int() - toInt(right))
-			}
-		} else if isFloat(kind) {
-			if isAdditive {
-				left = reflect.ValueOf(left.Float() + toFloat(right))
-			} else {
-				left = reflect.ValueOf(left.Float() - toFloat(right))
-			}
-		} else if isUint(kind) {
-			if isAdditive {
-				left = reflect.ValueOf(left.Uint() + toUint(right))
-			} else {
-				left = reflect.ValueOf(left.Uint() - toUint(right))
-			}
-		} else if kind == reflect.String {
-			if isAdditive {
-				left = reflect.ValueOf(left.String() + fmt.Sprint(right))
-			} else {
-				node.Right.errorf("minus signal is not allowed with strings")
-			}
-		} else {
-			node.Left.errorf("a non numeric value in additive expression")
 		}
 	}
+	node.Left.errorf("unhandled value in additive expression")
 
 	return left
 }
