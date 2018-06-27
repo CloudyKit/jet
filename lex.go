@@ -100,6 +100,7 @@ const (
 	itemNot
 	itemMSG
 	itemTrans
+	itemFilter
 )
 
 var key = map[string]itemType{
@@ -123,6 +124,8 @@ var key = map[string]itemType{
 	"content": itemContent,
 	"msg":     itemMSG,
 	"trans":   itemTrans,
+	
+	"filter":  itemFilter,
 }
 
 const eof = -1

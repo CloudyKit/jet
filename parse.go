@@ -479,6 +479,10 @@ func (t *Template) textOrAction() Node {
 	return nil
 }
 
+func (t *Template) filterControl() Node {
+	return t.newFilter(t.parseControl(true, "filter"))
+}
+
 func (t *Template) action() (n Node) {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemElse:
@@ -497,6 +501,8 @@ func (t *Template) action() (n Node) {
 		return t.parseInclude()
 	case itemYield:
 		return t.parseYield()
+	case itemFilter:
+		return t.filterControl()
 	}
 
 	t.backup()

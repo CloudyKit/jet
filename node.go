@@ -79,6 +79,7 @@ const (
 	nodeEnd                        //An end action. Not added to tree.
 	NodeField                      //A field or method name.
 	NodeIdentifier                 //An identifier; always a function name.
+	NodeFilter					   //A filter action
 	NodeIf                         //An if action.
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
@@ -425,6 +426,15 @@ func (b *BranchNode) String() string {
 			return fmt.Sprintf("{{range %s}}%s{{else}}%s{{end}}", s, b.List, b.ElseList)
 		}
 		return fmt.Sprintf("{{range %s}}%s{{end}}", s, b.List)
+	} else if b.NodeType == NodeFilter {
+		s := ""
+		if b.Set != nil {
+			s = b.Set.String() + ";"
+		}
+		if b.ElseList != nil {
+			return fmt.Sprintf("{{filter %s%s}}%s{{else}}%s{{end}}", s, b.Expression, b.List, b.ElseList)
+		}
+		return fmt.Sprintf("{{filter %s%s}}%s{{end}}", s, b.Expression, b.List)
 	} else {
 		s := ""
 		if b.Set != nil {
@@ -435,6 +445,11 @@ func (b *BranchNode) String() string {
 		}
 		return fmt.Sprintf("{{if %s%s}}%s{{end}}", s, b.Expression, b.List)
 	}
+}
+
+// FilterNode represents a {{filter}} action and its commands.
+type FilterNode struct {
+	BranchNode
 }
 
 // IfNode represents an {{if}} action and its commands.

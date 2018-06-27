@@ -52,6 +52,10 @@ func init() {
 		"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 		"writeJson": reflect.ValueOf(jsonRenderer),
 		"json":      reflect.ValueOf(json.Marshal),
+		"format": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
+			a.RequireNumOfArguments("format", 1, -1)
+			return reflect.ValueOf("format:" + a.Get(0).String())
+		})),
 		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("isset", 1, -1)
 			for i := 0; i < len(a.argExpr); i++ {
@@ -76,7 +80,7 @@ func init() {
 				return reflect.ValueOf(expression.NumField())
 			}
 
-			a.Panicf("inválid value type %s in len builtin", expression.Type())
+			a.Panicf("invalid value type %s in len builtin", expression.Type())
 			return reflect.Value{}
 		})),
 		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {

@@ -114,6 +114,10 @@ func (t *Template) newElse(pos Pos, line int) *elseNode {
 	return &elseNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeElse, Pos: pos, Line: line}}
 }
 
+func (t *Template) newFilter(pos Pos, line int, set *SetNode, pipe Expression, list, elseList *ListNode) *FilterNode {
+	return &FilterNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeFilter, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
+}
+
 func (t *Template) newIf(pos Pos, line int, set *SetNode, pipe Expression, list, elseList *ListNode) *IfNode {
 	return &IfNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeIf, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
 }

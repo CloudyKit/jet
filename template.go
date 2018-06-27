@@ -19,6 +19,7 @@
 package jet
 
 import (
+	"os"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -380,6 +381,9 @@ func (scope VarMap) SetWriter(name string, v SafeWriter) VarMap {
 
 // Execute executes the template in the w Writer
 func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) error {
+	if w == nil {
+		w = os.Stdout
+	}
 	return t.ExecuteI18N(nil, w, variables, data)
 }
 

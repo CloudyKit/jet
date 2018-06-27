@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/CloudyKit/fastprinter"
@@ -373,18 +374,97 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 	}
 }
 
+type FilterType int
+
+const (
+	FilterUndefined FilterType = iota //Plain text.
+	FilterFormat
+)
+
+type TextFilter struct {
+	action FilterType
+	value  string
+	text   []byte
+}
+
+var optionText *TextFilter = NewTextFilter()
+
+func NewTextFilter() *TextFilter {
+	var ot TextFilter
+	ot.Reset()
+	return &ot
+}
+
+func (ot *TextFilter) isEnabled() bool {
+	return ot.action != FilterUndefined
+}
+
+func (ot *TextFilter) Reset() {
+	ot.action = FilterUndefined
+	ot.value = ""
+	ot.text = []byte{}
+}
+
+func (ot *TextFilter) SetText(src []byte) {
+	ot.text = append(ot.text, src...)
+}
+
+func (ot *TextFilter) SetValue(src string) {
+	if src != "" {
+		tocompare := "format:"
+		if strings.HasPrefix(src, tocompare) {
+			pos := strings.Index(src, tocompare)
+			if pos > -1 {
+				src = src[len(tocompare):len(src)]
+			}
+			ot.action = FilterFormat
+			ot.value = src
+		}
+	}
+}
+
+func (ot *TextFilter) FormatOutput() []byte {
+	var value interface{}
+	var out []byte
+	var err error
+
+	for _, line := range strings.Split(strings.TrimSuffix(string(ot.text), "\n"), "\n") {
+		mytext := line
+		line = strings.Replace(line, " ", "", -1)
+		line = strings.Replace(line, "\t", "", -1)
+		if line != "" {
+			if value, err = strconv.Atoi(mytext); err != nil {
+				value, err = strconv.ParseFloat(mytext, 64)
+			}
+			if err != nil {
+				value = mytext
+			}
+			out = append(out, []byte(fmt.Sprintf(ot.value, value))...)
+		}
+		out = append(out, '\n')
+	}
+	return out
+}
+
 func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
+
+	if list == nil {
+		return
+	}
 
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {
-
 		case NodeText:
 			node := node.(*TextNode)
-			_, err := st.Writer.Write(node.Text)
-			if err != nil {
-				node.error(err)
+			if optionText.isEnabled() == false {
+				_, err := st.Writer.Write(node.Text)
+				if err != nil {
+					node.error(err)
+				}
+			} else {
+				optionText.SetText(node.Text)
 			}
 		case NodeAction:
 			node := node.(*ActionNode)
@@ -402,16 +482,53 @@ func (st *Runtime) executeList(list *ListNode) {
 			if node.Pipe != nil {
 				v, safeWriter := st.evalPipelineExpression(node.Pipe)
 				if !safeWriter && v.IsValid() {
-					if v.Type().Implements(rendererType) {
-						v.Interface().(Renderer).Render(st)
-					} else {
-						_, err := fastprinter.PrintValue(st.escapeeWriter, v)
-						if err != nil {
-							node.error(err)
+					if optionText.isEnabled() == false {
+						if v.Type().Implements(rendererType) {
+							v.Interface().(Renderer).Render(st)
+						} else {
+							_, err := fastprinter.PrintValue(st.escapeeWriter, v)
+							if err != nil {
+								node.error(err)
+							}
 						}
+					} else {
+						tmp := []byte(fmt.Sprintf("%v", v.Interface()))
+						optionText.SetText(tmp)
 					}
 				}
 			}
+		case NodeFilter:
+			node := node.(*FilterNode)
+			var isLet bool
+			if node.Set != nil {
+				if node.Set.Let {
+					isLet = true
+					st.newScope()
+					st.executeLetList(node.Set)
+				} else {
+					st.executeSetList(node.Set)
+				}
+			}
+
+			mynode := st.evalPrimaryExpressionGroup(node.Expression)
+
+			optionText.SetValue(mynode.String())
+
+			st.executeList(node.List)
+
+			out := optionText.FormatOutput()
+
+			_, err := st.Writer.Write(out)
+			if err != nil {
+				node.error(err)
+			}
+
+			optionText.Reset()
+
+			if isLet {
+				st.releaseScope()
+			}
+
 		case NodeIf:
 			node := node.(*IfNode)
 			var isLet bool
@@ -554,6 +671,40 @@ var (
 	valueBoolFALSE = reflect.ValueOf(false)
 )
 
+func ParseIndexExpr(baseExpression reflect.Value, indexExpression reflect.Value, indexType reflect.Type) (reflect.Value, error) {
+	switch baseExpression.Kind() {
+	case reflect.Map:
+		key := baseExpression.Type().Key()
+		if !indexType.AssignableTo(key) {
+			if indexType.ConvertibleTo(key) {
+				indexExpression = indexExpression.Convert(key)
+			} else {
+				return baseExpression, errors.New(indexType.String() + " is not assignable|convertible to map key " + key.String())
+			}
+		}
+		return baseExpression.MapIndex(indexExpression), nil
+	case reflect.Array, reflect.String, reflect.Slice:
+		if canNumber(indexType.Kind()) {
+			index := int(castInt64(indexExpression))
+			if 0 <= index && index < baseExpression.Len() {
+				return baseExpression.Index(index), nil
+			}
+			return baseExpression, fmt.Errorf("%s index out of range (index: %d, len: %d)", baseExpression.Kind().String(), index, baseExpression.Len())
+		}
+		return baseExpression, errors.New("non numeric value in index expression kind " + baseExpression.Kind().String())
+	case reflect.Struct:
+		if canNumber(indexType.Kind()) {
+			return baseExpression.Field(int(castInt64(indexExpression))), nil
+		} else if indexType.Kind() == reflect.String {
+			return getFieldOrMethodValue(indexExpression.String(), baseExpression), nil
+		}
+		return baseExpression, errors.New("non numeric value in index expression kind " + baseExpression.Kind().String())
+	case reflect.Interface:
+		return ParseIndexExpr(reflect.ValueOf(baseExpression.Interface()), indexExpression, indexType)
+	}
+	return baseExpression, errors.New("indexing is not supported in value type " + baseExpression.Kind().String())
+}
+
 func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	switch node.Type() {
 	case NodeAdditiveExpr:
@@ -596,39 +747,11 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			baseExpression = baseExpression.Elem()
 		}
 
-		switch baseExpression.Kind() {
-		case reflect.Map:
-			key := baseExpression.Type().Key()
-			if !indexType.AssignableTo(key) {
-				if indexType.ConvertibleTo(key) {
-					indexExpression = indexExpression.Convert(key)
-				} else {
-					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
-				}
-			}
-			return baseExpression.MapIndex(indexExpression)
-		case reflect.Array, reflect.String, reflect.Slice:
-			if canNumber(indexType.Kind()) {
-				index := int(castInt64(indexExpression))
-				if 0 <= index && index < baseExpression.Len() {
-					return baseExpression.Index(index)
-				} else {
-					node.errorf("%s index out of range (index: %d, len: %d)", baseExpression.Kind().String(), index, baseExpression.Len())
-				}
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		case reflect.Struct:
-			if canNumber(indexType.Kind()) {
-				return baseExpression.Field(int(castInt64(indexExpression)))
-			} else if indexType.Kind() == reflect.String {
-				return getFieldOrMethodValue(indexExpression.String(), baseExpression)
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		default:
-			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
+		ret, err := ParseIndexExpr(baseExpression, indexExpression, indexType)
+		if err != nil {
+			node.errorf(err.Error())
 		}
+		return ret
 	case NodeSliceExpr:
 		node := node.(*SliceExprNode)
 		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
@@ -1000,21 +1123,13 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 }
 
 func getInterfaceIntFloatAsString(src reflect.Value) (string, error) {
-	switch res := src.Interface().(type) {
-	case int:
-		return strconv.Itoa(res), nil
-	case float64:
-		return strconv.FormatFloat(res, 'E', -1, 64), nil
+	value := fmt.Sprintf("%v", src.Interface())
+	if _, err := strconv.Atoi(value); err == nil {
+		return value, nil
+	} else if _, err := strconv.ParseFloat(value, 64); err == nil {
+		return value, nil
 	}
-	return "", errors.New("a non numeric value in additive expression")
-}
-
-func getInterfaceStringAsString(src reflect.Value) (string, error) {
-	switch res := src.Interface().(type) {
-	case string:
-		return res, nil
-	}
-	return "", errors.New("a non numeric value in additive expression")
+	return "", errors.New("a non numeric value")
 }
 
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
@@ -1037,25 +1152,26 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 	}
 
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
-	if leftValue, err := getInterfaceIntFloatAsString(left); err == nil {
-		if rightValue, err := getInterfaceIntFloatAsString(right); err == nil {
-			if leftRes, err := strconv.ParseFloat(leftValue, 64); err == nil {
-				if rightRes, err := strconv.ParseFloat(rightValue, 64); err == nil {
-					if isAdditive {
-						return reflect.ValueOf(leftRes + rightRes)
-					} else {
-						return reflect.ValueOf(leftRes - rightRes)
-					}
-				}
+	leftValue, errLeft := getInterfaceIntFloatAsString(left)
+	rightValue, errRight := getInterfaceIntFloatAsString(right)
+
+	if errLeft == nil && errRight == nil {
+		leftRes, errLeftFloat := strconv.ParseFloat(leftValue, 64)
+		rightRes, errRightFloat := strconv.ParseFloat(rightValue, 64)
+		if errLeftFloat == nil && errRightFloat == nil {
+			if isAdditive {
+				return reflect.ValueOf(leftRes + rightRes)
+			} else {
+				return reflect.ValueOf(leftRes - rightRes)
 			}
 		}
-	} else if leftValue, err := getInterfaceStringAsString(left); err == nil {
-		if rightValue, err := getInterfaceStringAsString(right); err == nil {
-			if isAdditive {
-				return reflect.ValueOf(leftValue + rightValue)
-			} else {
-				node.Left.errorf("cannot substract two strings")
-			}
+	} else {
+		leftRes := fmt.Sprintf("%v", left.Interface())
+		rightRes := fmt.Sprintf("%v", right.Interface())
+		if isAdditive {
+			return reflect.ValueOf(leftRes + rightRes)
+		} else {
+			node.Left.errorf("two strings in substraction")
 		}
 	}
 	node.Left.errorf("unhandled value in additive expression")
@@ -1348,10 +1464,10 @@ func checkEquality(v1, v2 reflect.Value) bool {
 		}
 		return true
 	case reflect.Interface:
-		if v1.IsNil() || v2.IsNil() {
+		if kind == v2.Kind() && (v1.IsNil() || v2.IsNil()) {
 			return v1.IsNil() == v2.IsNil()
 		}
-		return checkEquality(v1.Elem(), v2.Elem())
+		return checkEquality(reflect.ValueOf(v1.Interface()), reflect.ValueOf(v2.Interface()))
 	case reflect.Ptr:
 		return v1.Pointer() == v2.Pointer()
 	case reflect.Struct:
@@ -1413,6 +1529,8 @@ func castBoolean(v reflect.Value) bool {
 		return true
 	case reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() > 0
+	case reflect.Interface:
+		return castBoolean(reflect.ValueOf(v.Interface()))
 	default:
 		if isInt(kind) {
 			return v.Int() > 0
