@@ -17,10 +17,15 @@
 package main
 
 import (
+	"bytes"
+	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/CloudyKit/jet"
 	"github.com/CloudyKit/jet/examples/asset_packaging/assets/templates"
@@ -35,16 +40,29 @@ var views = jet.NewHTMLSetLoader(multi.NewLoader(
 	httpfs.NewLoader(templates.Assets),
 ))
 
+var runAndExit = flag.Bool("run-and-exit", false, "Run app, request / and exit (used in tests)")
+
 func main() {
+	flag.Parse()
+
 	// remove in production
 	views.SetDevelopmentMode(true)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		view, err := views.GetTemplate("index.jet")
 		if err != nil {
-			log.Println("Unexpected template err:", err.Error())
+			w.WriteHeader(503)
+			fmt.Fprintf(w, "Unexpected error while parsing template: %+v", err.Error())
+			return
 		}
-		view.Execute(w, nil, nil)
+		var resp bytes.Buffer
+		if err = view.Execute(&resp, nil, nil); err != nil {
+			w.WriteHeader(503)
+			fmt.Fprintf(w, "Error when executing template: %+v", err.Error())
+			return
+		}
+		w.WriteHeader(200)
+		w.Write(resp.Bytes())
 	})
 
 	port := os.Getenv("PORT")
@@ -55,5 +73,17 @@ func main() {
 	}
 
 	log.Println("Serving on " + port)
+	if *runAndExit {
+		go http.ListenAndServe(port, nil)
+		time.Sleep(1000) // wait for the server to be up
+		resp, err := http.Get("http://localhost" + port + "/")
+		if err != nil || resp.StatusCode != 200 {
+			r, _ := ioutil.ReadAll(resp.Body)
+			log.Printf("An error occurred when fetching page: %+v\n\nResponse:\n%+v\n\nStatus code: %v\n", err, string(r), resp.StatusCode)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	http.ListenAndServe(port, nil)
 }
