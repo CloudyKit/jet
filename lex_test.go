@@ -57,7 +57,6 @@ func TestLexer(t *testing.T) {
 }
 
 func TestLexNegatives(t *testing.T) {
-
 	lexerTestCase(t, `{{ -1 }}`, itemLeftDelim, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{ 5 + -1 }}`, itemLeftDelim, itemNumber, itemAdd, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{ 5 * -1 }}`, itemLeftDelim, itemNumber, itemMul, itemNumber, itemRightDelim)
