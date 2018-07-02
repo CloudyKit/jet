@@ -323,9 +323,9 @@ func lexInsideAction(l *lexer) stateFn {
 		return l.errorf("unclosed left paren")
 	}
 	switch r := l.next(); {
-	case r == eof || isEndOfLine(r):
+	case r == eof:
 		return l.errorf("unclosed action")
-	case isSpace(r):
+	case isSpace(r), isEndOfLine(r):
 		return lexSpace
 	case r == ',':
 		l.emit(itemComma)

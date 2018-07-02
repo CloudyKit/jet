@@ -3,8 +3,12 @@
     {{label}}: <input type="text" name="{{name}}" value="{{value}}" />
 {{ end }}
 
-{{ block col(md=12,offset=0) }}
-    <div class="col-md-{{size}} col-md-offset-{{offset}}">{{ yield content }}</div>
+{{ block col(
+  md=12,
+  offset=0,
+  additionalClass=""
+) }}
+    <div class="col-md-{{size}} col-md-offset-{{offset}} {{additionalClass}}">{{ yield content }}</div>
 {{ end }}
 
 {{ block row() .}}
@@ -17,7 +21,9 @@
 
 {{ block header() }}
     {{ yield row() content}}
-        {{ yield col(md=6) content }}
+        {{ yield col(md=6,
+          additionalClass="center"
+        ) content }}
 {{ yield content }}
         {{end}}
     {{end}}
@@ -31,8 +37,8 @@
     {{label}}: <input type="text" name="{{name}}" value="{{value}}" />
 {{end}}
 
-{{block col(md=12,offset=0)}}
-    <div class="col-md-{{size}} col-md-offset-{{offset}}">{{yield content}}</div>
+{{block col(md=12,offset=0,additionalClass="")}}
+    <div class="col-md-{{size}} col-md-offset-{{offset}} {{additionalClass}}">{{yield content}}</div>
 {{end}}
 
 {{block row() .}}
@@ -45,7 +51,7 @@
 
 {{block header()}}
     {{yield row() content}}
-        {{yield col(md=6) content}}
+        {{yield col(md=6,additionalClass="center") content}}
 {{yield content}}
         {{end}}
     {{end}}
