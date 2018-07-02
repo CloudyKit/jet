@@ -302,6 +302,14 @@ func TestEvalDefaultFuncs(t *testing.T) {
 	RunJetTest(t, nil, &User{"Mario Santos", "mario@gmail.com"}, "DefaultFuncs_json", `{{. |writeJson}}`, "{\"Name\":\"Mario Santos\",\"Email\":\"mario@gmail.com\"}\n")
 
 	RunJetTest(t, nil, nil, "DefaultFuncs_replace", `{{replace("My Name Is", " ", "_", -1)}}`, "My_Name_Is")
+	RunJetTest(t, nil, nil, "DefaultFuncs_replace_multiline_statement",
+		`{{replace("My Name Is II",
+			" ",
+			"_",
+			-1
+		)}}`,
+		"My_Name_Is_II",
+	)
 }
 
 func TestEvalIssetAndTernaryExpression(t *testing.T) {
