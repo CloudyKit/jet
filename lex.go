@@ -72,7 +72,7 @@ const (
 	itemLess
 	itemLessEquals
 	itemComma
-	itemColonComma
+	itemSemicolon
 	itemAdd
 	itemMinus
 	itemMul
@@ -330,7 +330,7 @@ func lexInsideAction(l *lexer) stateFn {
 	case r == ',':
 		l.emit(itemComma)
 	case r == ';':
-		l.emit(itemColonComma)
+		l.emit(itemSemicolon)
 	case r == '*':
 		l.emit(itemMul)
 	case r == '/':
