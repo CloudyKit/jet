@@ -306,7 +306,7 @@ func TestEvalDefaultFuncs(t *testing.T) {
 		`{{replace("My Name Is II",
 			" ",
 			"_",
-			-1
+			-1,
 		)}}`,
 		"My_Name_Is_II",
 	)
