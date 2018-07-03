@@ -827,6 +827,9 @@ func (t *Template) parseArguments() (args []Expression) {
 			args = append(args, expr)
 			switch endtoken.typ {
 			case itemComma:
+				if t.peekNonSpace().typ == itemRightParen {
+					break loop
+				}
 				continue loop
 			default:
 				t.backup()
