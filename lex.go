@@ -127,6 +127,13 @@ var key = map[string]itemType{
 
 const eof = -1
 
+const (
+	defaultLeftDelim  = "{{"
+	defaultRightDelim = "}}"
+	leftComment       = "{*"
+	rightComment      = "*}"
+)
+
 // stateFn represents the state of the scanner as a function that returns the next state.
 type stateFn func(*lexer) stateFn
 
@@ -142,6 +149,8 @@ type lexer struct {
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 	lastType   itemType
+	leftDelim  string
+	rightDelim string
 }
 
 // next returns the next rune in the input.
@@ -227,11 +236,12 @@ func (l *lexer) drain() {
 
 // lex creates a new scanner for the input string.
 func lex(name, input string) *lexer {
-
 	l := &lexer{
-		name:  name,
-		input: input,
-		items: make(chan item),
+		name:       name,
+		input:      input,
+		items:      make(chan item),
+		leftDelim:  defaultLeftDelim,
+		rightDelim: defaultRightDelim,
 	}
 	go l.run()
 	return l
@@ -244,13 +254,6 @@ func (l *lexer) run() {
 	}
 	close(l.items)
 }
-
-const (
-	leftDelim    = "{{"
-	rightDelim   = "}}"
-	leftComment  = "{*"
-	rightComment = "*}"
-)
 
 // state functions
 func lexText(l *lexer) stateFn {
