@@ -16,8 +16,8 @@ package jet
 
 import "testing"
 
-func lexerTestCase(t *testing.T, input string, items ...itemType) {
-	lexer := lex("test.flowRender", input)
+func lexerTestCaseCustomLexer(t *testing.T, lexer *lexer, input string, items ...itemType) {
+	t.Helper()
 	for i := 0; i < len(items); i++ {
 		item := lexer.nextItem()
 
@@ -34,6 +34,11 @@ func lexerTestCase(t *testing.T, input string, items ...itemType) {
 	if item.typ != itemEOF {
 		t.Errorf("Unexpected token %s EOF is expected", item)
 	}
+}
+
+func lexerTestCase(t *testing.T, input string, items ...itemType) {
+	lexer := lex("test.flowRender", input, true)
+	lexerTestCaseCustomLexer(t, lexer, input, items...)
 }
 
 func TestLexer(t *testing.T) {
