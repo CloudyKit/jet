@@ -41,6 +41,13 @@ func lexerTestCase(t *testing.T, input string, items ...itemType) {
 	lexerTestCaseCustomLexer(t, lexer, input, items...)
 }
 
+func lexerTestCaseCustomDelimiters(t *testing.T, leftDelim, rightDelim, input string, items ...itemType) {
+	lexer := lex("test.customDelimiters", input, false)
+	lexer.setDelimiters(leftDelim, rightDelim)
+	lexer.run()
+	lexerTestCaseCustomLexer(t, lexer, input, items...)
+}
+
 func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{}}`, itemLeftDelim, itemRightDelim)
 	lexerTestCase(t, `{{ line }}`, itemLeftDelim, itemIdentifier, itemRightDelim)
@@ -58,7 +65,25 @@ func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{.Ex!1}}`, itemLeftDelim, itemField, itemNot, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{.Ex==1}}`, itemLeftDelim, itemField, itemEquals, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{.Ex&&1}}`, itemLeftDelim, itemField, itemAnd, itemNumber, itemRightDelim)
+}
 
+func TestCustomDelimiters(t *testing.T) {
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[]]`, itemLeftDelim, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[ line ]]`, itemLeftDelim, itemIdentifier, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[ . ]]`, itemLeftDelim, itemIdentifier, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[ .Field ]]`, itemLeftDelim, itemField, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[ "value" ]]`, itemLeftDelim, itemString, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[ call: value ]]`, itemLeftDelim, itemIdentifier, itemColon, itemIdentifier, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex+1]]`, itemLeftDelim, itemField, itemAdd, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex-1]]`, itemLeftDelim, itemField, itemMinus, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex*1]]`, itemLeftDelim, itemField, itemMul, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex/1]]`, itemLeftDelim, itemField, itemDiv, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex%1]]`, itemLeftDelim, itemField, itemMod, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex=1]]`, itemLeftDelim, itemField, itemAssign, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[Ex:=1]]`, itemLeftDelim, itemIdentifier, itemAssign, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex!1]]`, itemLeftDelim, itemField, itemNot, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex==1]]`, itemLeftDelim, itemField, itemEquals, itemNumber, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[.Ex&&1]]`, itemLeftDelim, itemField, itemAnd, itemNumber, itemRightDelim)
 }
 
 func TestLexNegatives(t *testing.T) {
@@ -73,4 +98,5 @@ func TestLexNegatives(t *testing.T) {
 
 func TestLexer_Bug35(t *testing.T) {
 	lexerTestCase(t, `{{if x>y}}blahblah...{{end}}`, itemLeftDelim, itemIf, itemIdentifier, itemGreat, itemIdentifier, itemRightDelim, itemText, itemLeftDelim, itemEnd, itemRightDelim)
+	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[if x>y]]blahblah...[[end]]`, itemLeftDelim, itemIf, itemIdentifier, itemGreat, itemIdentifier, itemRightDelim, itemText, itemLeftDelim, itemEnd, itemRightDelim)
 }

@@ -153,6 +153,15 @@ type lexer struct {
 	rightDelim string
 }
 
+func (l *lexer) setDelimiters(leftDelim, rightDelim string) {
+	if leftDelim != "" {
+		l.leftDelim = leftDelim
+	}
+	if rightDelim != "" {
+		l.rightDelim = rightDelim
+	}
+}
+
 // next returns the next rune in the input.
 func (l *lexer) next() rune {
 	if int(l.pos) >= len(l.input) {
@@ -262,12 +271,12 @@ func (l *lexer) run() {
 // state functions
 func lexText(l *lexer) stateFn {
 	for {
-		if i := strings.IndexByte(l.input[l.pos:], '{'); i == -1 {
+		if i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0]); i == -1 {
 			l.pos = Pos(len(l.input))
 			break
 		} else {
 			l.pos += Pos(i)
-			if strings.HasPrefix(l.input[l.pos:], leftDelim) {
+			if strings.HasPrefix(l.input[l.pos:], l.leftDelim) {
 				if l.pos > l.start {
 					l.emit(itemText)
 				}
@@ -293,7 +302,7 @@ func lexText(l *lexer) stateFn {
 }
 
 func lexLeftDelim(l *lexer) stateFn {
-	l.pos += Pos(len(leftDelim))
+	l.pos += Pos(len(l.leftDelim))
 	l.emit(itemLeftDelim)
 	l.parenDepth = 0
 	return lexInsideAction
@@ -313,7 +322,7 @@ func lexComment(l *lexer) stateFn {
 
 // lexRightDelim scans the right delimiter, which is known to be present.
 func lexRightDelim(l *lexer) stateFn {
-	l.pos += Pos(len(rightDelim))
+	l.pos += Pos(len(l.rightDelim))
 	l.emit(itemRightDelim)
 	return lexText
 }
@@ -323,7 +332,7 @@ func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate arguments; runs of spaces turn into itemSpace.
 	// Pipe symbols separate and are emitted.
-	if strings.HasPrefix(l.input[l.pos:], rightDelim) {
+	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
 		if l.parenDepth == 0 {
 			return lexRightDelim
 		}
@@ -553,7 +562,7 @@ func (l *lexer) atTerminator() bool {
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
 	// succeed but should fail) but only in extremely rare cases caused by willfully
 	// bad choice of delimiter.
-	if rd, _ := utf8.DecodeRuneInString(rightDelim); rd == r {
+	if rd, _ := utf8.DecodeRuneInString(l.rightDelim); rd == r {
 		return true
 	}
 	return false
