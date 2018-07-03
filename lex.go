@@ -325,7 +325,7 @@ func lexInsideAction(l *lexer) stateFn {
 	switch r := l.next(); {
 	case r == eof:
 		return l.errorf("unclosed action")
-	case isSpace(r), isEndOfLine(r):
+	case isSpace(r):
 		return lexSpace
 	case r == ',':
 		l.emit(itemComma)
@@ -536,7 +536,7 @@ func lexField(l *lexer) stateFn {
 // day to implement arithmetic.
 func (l *lexer) atTerminator() bool {
 	r := l.peek()
-	if isSpace(r) || isEndOfLine(r) {
+	if isSpace(r) {
 		return true
 	}
 	switch r {
@@ -649,12 +649,7 @@ Loop:
 
 // isSpace reports whether r is a space character.
 func isSpace(r rune) bool {
-	return r == ' ' || r == '\t'
-}
-
-// isEndOfLine reports whether r is an end-of-line character.
-func isEndOfLine(r rune) bool {
-	return r == '\r' || r == '\n'
+	return r == ' ' || r == '\t' || r == '\r' || r == '\n'
 }
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
