@@ -10,11 +10,15 @@ clone_folder: c:\gopath\src\github.com\CloudyKit\jet
 
 environment:
   GOPATH: c:\gopath
+  matrix:
+    - GOVERSION: 19
+    - GOVERSION: 110
 
 install:
+  - set PATH=%GOPATH%\bin;c:\go%GOVERSION%\bin;%PATH%
+  - set GOROOT=c:\go%GOVERSION%
   - echo %PATH%
   - echo %GOPATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
   - go version
   - go env
 
