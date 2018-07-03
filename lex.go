@@ -235,7 +235,7 @@ func (l *lexer) drain() {
 }
 
 // lex creates a new scanner for the input string.
-func lex(name, input string) *lexer {
+func lex(name, input string, run bool) *lexer {
 	l := &lexer{
 		name:       name,
 		input:      input,
@@ -243,16 +243,20 @@ func lex(name, input string) *lexer {
 		leftDelim:  defaultLeftDelim,
 		rightDelim: defaultRightDelim,
 	}
-	go l.run()
+	if run {
+		l.run()
+	}
 	return l
 }
 
 // run runs the state machine for the lexer.
 func (l *lexer) run() {
-	for l.state = lexText; l.state != nil; {
-		l.state = l.state(l)
-	}
-	close(l.items)
+	go func() {
+		for l.state = lexText; l.state != nil; {
+			l.state = l.state(l)
+		}
+		close(l.items)
+	}()
 }
 
 // state functions
