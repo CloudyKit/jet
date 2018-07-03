@@ -41,6 +41,8 @@ type Set struct {
 	gmx               *sync.RWMutex        // global variables map mutex
 	defaultExtensions []string
 	developmentMode   bool
+	leftDelim         string
+	rightDelim        string
 }
 
 // SetDevelopmentMode set's development mode on/off, in development mode template will be recompiled on every run
@@ -109,6 +111,13 @@ func (s *Set) AddGopathPath(path string) {
 	} else {
 		panic(fmt.Sprintf("AddGopathPath() not supported on custom loader of type %T", s.loader))
 	}
+}
+
+// Delims sets the delimiters to the specified strings. Parsed templates will
+// inherit the settings. Not setting them leaves them at the default: {{ or }}.
+func (s *Set) Delims(left, right string) {
+	s.leftDelim = left
+	s.rightDelim = right
 }
 
 // resolveName try to resolve a template name, the steps as follow
