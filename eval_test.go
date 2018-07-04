@@ -174,7 +174,7 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
 
 	RunJetTest(t, data, nil, "actionNode_AddIntString", `{{ 2+"1" }}`, "3")
-	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "12")
+	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "3")
 
 	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
 	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
