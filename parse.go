@@ -425,7 +425,6 @@ func (t *Template) parseInclude() Node {
 		t.backup()
 		pipe = t.expression("include")
 		t.expect(itemRightDelim, "include invocation")
-
 	}
 
 	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
@@ -480,7 +479,57 @@ func (t *Template) textOrAction() Node {
 }
 
 func (t *Template) filterControl() Node {
-	return t.newFilter(t.parseControl(true, "filter"))
+	return t.newFilter(t.parseControl(false, "filter"))
+}
+
+func (t *Template) parseDefault() (pos Pos, line int, expression Expression, list *ListNode) {
+	line = t.lex.lineNumber()
+
+	expression = t.operand()
+	pos = expression.Position()
+	t.nextNonSpace()
+
+	if expression.Type() == NodeUndefined {
+		t.backup()
+	}
+
+	var next Node
+	list, next = t.itemList()
+	switch next.Type() {
+	case nodeEnd: //done
+	}
+	return pos, line, expression, list
+}
+
+func (t *Template) defaultControl() Node {
+	return t.newDefault(t.parseDefault())
+}
+
+func (t *Template) switchControl() Node {
+	return t.newSwitch(t.parseControl(false, "switch"))
+}
+
+func (t *Template) parseCase() (pos Pos, line int, expression Expression, list *ListNode) {
+	line = t.lex.lineNumber()
+
+	expression = t.operand()
+	pos = expression.Position()
+	t.nextNonSpace()
+
+	if expression.Type() == NodeUndefined {
+		t.backup()
+	}
+
+	var next Node
+	list, next = t.itemList()
+	switch next.Type() {
+	case nodeEnd: //done
+	}
+	return pos, line, expression, list
+}
+
+func (t *Template) caseControl() Node {
+	return t.newCase(t.parseCase())
 }
 
 func (t *Template) action() (n Node) {
@@ -503,6 +552,12 @@ func (t *Template) action() (n Node) {
 		return t.parseYield()
 	case itemFilter:
 		return t.filterControl()
+	case itemDefault:
+		return t.defaultControl()
+	case itemSwitch:
+		return t.switchControl()
+	case itemCase:
+		return t.caseControl()
 	}
 
 	t.backup()
@@ -993,6 +1048,8 @@ func (t *Template) term() Node {
 			t.error(err)
 		}
 		return t.newString(token.pos, token.val, s)
+	default:
+		return t.newUndefined(token.pos)
 	}
 	t.backup()
 	return nil
