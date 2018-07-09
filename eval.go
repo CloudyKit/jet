@@ -480,7 +480,6 @@ func (st *Runtime) executeSwitch(list *ListNode, value reflect.Value) {
 		switch node.Type() {
 		case NodeCase:
 			node := node.(*CaseNode)
-
 			if node.Expression.Type() == NodeUndefined {
 				defaultNode = node
 			} else {
@@ -507,13 +506,10 @@ func (st *Runtime) executeDefault(list *ListNode) {
 		switch node.Type() {
 		case NodeAction:
 			node := node.(*ActionNode)
-
 			if node.Pipe != nil || node.Set == nil || node.Set.Let == true {
 				node.errorf("unexpected data in default block")
 			}
-
 			st.executeSetList(node.Set, true)
-
 		case NodeText:
 			node := node.(*TextNode)
 			for _, value := range node.String() {
@@ -580,16 +576,11 @@ func (st *Runtime) executeList(list *ListNode) {
 			}
 		case NodeDefault:
 			node := node.(*DefaultNode)
-
 			st.executeDefault(node.List)
-
 		case NodeSwitch:
 			node := node.(*SwitchNode)
-
 			value := st.evalPrimaryExpressionGroup(node.Expression)
-
 			st.executeSwitch(node.List, value)
-
 		case NodeFilter:
 			node := node.(*FilterNode)
 			var isLet bool
@@ -602,26 +593,18 @@ func (st *Runtime) executeList(list *ListNode) {
 					st.executeSetList(node.Set, false)
 				}
 			}
-
 			mynode := st.evalPrimaryExpressionGroup(node.Expression)
-
 			optionText.SetValue(mynode.String())
-
 			st.executeList(node.List)
-
 			out := optionText.FormatOutput()
-
 			_, err := st.Writer.Write(out)
 			if err != nil {
 				node.error(err)
 			}
-
 			optionText.Reset()
-
 			if isLet {
 				st.releaseScope()
 			}
-
 		case NodeIf:
 			node := node.(*IfNode)
 			var isLet bool
@@ -764,7 +747,7 @@ var (
 	valueBoolFALSE = reflect.ValueOf(false)
 )
 
-func ParseIndexExpr(baseExpression reflect.Value, indexExpression reflect.Value, indexType reflect.Type) (reflect.Value, error) {
+func (st *Runtime) parseIndexExpr(baseExpression reflect.Value, indexExpression reflect.Value, indexType reflect.Type) (reflect.Value, error) {
 	switch baseExpression.Kind() {
 	case reflect.Map:
 		key := baseExpression.Type().Key()
@@ -793,7 +776,7 @@ func ParseIndexExpr(baseExpression reflect.Value, indexExpression reflect.Value,
 		}
 		return baseExpression, errors.New("non numeric value in index expression kind " + baseExpression.Kind().String())
 	case reflect.Interface:
-		return ParseIndexExpr(reflect.ValueOf(baseExpression.Interface()), indexExpression, indexType)
+		return st.parseIndexExpr(reflect.ValueOf(baseExpression.Interface()), indexExpression, indexType)
 	}
 	return baseExpression, errors.New("indexing is not supported in value type " + baseExpression.Kind().String())
 }
@@ -840,7 +823,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			baseExpression = baseExpression.Elem()
 		}
 
-		ret, err := ParseIndexExpr(baseExpression, indexExpression, indexType)
+		ret, err := st.parseIndexExpr(baseExpression, indexExpression, indexType)
 		if err != nil {
 			node.errorf(err.Error())
 		}
@@ -889,7 +872,7 @@ func notNil(v reflect.Value) bool {
 	}
 }
 
-func ParseByType(baseExpression reflect.Value, indexExpression reflect.Value, indexType reflect.Type) (bool, error) {
+func (st *Runtime) parseByType(baseExpression reflect.Value, indexExpression reflect.Value, indexType reflect.Type) (bool, error) {
 	switch baseExpression.Kind() {
 	case reflect.Map:
 		key := baseExpression.Type().Key()
@@ -918,7 +901,7 @@ func ParseByType(baseExpression reflect.Value, indexExpression reflect.Value, in
 			return false, errors.New("non numeric value in index expression kind " + baseExpression.Kind().String())
 		}
 	case reflect.Interface:
-		return ParseByType(reflect.ValueOf(baseExpression.Interface()), indexExpression, indexType)
+		return st.parseByType(reflect.ValueOf(baseExpression.Interface()), indexExpression, indexType)
 	}
 	return false, errors.New("indexing is not supported in value type " + baseExpression.Kind().String())
 }
@@ -945,7 +928,7 @@ func (st *Runtime) isSet(node Node) bool {
 			baseExpression = baseExpression.Elem()
 		}
 
-		ret, err := ParseByType(baseExpression, indexExpression, indexType)
+		ret, err := st.parseByType(baseExpression, indexExpression, indexType)
 		if err != nil {
 			node.errorf(err.Error())
 		}
