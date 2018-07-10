@@ -193,25 +193,6 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 	return true
 }
 
-func (state *Runtime) getAssignedValue(name string) (reflect.Value, error) {
-	sc := state.scope
-
-	// try to resolve variables in the current scope
-	_, ok := sc.variables[name]
-
-	// if not found walks parent scopes
-	for !ok && sc.parent != nil {
-		sc = sc.parent
-		_, ok = sc.variables[name]
-	}
-
-	if ok {
-		return sc.variables[name], nil
-	}
-
-	return reflect.ValueOf(nil), errors.New("Variable " + name + " is not set")
-}
-
 // Resolve resolves a value from the execution context
 func (state *Runtime) Resolve(name string) reflect.Value {
 
@@ -259,11 +240,8 @@ func (st *Runtime) recover(err *error) {
 }
 
 func (st *Runtime) executeSet(left Expression, right reflect.Value, isdefault bool) {
-	if isdefault == true {
-		_, err := st.getAssignedValue(left.String())
-		if err == nil {
-			return
-		}
+	if isdefault == true && st.evalDefaultPrimaryExpression(left) == false {
+		return
 	}
 	typ := left.Type()
 	if typ == NodeIdentifier {
@@ -320,21 +298,32 @@ func (st *Runtime) executeSetList(set *SetNode, isdefault bool) {
 	}
 }
 
+func (st *Runtime) executeLet(key Expression, value reflect.Value, isdefault bool) {
+	if isdefault == true && st.evalDefaultPrimaryExpression(key) == false {
+		fmt.Printf("RETUNR")
+		return
+	}
+	if st.variables == nil {
+		st.variables = make(VarMap)
+	}
+	st.variables[key.(*IdentifierNode).Ident] = value
+}
+
 func (st *Runtime) executeLetList(set *SetNode) {
 	if set.IndexExprGetLookup {
 		value := st.evalPrimaryExpressionGroup(set.Right[0])
 
-		st.variables[set.Left[0].(*IdentifierNode).Ident] = value
+		st.executeLet(set.Left[0], value, false)
 
 		if value.IsValid() {
-			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolTRUE
+			st.executeLet(set.Left[1], valueBoolTRUE, false)
 		} else {
-			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolFALSE
+			st.executeLet(set.Left[1], valueBoolFALSE, false)
 		}
 
 	} else {
 		for i := 0; i < len(set.Left); i++ {
-			st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+			st.executeLet(set.Left[i], st.evalPrimaryExpressionGroup(set.Right[i]), false)
 		}
 	}
 }
@@ -434,17 +423,11 @@ func (ot *TextFilter) SetText(src []byte) {
 	ot.text = append(ot.text, src...)
 }
 
-func (ot *TextFilter) SetValue(src string) {
+func (ot *TextFilter) SetValue(value reflect.Value) {
+	src := value.String()
 	if src != "" {
-		tocompare := "format:"
-		if strings.HasPrefix(src, tocompare) {
-			pos := strings.Index(src, tocompare)
-			if pos > -1 {
-				src = src[len(tocompare):len(src)]
-			}
-			ot.action = FilterFormat
-			ot.value = src
-		}
+		ot.action = FilterFormat
+		ot.value = src
 	}
 }
 
@@ -500,29 +483,6 @@ func (st *Runtime) executeSwitch(list *ListNode, value reflect.Value) {
 	}
 }
 
-func (st *Runtime) executeDefault(list *ListNode) {
-	for i := 0; i < len(list.Nodes); i++ {
-		node := list.Nodes[i]
-		switch node.Type() {
-		case NodeAction:
-			node := node.(*ActionNode)
-			if node.Pipe != nil || node.Set == nil || node.Set.Let == true {
-				node.errorf("unexpected data in default block")
-			}
-			st.executeSetList(node.Set, true)
-		case NodeText:
-			node := node.(*TextNode)
-			for _, value := range node.String() {
-				if value != '\n' && value != '\t' && value != ' ' {
-					node.errorf("unexpected data in default block")
-				}
-			}
-		default:
-			node.errorf("unexpected data in default block")
-		}
-	}
-}
-
 func (st *Runtime) executeList(list *ListNode) {
 	inNewSCOPE := false
 
@@ -574,9 +534,6 @@ func (st *Runtime) executeList(list *ListNode) {
 					}
 				}
 			}
-		case NodeDefault:
-			node := node.(*DefaultNode)
-			st.executeDefault(node.List)
 		case NodeSwitch:
 			node := node.(*SwitchNode)
 			value := st.evalPrimaryExpressionGroup(node.Expression)
@@ -593,8 +550,9 @@ func (st *Runtime) executeList(list *ListNode) {
 					st.executeSetList(node.Set, false)
 				}
 			}
-			mynode := st.evalPrimaryExpressionGroup(node.Expression)
-			optionText.SetValue(mynode.String())
+
+			value := st.evalPrimaryExpressionGroup(node.Expression)
+			optionText.SetValue(value)
 			st.executeList(node.List)
 			out := optionText.FormatOutput()
 			_, err := st.Writer.Write(out)
@@ -1398,7 +1356,22 @@ func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Va
 	return term, false
 }
 
+func (st *Runtime) evalDefaultPrimaryExpression(myexpr Expression) (ret bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			ret = true
+		}
+	}()
+	st.evalPrimaryExpressionGroup(myexpr)
+	return false
+}
+
 func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
+	if len(node.Cmds) == 2 && strings.HasPrefix(node.Cmds[1].BaseExpr.String(), "default") {
+		value = st.evalPrimaryExpressionGroup(node.Cmds[1].BaseExpr)
+		st.executeLet(node.Cmds[0].BaseExpr, value, true)
+		return reflect.ValueOf(nil), true
+	}
 	value, safeWriter = st.evalCommandExpression(node.Cmds[0])
 	for i := 1; i < len(node.Cmds); i++ {
 		if safeWriter {

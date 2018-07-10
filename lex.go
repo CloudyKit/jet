@@ -101,7 +101,6 @@ const (
 	itemMSG
 	itemTrans
 	itemFilter
-	itemDefault
 	itemSwitch
 	itemCase
 )
@@ -110,7 +109,6 @@ var key = map[string]itemType{
 	"extends": itemExtends,
 	"import":  itemImport,
 
-	"default": itemDefault,
 	"include": itemInclude,
 	"block":   itemBlock,
 	"yield":   itemYield,

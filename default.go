@@ -52,9 +52,13 @@ func init() {
 		"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 		"writeJson": reflect.ValueOf(jsonRenderer),
 		"json":      reflect.ValueOf(json.Marshal),
+		"default": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
+			a.RequireNumOfArguments("default", 1, -1)
+			return a.Get(0)
+		})),
 		"format": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("format", 1, -1)
-			return reflect.ValueOf("format:" + a.Get(0).String())
+			return a.Get(0)
 		})),
 		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("isset", 1, -1)
