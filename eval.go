@@ -300,7 +300,6 @@ func (st *Runtime) executeSetList(set *SetNode, isdefault bool) {
 
 func (st *Runtime) executeLet(key Expression, value reflect.Value, isdefault bool) {
 	if isdefault == true && st.evalDefaultPrimaryExpression(key) == false {
-		fmt.Printf("RETUNR")
 		return
 	}
 	if st.variables == nil {
@@ -540,19 +539,18 @@ func (st *Runtime) executeList(list *ListNode) {
 			st.executeSwitch(node.List, value)
 		case NodeFilter:
 			node := node.(*FilterNode)
-			var isLet bool
-			if node.Set != nil {
-				if node.Set.Let {
-					isLet = true
-					st.newScope()
-					st.executeLetList(node.Set)
-				} else {
-					st.executeSetList(node.Set, false)
-				}
+			value := st.evalPrimaryExpressionGroup(node.Expression)
+			pos := strings.Index(node.Expression.String(), "(")
+			if pos <= -1 {
+				node.errorf("unexpected error")
+			}
+			funcname := node.Expression.String()[0:pos]
+
+			switch funcname {
+			case "format":
+				optionText.SetValue(value)
 			}
 
-			value := st.evalPrimaryExpressionGroup(node.Expression)
-			optionText.SetValue(value)
 			st.executeList(node.List)
 			out := optionText.FormatOutput()
 			_, err := st.Writer.Write(out)
@@ -560,9 +558,6 @@ func (st *Runtime) executeList(list *ListNode) {
 				node.error(err)
 			}
 			optionText.Reset()
-			if isLet {
-				st.releaseScope()
-			}
 		case NodeIf:
 			node := node.(*IfNode)
 			var isLet bool
@@ -1367,12 +1362,29 @@ func (st *Runtime) evalDefaultPrimaryExpression(myexpr Expression) (ret bool) {
 }
 
 func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
-	if len(node.Cmds) == 2 && strings.HasPrefix(node.Cmds[1].BaseExpr.String(), "default") {
-		value = st.evalPrimaryExpressionGroup(node.Cmds[1].BaseExpr)
-		st.executeLet(node.Cmds[0].BaseExpr, value, true)
-		return reflect.ValueOf(nil), true
+
+	for i := 0; i < len(node.Cmds); i++ {
+		if strings.HasPrefix(node.Cmds[i].BaseExpr.String(), "default") {
+			if i < 1 && value.IsValid() == false {
+				node.errorf("wrong default order, value should be placed before")
+			}
+			if value.IsValid() == false && st.evalDefaultPrimaryExpression(node.Cmds[i-1].BaseExpr) == false {
+				value = st.evalPrimaryExpressionGroup(node.Cmds[i-1].BaseExpr)
+				node.Cmds = append(node.Cmds[:i-1], node.Cmds[i+1:]...)
+			} else {
+				if value.IsValid() == false {
+					value = st.evalPrimaryExpressionGroup(node.Cmds[i].BaseExpr)
+				}
+				node.Cmds = append(node.Cmds[:i], node.Cmds[i+1:]...)
+			}
+			i = 0
+		}
 	}
-	value, safeWriter = st.evalCommandExpression(node.Cmds[0])
+
+	if value.IsValid() == false {
+		value, safeWriter = st.evalCommandExpression(node.Cmds[0])
+	}
+
 	for i := 1; i < len(node.Cmds); i++ {
 		if safeWriter {
 			node.Cmds[i].errorf("unexpected command %s, writer command should be the last command", node.Cmds[i])

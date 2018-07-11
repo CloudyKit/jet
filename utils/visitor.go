@@ -51,8 +51,6 @@ func (vc VisitorContext) Visit(node jet.Node) {
 		vc.visitSwitchNode(node)
 	case *jet.CaseNode:
 		vc.visitCaseNode(node)
-	case *jet.DefaultNode:
-		vc.visitDefaultNode(node)
 	case *jet.IfNode:
 		vc.visitIfNode(node)
 	case *jet.PipeNode:
@@ -135,10 +133,6 @@ func (vc VisitorContext) visitPipeNode(pipeNode *jet.PipeNode) {
 
 func (vc VisitorContext) visitFilterNode(filterNode *jet.FilterNode) {
 	vc.visitBranchNode(&filterNode.BranchNode)
-}
-
-func (vc VisitorContext) visitDefaultNode(defaultNode *jet.DefaultNode) {
-	vc.visitBranchNode(&defaultNode.BranchNode)
 }
 
 func (vc VisitorContext) visitSwitchNode(switchNode *jet.SwitchNode) {
