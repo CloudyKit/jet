@@ -371,6 +371,17 @@ func TestEvalSliceExpression(t *testing.T) {
 	RunJetTest(t, nil, []string{"111"}, "SliceExpressionSlice_IfLen", `{{if len(.) > 0}}{{.[0]}}{{end}}`, `111`)
 }
 
+func TestEvalPointerExpressions(t *testing.T) {
+	var data = make(VarMap)
+	var s *string
+	data.Set("stringPointer", s)
+	RunJetTest(t, data, nil, "StringPointer_1", `{{ stringPointer }}`, "")
+
+	s2 := "test"
+	data.Set("stringPointer2", &s2)
+	RunJetTest(t, data, nil, "StringPointer_2", `{{ stringPointer2 }}`, "test")
+}
+
 func TestEvalBuiltinExpression(t *testing.T) {
 	var data = make(VarMap)
 	RunJetTest(t, data, nil, "LenExpression_1", `{{len("111")}}`, "3")
