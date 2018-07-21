@@ -74,6 +74,7 @@ func TestParseTemplateControl(t *testing.T) {
 	p := ParserTestCase{T: t}
 	p.TestPrintFile("if.jet")
 	p.TestPrintFile("range.jet")
+	p.TestPrintFile("switch_case.jet")
 }
 
 func TestParseTemplateExpressions(t *testing.T) {

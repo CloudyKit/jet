@@ -293,6 +293,16 @@ func TestEvalRangeNode(t *testing.T) {
 	RunJetTest(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
 }
 
+func TestEvalSwitchNode(t *testing.T) {
+	var data = make(VarMap)
+	data.Set("a", 10)
+	RunJetTest(t, data, nil, "Switch_Expression_1", `{{switch a}}{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
+	RunJetTest(t, data, nil, "Switch_Expression_2", `{{switch a}}{{end}}`, "")
+	RunJetTest(t, data, nil, "Switch_Expression_3", `{{switch a}}{{case 15}}a is 15{{end}}{{case}}a is something else: {{a}}{{end}}{{end}}`, "a is something else: 10")
+	RunJetTest(t, data, nil, "Switch_Expression_4", `{{switch a}}text before first case is ignored{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
+	RunJetTest(t, data, nil, "Switch_Expression_5", `{{switch a}}{* comments before first case are ignored *}{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
+}
+
 func TestEvalDefaultFuncs(t *testing.T) {
 	RunJetTest(t, nil, nil, "DefaultFuncs_safeHtml", `<h1>{{"<h1>Hello Buddy!</h1>" |safeHtml}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
 	RunJetTest(t, nil, nil, "DefaultFuncs_safeHtml2", `<h1>{{safeHtml: "<h1>Hello Buddy!</h1>"}}</h1>`, `<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>`)
