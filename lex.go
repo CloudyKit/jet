@@ -117,8 +117,7 @@ var key = map[string]itemType{
 	"end":    itemEnd,
 	"if":     itemIf,
 	"switch": itemSwitch,
-
-	"case": itemCase,
+	"case":   itemCase,
 
 	"range": itemRange,
 	"nil":   itemNil,

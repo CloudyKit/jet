@@ -675,7 +675,7 @@ func (s *CallExprNode) String() string {
 	return fmt.Sprintf("%s(%s)", s.BaseExpr, arguments)
 }
 
-// TernaryExprNod represents a ternary expression,
+// TernaryExprNode represents a ternary expression,
 // ex: expression '?' expression ':' expression
 type TernaryExprNode struct {
 	NodeBase
