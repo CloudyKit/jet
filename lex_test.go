@@ -16,16 +16,16 @@ package jet
 
 import "testing"
 
-func lexerTestCase(t *testing.T, input string, itens ...itemType) {
+func lexerTestCase(t *testing.T, input string, items ...itemType) {
 	lexer := lex("test.flowRender", input)
-	for i := 0; i < len(itens); i++ {
+	for i := 0; i < len(items); i++ {
 		item := lexer.nextItem()
 
 		for item.typ == itemSpace {
 			item = lexer.nextItem()
 		}
 
-		if item.typ != itens[i] {
+		if item.typ != items[i] {
 			t.Errorf("Unexpected token %s on input on %q => %q", item, input, input[item.pos:])
 			return
 		}
@@ -57,7 +57,6 @@ func TestLexer(t *testing.T) {
 }
 
 func TestLexNegatives(t *testing.T) {
-
 	lexerTestCase(t, `{{ -1 }}`, itemLeftDelim, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{ 5 + -1 }}`, itemLeftDelim, itemNumber, itemAdd, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{ 5 * -1 }}`, itemLeftDelim, itemNumber, itemMul, itemNumber, itemRightDelim)
