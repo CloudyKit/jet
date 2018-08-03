@@ -1084,9 +1084,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		}
 
 		// limit the number of pointers to follow
-		dereferenceLimit := 2
-		for resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0 {
-			dereferenceLimit--
+		for dereferenceLimit := 2; resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
 			if resolved.IsNil() {
 				return reflect.ValueOf("")
 			}
@@ -1452,6 +1450,14 @@ func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
 	if value.Kind() == reflect.Interface {
 		value = value.Elem()
 	}
+
+	for dereferenceLimit := 2; value.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
+		if value.IsNil() {
+			return reflect.ValueOf("")
+		}
+		value = reflect.Indirect(value)
+	}
+
 	return value
 }
 
