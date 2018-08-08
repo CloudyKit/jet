@@ -408,6 +408,53 @@ func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
 	RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
 }
 
+func TestEvalStructFieldPointerExpressions(t *testing.T) {
+	var data = make(VarMap)
+
+	type structWithPointers struct {
+		StringField *string
+		IntField    *int
+		StructField *structWithPointers
+	}
+
+	stringVal := "test"
+	intVal := 10
+	nestedStringVal := "nested"
+
+	s := structWithPointers{
+		StringField: &stringVal,
+		IntField:    &intVal,
+		StructField: &structWithPointers{
+			StringField: &nestedStringVal,
+		},
+	}
+	data.Set("structWithPointerFields", s)
+	RunJetTest(t, data, nil, "PointerFields_1", `{{ structWithPointerFields.IntField }}`, "10")
+	RunJetTest(t, data, nil, "PointerFields_2", `{{ structWithPointerFields.StructField.IntField }}`, "")
+	RunJetTest(t, data, nil, "PointerFields_3", `{{ structWithPointerFields.StringField }}`, "test")
+	RunJetTest(t, data, nil, "PointerFields_4", `{{ structWithPointerFields.StructField.StringField }}`, "nested")
+
+	s2 := structWithPointers{
+		StringField: &stringVal,
+		IntField:    &intVal,
+	}
+	data.Set("structWithPointerFields2", s2)
+	RunJetTest(t, data, nil, "PointerFields_5", `{{ structWithPointerFields2.IntField }}`, "10")
+	RunJetTest(t, data, nil, "PointerFields_6", `{{ structWithPointerFields2.StringField }}`, "test")
+	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "")
+
+	var set = NewSet(nil, "./testData")
+	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`)
+	if err != nil {
+		t.Error(err)
+	}
+	buff := bytes.NewBuffer(nil)
+	err = tt.Execute(buff, data, nil)
+	if err == nil {
+		t.Error("expected evaluating field of nil structto fail with a runtime error but got nil")
+	}
+}
+
 func TestEvalBuiltinExpression(t *testing.T) {
 	var data = make(VarMap)
 	RunJetTest(t, data, nil, "LenExpression_1", `{{len("111")}}`, "3")
