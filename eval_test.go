@@ -341,7 +341,7 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, nil, map[string]interface{}{"nested": map[string]string{"name": "value"}}, "IndexExpressionMap_6", `{{.["nested"].name}}`, "value")
 
 	vars := make(VarMap)
-	vars.Set("nested", map[string]interface{}{"key": "nested", "nested": map[string]interface{}{"nested": map[string]interface{}{"nested": map[string]interface{}{"name": "value", "strings": []string{"hello"}, "arr": []interface{}{"hello"}}}}})
+	vars.Set("nested", map[string]interface{}{"key": "nested", "nested": map[string]interface{}{"nested": map[string]interface{}{"nested": map[string]interface{}{"name": "value", "strings": []string{"hello"}, "arr": []interface{}{"hello"}, "nil": nil}}}})
 
 	//RunJetTest(t, vars, nil, "IndexExpressionMap_6", `{{nested.nested.nested.nested.name}}`, "value")
 	// todo: this test is failing with race detector enabled, but looks like a bug when running with the race detector enabled
@@ -355,6 +355,8 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, vars, nil, "IndexExpressionMap_13", `{{nested.nested.nested["nested"]["arr"][0]}}`, "hello")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_14", `{{nested["nested"].nested["nested"].name}}`, "value")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_15", `{{nested["nested"]["nested"].nested.name}}`, "value")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_16_1", `{{nested.nested.nested.nested.nil}}`, "<nil>")
+	RunJetTest(t, vars, nil, "IndexExpressionMap_16_2", `{{nested.nested.nested.nested["nil"]}}`, "<nil>")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }
