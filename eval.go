@@ -1449,7 +1449,7 @@ var cachedStructsFieldIndex = map[reflect.Type]map[string][]int{}
 
 func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
 	value := getValue(key, v)
-	if value.Kind() == reflect.Interface {
+	if value.Kind() == reflect.Interface && !value.IsNil() {
 		value = value.Elem()
 	}
 	return value
