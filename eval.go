@@ -36,6 +36,7 @@ var (
 			return &Runtime{scope: &scope{}, escapeeWriter: new(escapeeWriter)}
 		},
 	}
+	emptyString = reflect.ValueOf("")
 )
 
 // Renderer any resulting value from an expression in an action that implements this
@@ -602,7 +603,11 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
 				}
 			}
-			return baseExpression.MapIndex(indexExpression)
+			baseExpression = baseExpression.MapIndex(indexExpression)
+			if baseExpression.Kind() == reflect.Interface && baseExpression.IsNil() {
+				return emptyString
+			}
+			return baseExpression
 		case reflect.Array, reflect.String, reflect.Slice:
 			if canNumber(indexType.Kind()) {
 				return baseExpression.Index(int(castInt64(indexExpression)))
@@ -1086,7 +1091,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		// limit the number of pointers to follow
 		for dereferenceLimit := 2; resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
 			if resolved.IsNil() {
-				return reflect.ValueOf("")
+				return emptyString
 			}
 			resolved = reflect.Indirect(resolved)
 		}
@@ -1445,15 +1450,18 @@ func castInt64(v reflect.Value) int64 {
 var cachedStructsMutex = sync.RWMutex{}
 var cachedStructsFieldIndex = map[reflect.Type]map[string][]int{}
 
-func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
+func getFieldOrMethodValue(key string, v reflect.Value) (r reflect.Value) {
 	value := getValue(key, v)
-	if value.Kind() == reflect.Interface && !value.IsNil() {
+	if value.Kind() == reflect.Interface {
+		if value.IsNil() {
+			return emptyString
+		}
 		value = value.Elem()
 	}
 
 	for dereferenceLimit := 2; value.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
 		if value.IsNil() {
-			return reflect.ValueOf("")
+			return emptyString
 		}
 		value = reflect.Indirect(value)
 	}
@@ -1475,6 +1483,9 @@ func getValue(key string, v reflect.Value) reflect.Value {
 
 	k := v.Kind()
 	if k == reflect.Ptr || k == reflect.Interface {
+		if v.IsNil() {
+			return emptyString
+		}
 		v = v.Elem()
 		k = v.Kind()
 		value = v.MethodByName(key)
