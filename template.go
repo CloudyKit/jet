@@ -291,7 +291,16 @@ func (s *Set) GetTemplate(name string) (template *Template, err error) {
 	return
 }
 
+// Load the template with the given name and return the results.
+// The template will be returned from cache if it has been loaded previously.
+// Caching is fully disabled when development mode is active.
 func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {
+	return s.loadTemplate(name, content, false)
+}
+
+// Parse and return the results of a template. Templates are cached unless in development mode.
+// Cached templates are returned unless using development mode or bypassCache is true.
+func (s *Set) loadTemplate(name, content string, bypassCache bool) (template *Template, err error) {
 	if s.developmentMode {
 		s.tmx.RLock()
 		defer s.tmx.RUnlock()
@@ -301,12 +310,14 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 
 	//fast path
 	var found bool
-	s.tmx.RLock()
-	if template, found = s.templates[name]; found {
+	if !bypassCache {
+		s.tmx.RLock()
+		if template, found = s.templates[name]; found {
+			s.tmx.RUnlock()
+			return
+		}
 		s.tmx.RUnlock()
-		return
 	}
-	s.tmx.RUnlock()
 
 	//not found parses and cache
 	s.tmx.Lock()
@@ -321,6 +332,14 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 	}
 
 	return
+}
+
+// Load the template with the given name and return the results.
+// Unlike LoadTemplate this will never use the cache to return a template,
+// but it will cache the result.
+// Caching is fully disabled when development mode is active.
+func (s *Set) ReloadTemplate(name, content string) (template *Template, err error) {
+	return s.loadTemplate(name, content, true)
 }
 
 func (t *Template) String() (template string) {
