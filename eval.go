@@ -133,7 +133,7 @@ func (st *Runtime) YieldTemplate(name string, context interface{}) {
 
 	t, err := st.set.GetTemplate(name)
 	if err != nil {
-		panic(fmt.Errorf("include: template %q was not found", name))
+		panic(fmt.Errorf("include: template %q was not found: %s", name, err))
 	}
 
 	st.newScope()
