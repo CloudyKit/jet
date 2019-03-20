@@ -55,7 +55,7 @@ func (renderer RendererFunc) Render(r *Runtime) {
 // Ranger a value implementing a ranger interface is able to iterate on his value
 // and can be used directly in a range statement
 type Ranger interface {
-	Range() (reflect.Value, reflect.Value, bool)
+	Range() (interface{}, interface{}, bool)
 }
 
 type escapeeWriter struct {
@@ -457,21 +457,21 @@ func (st *Runtime) executeList(list *ListNode) {
 					if isSet {
 						if isLet {
 							if isKeyVal {
-								st.variables[node.Set.Left[0].String()] = indexValue
-								st.variables[node.Set.Left[1].String()] = rangeValue
+								st.variables[node.Set.Left[0].String()] = reflect.ValueOf(indexValue)
+								st.variables[node.Set.Left[1].String()] = reflect.ValueOf(rangeValue)
 							} else {
-								st.variables[node.Set.Left[0].String()] = rangeValue
+								st.variables[node.Set.Left[0].String()] = reflect.ValueOf(rangeValue)
 							}
 						} else {
 							if isKeyVal {
-								st.executeSet(node.Set.Left[0], indexValue)
-								st.executeSet(node.Set.Left[1], rangeValue)
+								st.executeSet(node.Set.Left[0], reflect.ValueOf(indexValue))
+								st.executeSet(node.Set.Left[1], reflect.ValueOf(rangeValue))
 							} else {
-								st.executeSet(node.Set.Left[0], rangeValue)
+								st.executeSet(node.Set.Left[0], reflect.ValueOf(rangeValue))
 							}
 						}
 					} else {
-						st.context = rangeValue
+						st.context = reflect.ValueOf(rangeValue)
 					}
 					st.executeList(node.List)
 					indexValue, rangeValue, end = ranger.Range()
@@ -1586,11 +1586,11 @@ type sliceRanger struct {
 	i   int
 }
 
-func (s *sliceRanger) Range() (index, value reflect.Value, end bool) {
+func (s *sliceRanger) Range() (index, value interface{}, end bool) {
 	s.i++
-	index = reflect.ValueOf(&s.i).Elem()
+	index = s.i
 	if s.i < s.len {
-		value = s.v.Index(s.i)
+		value = s.v.Index(s.i).Interface()
 		return
 	}
 	pool_sliceRanger.Put(s)
@@ -1602,8 +1602,9 @@ type chanRanger struct {
 	v reflect.Value
 }
 
-func (s *chanRanger) Range() (_, value reflect.Value, end bool) {
-	value, end = s.v.Recv()
+func (s *chanRanger) Range() (_, value interface{}, end bool) {
+	_value, end := s.v.Recv()
+	value = _value.Interface()
 	if end {
 		pool_chanRanger.Put(s)
 	}
@@ -1617,10 +1618,11 @@ type mapRanger struct {
 	i    int
 }
 
-func (s *mapRanger) Range() (index, value reflect.Value, end bool) {
+func (s *mapRanger) Range() (index, value interface{}, end bool) {
 	if s.i < s.len {
-		index = s.keys[s.i]
-		value = s.v.MapIndex(index)
+		_index := s.keys[s.i]
+		index = _index.Interface()
+		value = s.v.MapIndex(_index).Interface()
 		s.i++
 		return
 	}
