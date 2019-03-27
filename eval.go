@@ -716,17 +716,8 @@ func (st *Runtime) isSet(node Node) bool {
 			}
 		}
 	case NodeChain:
-		node := node.(*ChainNode)
-		var value = st.evalPrimaryExpressionGroup(node.Node)
-		if !value.IsValid() {
-			return false
-		}
-		for i := 0; i < len(node.Field); i++ {
-			value := getFieldOrMethodValue(node.Field[i], value)
-			if !value.IsValid() {
-				return false
-			}
-		}
+		resolved, _ := st.evalFieldAccessExpression(node.(*ChainNode))
+		return resolved.IsValid()
 	default:
 		//todo: maybe work some edge cases
 		if !(nodeType > beginExpressions && nodeType < endExpressions) {
@@ -1104,14 +1095,9 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		}
 		return resolved
 	case NodeChain:
-		node := node.(*ChainNode)
-		var resolved = st.evalPrimaryExpressionGroup(node.Node)
-		for i := 0; i < len(node.Field); i++ {
-			fieldValue := getFieldOrMethodValue(node.Field[i], resolved)
-			if !fieldValue.IsValid() {
-				node.errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
-			}
-			resolved = fieldValue
+		resolved, err := st.evalFieldAccessExpression(node.(*ChainNode))
+		if err != nil {
+			node.error(err)
 		}
 		return resolved
 	case NodeNumber:
@@ -1167,6 +1153,17 @@ func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool
 		}
 	}
 	return term, false
+}
+
+func (st *Runtime) evalFieldAccessExpression(node *ChainNode) (reflect.Value, error) {
+	resolved := st.evalPrimaryExpressionGroup(node.Node)
+	for i := 0; i < len(node.Field); i++ {
+		resolved = getFieldOrMethodValue(node.Field[i], resolved)
+		if !resolved.IsValid() {
+			return resolved, fmt.Errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
+		}
+	}
+	return resolved, nil
 }
 
 type escapeWriter struct {
@@ -1446,6 +1443,10 @@ var cachedStructsMutex = sync.RWMutex{}
 var cachedStructsFieldIndex = map[reflect.Type]map[string][]int{}
 
 func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
+	if !v.IsValid() {
+		return reflect.Value{}
+	}
+
 	value := getValue(key, v)
 	if value.Kind() == reflect.Interface && !value.IsNil() {
 		value = value.Elem()
