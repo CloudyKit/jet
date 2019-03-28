@@ -460,6 +460,20 @@ func TestEvalBuiltinExpression(t *testing.T) {
 	RunJetTest(t, data, nil, "LenExpression_1", `{{len("111")}}`, "3")
 	RunJetTest(t, data, nil, "LenExpression_2", `{{isset(data)?len(data):0}}`, "0")
 	RunJetTest(t, data, []string{"", "", "", ""}, "LenExpression_3", `{{len(.)}}`, "4")
+	data.Set(
+		"foo", map[string]interface{}{
+			"asd": map[string]string{
+				"bar": "baz",
+			},
+		},
+	)
+	RunJetTest(t, data, nil, "IsSetExpression_1", `{{isset(foo)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_2", `{{isset(foo.asd)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_3", `{{isset(foo.asd.bar)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_4", `{{isset(asd)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_5", `{{isset(foo.bar)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_6", `{{isset(foo.asd.foo)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_7", `{{isset(foo.asd.bar.xyz)}}`, "false")
 }
 
 func TestEvalAutoescape(t *testing.T) {
