@@ -65,7 +65,7 @@ func init() {
 			a.RequireNumOfArguments("len", 1, 1)
 
 			expression := a.Get(0)
-			if expression.Kind() == reflect.Ptr {
+			if expression.Kind() == reflect.Ptr || expression.Kind() == reflect.Interface {
 				expression = expression.Elem()
 			}
 
