@@ -650,21 +650,21 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	return st.evalBaseExpressionGroup(node)
 }
 
-func (st *Runtime) isSet(node Node) bool {
-	// notNil returns false when v.IsValid() == false
-	// or when v's kind can be nil and v.IsNil() == true
-	notNil := func(v reflect.Value) bool {
-		if !v.IsValid() {
-			return false
-		}
-		switch v.Kind() {
-		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
-			return !v.IsNil()
-		default:
-			return true
-		}
+// notNil returns false when v.IsValid() == false
+// or when v's kind can be nil and v.IsNil() == true
+func notNil(v reflect.Value) bool {
+	if !v.IsValid() {
+		return false
 	}
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return !v.IsNil()
+	default:
+		return true
+	}
+}
 
+func (st *Runtime) isSet(node Node) bool {
 	nodeType := node.Type()
 
 	switch nodeType {
