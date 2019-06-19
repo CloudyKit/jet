@@ -651,6 +651,20 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 }
 
 func (st *Runtime) isSet(node Node) bool {
+	// notNil returns false when v.IsValid() == false
+	// or when v's kind can be nil and v.IsNil() == true
+	notNil := func(v reflect.Value) bool {
+		if !v.IsValid() {
+			return false
+		}
+		switch v.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+			return !v.IsNil()
+		default:
+			return true
+		}
+	}
+
 	nodeType := node.Type()
 
 	switch nodeType {
@@ -683,7 +697,7 @@ func (st *Runtime) isSet(node Node) bool {
 				}
 			}
 			value := baseExpression.MapIndex(indexExpression)
-			return value.IsValid() && !value.IsNil()
+			return notNil(value)
 		case reflect.Array, reflect.String, reflect.Slice:
 			if canNumber(indexType.Kind()) {
 				i := int(castInt64(indexExpression))
@@ -697,7 +711,8 @@ func (st *Runtime) isSet(node Node) bool {
 				return i >= 0 && i < baseExpression.NumField()
 			} else if indexType.Kind() == reflect.String {
 				fieldValue := getFieldOrMethodValue(indexExpression.String(), baseExpression)
-				return fieldValue.IsValid() && !fieldValue.IsNil()
+				return notNil(fieldValue)
+
 			} else {
 				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
 			}
@@ -706,20 +721,20 @@ func (st *Runtime) isSet(node Node) bool {
 		}
 	case NodeIdentifier:
 		value := st.Resolve(node.String())
-		return value.IsValid() && !value.IsNil()
+		return notNil(value)
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
 			resolved = getFieldOrMethodValue(node.Ident[i], resolved)
-			if !resolved.IsValid() || resolved.IsNil() {
+			if !notNil(resolved) {
 				return false
 			}
 		}
 	case NodeChain:
 		node := node.(*ChainNode)
 		resolved, _ := st.evalFieldAccessExpression(node)
-		return resolved.IsValid() && !resolved.IsNil()
+		return notNil(resolved)
 	default:
 		//todo: maybe work some edge cases
 		if !(nodeType > beginExpressions && nodeType < endExpressions) {
