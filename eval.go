@@ -668,7 +668,7 @@ func (st *Runtime) isSet(node Node) bool {
 		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
 
 		indexType := indexExpression.Type()
-		if baseExpression.Kind() == reflect.Ptr {
+		if baseExpression.Kind() == reflect.Ptr || baseExpression.Kind() == reflect.Interface {
 			baseExpression = baseExpression.Elem()
 		}
 
@@ -682,7 +682,8 @@ func (st *Runtime) isSet(node Node) bool {
 					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
 				}
 			}
-			return baseExpression.MapIndex(indexExpression).IsValid()
+			value := baseExpression.MapIndex(indexExpression)
+			return value.IsValid() && !value.IsNil()
 		case reflect.Array, reflect.String, reflect.Slice:
 			if canNumber(indexType.Kind()) {
 				i := int(castInt64(indexExpression))
@@ -695,7 +696,8 @@ func (st *Runtime) isSet(node Node) bool {
 				i := int(castInt64(indexExpression))
 				return i >= 0 && i < baseExpression.NumField()
 			} else if indexType.Kind() == reflect.String {
-				return getFieldOrMethodValue(indexExpression.String(), baseExpression).IsValid()
+				fieldValue := getFieldOrMethodValue(indexExpression.String(), baseExpression)
+				return fieldValue.IsValid() && !fieldValue.IsNil()
 			} else {
 				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
 			}
@@ -703,21 +705,21 @@ func (st *Runtime) isSet(node Node) bool {
 			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
 		}
 	case NodeIdentifier:
-		if st.Resolve(node.String()).IsValid() == false {
-			return false
-		}
+		value := st.Resolve(node.String())
+		return value.IsValid() && !value.IsNil()
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
 			resolved = getFieldOrMethodValue(node.Ident[i], resolved)
-			if !resolved.IsValid() {
+			if !resolved.IsValid() || resolved.IsNil() {
 				return false
 			}
 		}
 	case NodeChain:
-		resolved, _ := st.evalFieldAccessExpression(node.(*ChainNode))
-		return resolved.IsValid()
+		node := node.(*ChainNode)
+		resolved, _ := st.evalFieldAccessExpression(node)
+		return resolved.IsValid() && !resolved.IsNil()
 	default:
 		//todo: maybe work some edge cases
 		if !(nodeType > beginExpressions && nodeType < endExpressions) {
