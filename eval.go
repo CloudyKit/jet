@@ -221,7 +221,6 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
-	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var is bool
 		if _, is = recovered.(runtime.Error); is {
