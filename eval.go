@@ -221,6 +221,10 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
+	// reset state scope and context just to be safe (they might not be cleared properly if there was a panic while using the state)
+	st.scope = &scope{}
+	st.context = reflect.Value{}
+	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var is bool
 		if _, is = recovered.(runtime.Error); is {
