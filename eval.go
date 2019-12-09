@@ -608,7 +608,12 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			return baseExpression.MapIndex(indexExpression)
 		case reflect.Array, reflect.String, reflect.Slice:
 			if canNumber(indexType.Kind()) {
-				return baseExpression.Index(int(castInt64(indexExpression)))
+				index := int(castInt64(indexExpression))
+				if 0 <= index && index < baseExpression.Len() {
+					return baseExpression.Index(index)
+				} else {
+					node.errorf("%s index out of range (index: %d, len: %d)", baseExpression.Kind().String(), index, baseExpression.Len())
+				}
 			} else {
 				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
 			}
