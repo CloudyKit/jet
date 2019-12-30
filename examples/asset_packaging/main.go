@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CloudyKit/jet"
-	"github.com/CloudyKit/jet/examples/asset_packaging/assets/templates"
-	"github.com/CloudyKit/jet/loaders/httpfs"
-	"github.com/CloudyKit/jet/loaders/multi"
+	"github.com/CloudyKit/jet/v3"
+	"github.com/CloudyKit/jet/v3/examples/asset_packaging/assets/templates"
+	"github.com/CloudyKit/jet/v3/loaders/httpfs"
+	"github.com/CloudyKit/jet/v3/loaders/multi"
 )
 
 // Initialize the set with both local files as well as the packaged
