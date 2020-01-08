@@ -382,30 +382,6 @@ func TestEvalPointerExpressions(t *testing.T) {
 	s2 := "test"
 	data.Set("stringPointer2", &s2)
 	RunJetTest(t, data, nil, "StringPointer_2", `{{ stringPointer2 }}`, "test")
-
-	i2 := 10
-	data.Set("intPointer2", &i2)
-	RunJetTest(t, data, nil, "IntPointer_2", `{{ intPointer2 }}`, "10")
-
-	var i *int
-	data.Set("intPointer", &i)
-	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "")
-}
-
-func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
-	var data = make(VarMap)
-
-	var i *int
-	data.Set("intPointer", &i)
-	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "")
-
-	j := &i
-	data.Set("intPointer", &j)
-	RunJetTest(t, data, nil, "IntPointer_j", `{{ intPointer }}`, "")
-
-	k := &j
-	data.Set("intPointer", &k)
-	RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
 }
 
 func TestEvalStructFieldPointerExpressions(t *testing.T) {
