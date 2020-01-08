@@ -167,7 +167,10 @@ func (s *Set) parse(name, text string) (t *Template, err error) {
 	defer t.recover(&err)
 
 	t.ParseName = t.Name
-	t.startParse(lex(t.Name, text))
+	lexer := lex(t.Name, text, false)
+	lexer.setDelimiters(s.leftDelim, s.rightDelim)
+	lexer.run()
+	t.startParse(lexer)
 	t.parseTemplate()
 	t.stopParse()
 

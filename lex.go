@@ -127,6 +127,13 @@ var key = map[string]itemType{
 
 const eof = -1
 
+const (
+	defaultLeftDelim  = "{{"
+	defaultRightDelim = "}}"
+	leftComment       = "{*"
+	rightComment      = "*}"
+)
+
 // stateFn represents the state of the scanner as a function that returns the next state.
 type stateFn func(*lexer) stateFn
 
@@ -142,6 +149,17 @@ type lexer struct {
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 	lastType   itemType
+	leftDelim  string
+	rightDelim string
+}
+
+func (l *lexer) setDelimiters(leftDelim, rightDelim string) {
+	if leftDelim != "" {
+		l.leftDelim = leftDelim
+	}
+	if rightDelim != "" {
+		l.rightDelim = rightDelim
+	}
 }
 
 // next returns the next rune in the input.
@@ -226,41 +244,39 @@ func (l *lexer) drain() {
 }
 
 // lex creates a new scanner for the input string.
-func lex(name, input string) *lexer {
-
+func lex(name, input string, run bool) *lexer {
 	l := &lexer{
-		name:  name,
-		input: input,
-		items: make(chan item),
+		name:       name,
+		input:      input,
+		items:      make(chan item),
+		leftDelim:  defaultLeftDelim,
+		rightDelim: defaultRightDelim,
 	}
-	go l.run()
+	if run {
+		l.run()
+	}
 	return l
 }
 
 // run runs the state machine for the lexer.
 func (l *lexer) run() {
-	for l.state = lexText; l.state != nil; {
-		l.state = l.state(l)
-	}
-	close(l.items)
+	go func() {
+		for l.state = lexText; l.state != nil; {
+			l.state = l.state(l)
+		}
+		close(l.items)
+	}()
 }
-
-const (
-	leftDelim    = "{{"
-	rightDelim   = "}}"
-	leftComment  = "{*"
-	rightComment = "*}"
-)
 
 // state functions
 func lexText(l *lexer) stateFn {
 	for {
-		if i := strings.IndexByte(l.input[l.pos:], '{'); i == -1 {
+		if i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0]); i == -1 {
 			l.pos = Pos(len(l.input))
 			break
 		} else {
 			l.pos += Pos(i)
-			if strings.HasPrefix(l.input[l.pos:], leftDelim) {
+			if strings.HasPrefix(l.input[l.pos:], l.leftDelim) {
 				if l.pos > l.start {
 					l.emit(itemText)
 				}
@@ -286,7 +302,7 @@ func lexText(l *lexer) stateFn {
 }
 
 func lexLeftDelim(l *lexer) stateFn {
-	l.pos += Pos(len(leftDelim))
+	l.pos += Pos(len(l.leftDelim))
 	l.emit(itemLeftDelim)
 	l.parenDepth = 0
 	return lexInsideAction
@@ -306,7 +322,7 @@ func lexComment(l *lexer) stateFn {
 
 // lexRightDelim scans the right delimiter, which is known to be present.
 func lexRightDelim(l *lexer) stateFn {
-	l.pos += Pos(len(rightDelim))
+	l.pos += Pos(len(l.rightDelim))
 	l.emit(itemRightDelim)
 	return lexText
 }
@@ -316,7 +332,7 @@ func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate arguments; runs of spaces turn into itemSpace.
 	// Pipe symbols separate and are emitted.
-	if strings.HasPrefix(l.input[l.pos:], rightDelim) {
+	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
 		if l.parenDepth == 0 {
 			return lexRightDelim
 		}
@@ -546,7 +562,7 @@ func (l *lexer) atTerminator() bool {
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
 	// succeed but should fail) but only in extremely rare cases caused by willfully
 	// bad choice of delimiter.
-	if rd, _ := utf8.DecodeRuneInString(rightDelim); rd == r {
+	if rd, _ := utf8.DecodeRuneInString(l.rightDelim); rd == r {
 		return true
 	}
 	return false

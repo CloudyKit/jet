@@ -55,7 +55,7 @@ func (renderer RendererFunc) Render(r *Runtime) {
 // Ranger a value implementing a ranger interface is able to iterate on his value
 // and can be used directly in a range statement
 type Ranger interface {
-	Range() (reflect.Value, reflect.Value, bool)
+	Range() (interface{}, interface{}, bool)
 }
 
 type escapeeWriter struct {
@@ -134,7 +134,7 @@ func (st *Runtime) YieldTemplate(name string, context interface{}) {
 
 	t, err := st.set.GetTemplate(name)
 	if err != nil {
-		panic(fmt.Errorf("include: template %q was not found", name))
+		panic(fmt.Errorf("include: template %q was not found: %s", name, err))
 	}
 
 	st.newScope()
@@ -457,21 +457,21 @@ func (st *Runtime) executeList(list *ListNode) {
 					if isSet {
 						if isLet {
 							if isKeyVal {
-								st.variables[node.Set.Left[0].String()] = indexValue
-								st.variables[node.Set.Left[1].String()] = rangeValue
+								st.variables[node.Set.Left[0].String()] = reflect.ValueOf(indexValue)
+								st.variables[node.Set.Left[1].String()] = reflect.ValueOf(rangeValue)
 							} else {
-								st.variables[node.Set.Left[0].String()] = rangeValue
+								st.variables[node.Set.Left[0].String()] = reflect.ValueOf(rangeValue)
 							}
 						} else {
 							if isKeyVal {
-								st.executeSet(node.Set.Left[0], indexValue)
-								st.executeSet(node.Set.Left[1], rangeValue)
+								st.executeSet(node.Set.Left[0], reflect.ValueOf(indexValue))
+								st.executeSet(node.Set.Left[1], reflect.ValueOf(rangeValue))
 							} else {
-								st.executeSet(node.Set.Left[0], rangeValue)
+								st.executeSet(node.Set.Left[0], reflect.ValueOf(rangeValue))
 							}
 						}
 					} else {
-						st.context = rangeValue
+						st.context = reflect.ValueOf(rangeValue)
 					}
 					st.executeList(node.List)
 					indexValue, rangeValue, end = ranger.Range()
@@ -650,6 +650,20 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	return st.evalBaseExpressionGroup(node)
 }
 
+// notNil returns false when v.IsValid() == false
+// or when v's kind can be nil and v.IsNil() == true
+func notNil(v reflect.Value) bool {
+	if !v.IsValid() {
+		return false
+	}
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return !v.IsNil()
+	default:
+		return true
+	}
+}
+
 func (st *Runtime) isSet(node Node) bool {
 	nodeType := node.Type()
 
@@ -668,7 +682,7 @@ func (st *Runtime) isSet(node Node) bool {
 		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
 
 		indexType := indexExpression.Type()
-		if baseExpression.Kind() == reflect.Ptr {
+		if baseExpression.Kind() == reflect.Ptr || baseExpression.Kind() == reflect.Interface {
 			baseExpression = baseExpression.Elem()
 		}
 
@@ -682,7 +696,8 @@ func (st *Runtime) isSet(node Node) bool {
 					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
 				}
 			}
-			return baseExpression.MapIndex(indexExpression).IsValid()
+			value := baseExpression.MapIndex(indexExpression)
+			return notNil(value)
 		case reflect.Array, reflect.String, reflect.Slice:
 			if canNumber(indexType.Kind()) {
 				i := int(castInt64(indexExpression))
@@ -695,7 +710,9 @@ func (st *Runtime) isSet(node Node) bool {
 				i := int(castInt64(indexExpression))
 				return i >= 0 && i < baseExpression.NumField()
 			} else if indexType.Kind() == reflect.String {
-				return getFieldOrMethodValue(indexExpression.String(), baseExpression).IsValid()
+				fieldValue := getFieldOrMethodValue(indexExpression.String(), baseExpression)
+				return notNil(fieldValue)
+
 			} else {
 				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
 			}
@@ -703,30 +720,21 @@ func (st *Runtime) isSet(node Node) bool {
 			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
 		}
 	case NodeIdentifier:
-		if st.Resolve(node.String()).IsValid() == false {
-			return false
-		}
+		value := st.Resolve(node.String())
+		return notNil(value)
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
 			resolved = getFieldOrMethodValue(node.Ident[i], resolved)
-			if !resolved.IsValid() {
+			if !notNil(resolved) {
 				return false
 			}
 		}
 	case NodeChain:
 		node := node.(*ChainNode)
-		var value = st.evalPrimaryExpressionGroup(node.Node)
-		if !value.IsValid() {
-			return false
-		}
-		for i := 0; i < len(node.Field); i++ {
-			value := getFieldOrMethodValue(node.Field[i], value)
-			if !value.IsValid() {
-				return false
-			}
-		}
+		resolved, _ := st.evalFieldAccessExpression(node)
+		return notNil(resolved)
 	default:
 		//todo: maybe work some edge cases
 		if !(nodeType > beginExpressions && nodeType < endExpressions) {
@@ -1084,9 +1092,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		}
 
 		// limit the number of pointers to follow
-		dereferenceLimit := 2
-		for resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0 {
-			dereferenceLimit--
+		for dereferenceLimit := 2; resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
 			if resolved.IsNil() {
 				return reflect.ValueOf("")
 			}
@@ -1106,14 +1112,9 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		}
 		return resolved
 	case NodeChain:
-		node := node.(*ChainNode)
-		var resolved = st.evalPrimaryExpressionGroup(node.Node)
-		for i := 0; i < len(node.Field); i++ {
-			fieldValue := getFieldOrMethodValue(node.Field[i], resolved)
-			if !fieldValue.IsValid() {
-				node.errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
-			}
-			resolved = fieldValue
+		resolved, err := st.evalFieldAccessExpression(node.(*ChainNode))
+		if err != nil {
+			node.error(err)
 		}
 		return resolved
 	case NodeNumber:
@@ -1169,6 +1170,17 @@ func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool
 		}
 	}
 	return term, false
+}
+
+func (st *Runtime) evalFieldAccessExpression(node *ChainNode) (reflect.Value, error) {
+	resolved := st.evalPrimaryExpressionGroup(node.Node)
+	for i := 0; i < len(node.Field); i++ {
+		resolved = getFieldOrMethodValue(node.Field[i], resolved)
+		if !resolved.IsValid() {
+			return resolved, fmt.Errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
+		}
+	}
+	return resolved, nil
 }
 
 type escapeWriter struct {
@@ -1448,10 +1460,22 @@ var cachedStructsMutex = sync.RWMutex{}
 var cachedStructsFieldIndex = map[reflect.Type]map[string][]int{}
 
 func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
+	if !v.IsValid() {
+		return reflect.Value{}
+	}
+
 	value := getValue(key, v)
-	if value.Kind() == reflect.Interface {
+	if value.Kind() == reflect.Interface && !value.IsNil() {
 		value = value.Elem()
 	}
+
+	for dereferenceLimit := 2; value.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
+		if value.IsNil() {
+			return reflect.ValueOf("")
+		}
+		value = reflect.Indirect(value)
+	}
+
 	return value
 }
 
@@ -1580,11 +1604,11 @@ type sliceRanger struct {
 	i   int
 }
 
-func (s *sliceRanger) Range() (index, value reflect.Value, end bool) {
+func (s *sliceRanger) Range() (index, value interface{}, end bool) {
 	s.i++
-	index = reflect.ValueOf(&s.i).Elem()
+	index = s.i
 	if s.i < s.len {
-		value = s.v.Index(s.i)
+		value = s.v.Index(s.i).Interface()
 		return
 	}
 	pool_sliceRanger.Put(s)
@@ -1596,8 +1620,9 @@ type chanRanger struct {
 	v reflect.Value
 }
 
-func (s *chanRanger) Range() (_, value reflect.Value, end bool) {
-	value, end = s.v.Recv()
+func (s *chanRanger) Range() (_, value interface{}, end bool) {
+	_value, end := s.v.Recv()
+	value = _value.Interface()
 	if end {
 		pool_chanRanger.Put(s)
 	}
@@ -1611,10 +1636,11 @@ type mapRanger struct {
 	i    int
 }
 
-func (s *mapRanger) Range() (index, value reflect.Value, end bool) {
+func (s *mapRanger) Range() (index, value interface{}, end bool) {
 	if s.i < s.len {
-		index = s.keys[s.i]
-		value = s.v.MapIndex(index)
+		_index := s.keys[s.i]
+		index = _index.Interface()
+		value = s.v.MapIndex(_index).Interface()
 		s.i++
 		return
 	}
