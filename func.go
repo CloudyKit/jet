@@ -26,6 +26,11 @@ type Arguments struct {
 	argVal  []reflect.Value
 }
 
+// IsSet checks whether an argument is set or not. It behaves like the build-in isset function.
+func (a *Arguments) IsSet(argumentIndex int) bool {
+	return a.runtime.isSet(a.argExpr[argumentIndex])
+}
+
 // Get gets an argument by index.
 func (a *Arguments) Get(argumentIndex int) reflect.Value {
 	if argumentIndex < len(a.argVal) {
