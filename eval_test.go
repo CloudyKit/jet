@@ -408,6 +408,47 @@ func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
 	RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
 }
 
+type Apple struct {
+	Flavor string
+}
+
+func (a *Apple) GetFlavor() string {
+	return a.Flavor
+}
+
+func (a *Apple) GetFlavorPtr() *string {
+	return &a.Flavor
+}
+
+func TestApple(t *testing.T) {
+
+	apples := map[string]*Apple{
+		"honeycrisp": {
+			Flavor: "crisp",
+		},
+		"red-delicious": {
+			Flavor: "poor",
+		},
+		"granny-smith": {
+			Flavor: "tart",
+		},
+	}
+
+	var data = make(VarMap)
+	data.SetFunc("GetAppleByName", func(a Arguments) reflect.Value {
+		name := a.Get(0).String()
+		return reflect.ValueOf(apples[name])
+	})
+
+	data.SetFunc("TellFlavor", func(a Arguments) reflect.Value {
+		apple := a.Get(0).Interface().(*Apple)
+		flav := apple.GetFlavor()
+		return reflect.ValueOf(flav)
+	})
+
+	RunJetTest(t, data, nil, "LookUpApple", `{{apple := GetAppleByName("honeycrisp")}}{{TellFlavor(apple)}}`, "crisp")
+}
+
 func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	var data = make(VarMap)
 

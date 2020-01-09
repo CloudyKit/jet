@@ -1091,13 +1091,31 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 			node.errorf("identifier %q is not available in the current scope %v", node, st.variables)
 		}
 
-		// limit the number of pointers to follow
-		for dereferenceLimit := 2; resolved.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
-			if resolved.IsNil() {
+		// attempt dereferencing pointers to something printable
+		rTest := resolved
+		for dereferenceLimit := 2; rTest.Kind() == reflect.Ptr; dereferenceLimit-- {
+
+			if rTest.IsNil() {
 				return reflect.ValueOf("")
 			}
-			resolved = reflect.Indirect(resolved)
+
+			rTest = reflect.Indirect(rTest)
+
+			switch rTest.Kind() {
+			case reflect.String,
+				reflect.Bool,
+				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+				reflect.Float32, reflect.Float64:
+				return rTest
+			}
+
+			if dereferenceLimit == 0 {
+				return reflect.ValueOf("<nil>")
+			}
 		}
+
+		// clearly not printable so return the reference for the caller
 
 		return resolved
 	case NodeField:
