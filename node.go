@@ -61,7 +61,9 @@ func (node *NodeBase) error(err error) {
 }
 
 func (node *NodeBase) errorf(format string, v ...interface{}) {
-	panic(fmt.Errorf("Jet Runtime Error(%q:%d): %s", node.TemplateName, node.Line, fmt.Sprintf(format, v...)))
+	if abortTemplateOnError {
+		panic(fmt.Errorf("Jet Runtime Error(%q:%d): %s", node.TemplateName, node.Line, fmt.Sprintf(format, v...)))
+	}
 }
 
 // Type returns itself and provides an easy default implementation
