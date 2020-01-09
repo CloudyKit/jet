@@ -373,11 +373,19 @@ func TestEvalSliceExpression(t *testing.T) {
 	RunJetTest(t, nil, []string{"111"}, "SliceExpressionSlice_IfLen", `{{if len(.) > 0}}{{.[0]}}{{end}}`, `111`)
 }
 
+type StringerType struct {
+	//
+}
+
+func (st *StringerType) String() string {
+	return "StringerType implements fmt.Stringer"
+}
+
 func TestEvalPointerExpressions(t *testing.T) {
 	var data = make(VarMap)
 	var s *string
 	data.Set("stringPointer", s)
-	RunJetTest(t, data, nil, "StringPointer_1", `{{ stringPointer }}`, "")
+	RunJetTest(t, data, nil, "StringPointer_1", `{{ stringPointer }}`, "<nil>")
 
 	s2 := "test"
 	data.Set("stringPointer2", &s2)
@@ -389,7 +397,30 @@ func TestEvalPointerExpressions(t *testing.T) {
 
 	var i *int
 	data.Set("intPointer", &i)
-	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "")
+	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "<nil>")
+
+	st := StringerType{}
+	data.Set("stringerType", &st) // stringerType won't be dereferenced
+	RunJetTest(t, data, nil, "StringerTypePointer", `{{ stringerType }}`, "StringerType implements fmt.Stringer")
+
+	st2 := &StringerType{}
+	data.Set("stringerType2", &st2) // stringerType2 will be dereferenced just once
+	RunJetTest(t, data, nil, "StringerTypePointer2", `{{ stringerType2 }}`, "StringerType implements fmt.Stringer")
+
+	u := User{
+		Name:  "Pablo Escobbar",
+		Email: "pablo.escobar@cartel.mx",
+	}
+	data.Set("user", &u) // user will be dereferenced once
+	RunJetTest(t, data, nil, "UserPointer", `{{ user }}`, "{Pablo Escobbar pablo.escobar@cartel.mx}")
+
+	u1 := &u
+	data.Set("user1", &u1) // user1 will be dereferenced twice
+	RunJetTest(t, data, nil, "UserPointer1", `{{ user1 }}`, "{Pablo Escobbar pablo.escobar@cartel.mx}")
+
+	u2 := &u1
+	data.Set("user2", &u2) // user2 will be dereferenced only twice
+	RunJetTest(t, data, nil, "UserPointer2", `{{ user2 }}`, "&{Pablo Escobbar pablo.escobar@cartel.mx}")
 }
 
 func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
@@ -397,15 +428,56 @@ func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
 
 	var i *int
 	data.Set("intPointer", &i)
-	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "")
+	RunJetTest(t, data, nil, "IntPointer_i", `{{ intPointer }}`, "<nil>")
 
 	j := &i
 	data.Set("intPointer", &j)
-	RunJetTest(t, data, nil, "IntPointer_j", `{{ intPointer }}`, "")
+	RunJetTest(t, data, nil, "IntPointer_j", `{{ intPointer }}`, "<nil>")
 
-	k := &j
-	data.Set("intPointer", &k)
-	RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
+	// k := &j
+	// data.Set("intPointer", &k)
+	// RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
+}
+
+type Apple struct {
+	Flavor string
+}
+
+func (a *Apple) GetFlavor() string {
+	return a.Flavor
+}
+
+func (a *Apple) GetFlavorPtr() *string {
+	return &a.Flavor
+}
+
+func TestApple(t *testing.T) {
+
+	apples := map[string]*Apple{
+		"honeycrisp": {
+			Flavor: "crisp",
+		},
+		"red-delicious": {
+			Flavor: "poor",
+		},
+		"granny-smith": {
+			Flavor: "tart",
+		},
+	}
+
+	var data = make(VarMap)
+	data.SetFunc("GetAppleByName", func(a Arguments) reflect.Value {
+		name := a.Get(0).String()
+		return reflect.ValueOf(apples[name])
+	})
+
+	data.SetFunc("TellFlavor", func(a Arguments) reflect.Value {
+		apple := a.Get(0).Interface().(*Apple)
+		flav := apple.GetFlavor()
+		return reflect.ValueOf(flav)
+	})
+
+	RunJetTest(t, data, nil, "LookUpApple", `{{apple := GetAppleByName("honeycrisp")}}{{TellFlavor(apple)}}`, "crisp")
 }
 
 func TestEvalStructFieldPointerExpressions(t *testing.T) {

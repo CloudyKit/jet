@@ -4,4 +4,4 @@ go 1.12
 
 require github.com/CloudyKit/fastprinter v0.0.0-20170127035650-74b38d55f37a
 
-replace github.com/CloudyKit/fastprinter => github.com/annismckenzie/fastprinter v0.0.0-20180721091441-b9f2fb63ce50 // PR 1 at https://github.com/CloudyKit/fastprinter/pull/1
+replace github.com/CloudyKit/fastprinter => github.com/sauerbraten/fastprinter v0.0.0-20200109142611-26ce1e0b7924
