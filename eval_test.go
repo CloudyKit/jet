@@ -433,10 +433,6 @@ func TestEvalPointerLimitNumberOfDereferences(t *testing.T) {
 	j := &i
 	data.Set("intPointer", &j)
 	RunJetTest(t, data, nil, "IntPointer_j", `{{ intPointer }}`, "<nil>")
-
-	// k := &j
-	// data.Set("intPointer", &k)
-	// RunJetTest(t, data, nil, "IntPointer_1", `{{ intPointer }}`, "<nil>")
 }
 
 type Apple struct {
