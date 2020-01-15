@@ -163,11 +163,16 @@ func (t *Template) recover(errp *error) {
 }
 
 func (s *Set) parse(name, text string) (t *Template, err error) {
-	t = &Template{Name: name, text: text, set: s, passedBlocks: make(map[string]*BlockNode)}
+	t = &Template{
+		Name:         name,
+		ParseName:    name,
+		text:         text,
+		set:          s,
+		passedBlocks: make(map[string]*BlockNode),
+	}
 	defer t.recover(&err)
 
-	t.ParseName = t.Name
-	lexer := lex(t.Name, text, false)
+	lexer := lex(name, text, false)
 	lexer.setDelimiters(s.leftDelim, s.rightDelim)
 	lexer.run()
 	t.startParse(lexer)
@@ -177,10 +182,13 @@ func (s *Set) parse(name, text string) (t *Template, err error) {
 	if t.extends != nil {
 		t.addBlocks(t.extends.processedBlocks)
 	}
+
 	for _, _import := range t.imports {
 		t.addBlocks(_import.processedBlocks)
 	}
+
 	t.addBlocks(t.passedBlocks)
+
 	return t, err
 }
 
@@ -209,17 +217,17 @@ func (t *Template) parseTemplate() (next Node) {
 				s := t.expectString("extends|import")
 				if token.typ == itemExtends {
 					if t.extends != nil {
-						t.errorf("Unexpected extends clause, only one extends clause is valid per template")
+						t.errorf("Unexpected extends clause: each template can only extend one template")
 					} else if len(t.imports) > 0 {
-						t.errorf("Unexpected extends clause, all import clause should come after extends clause")
+						t.errorf("Unexpected extends clause: the 'extends' clause should come before all import clauses")
 					}
 					var err error
-					t.extends, err = t.set.getTemplateWhileParsing(t.Name, s)
+					t.extends, err = t.set.getSiblingTemplate(s, t.Name)
 					if err != nil {
 						t.error(err)
 					}
 				} else {
-					tt, err := t.set.getTemplateWhileParsing(t.Name, s)
+					tt, err := t.set.getSiblingTemplate(s, t.Name)
 					if err != nil {
 						t.error(err)
 					}

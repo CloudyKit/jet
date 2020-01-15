@@ -24,7 +24,7 @@ import (
 )
 
 // TestingSet holds a template set for running tests
-var TestingSet = jet.NewSet(nil)
+var TestingSet = jet.NewSet(nil, "")
 
 // Run runs jet template engine test, template will be loaded and cached in the default set TestingSet
 func Run(t *testing.T, variables jet.VarMap, context interface{}, testName, testContent, testExpected string) {
