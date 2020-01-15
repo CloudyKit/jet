@@ -22,12 +22,18 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path"
+	"path/filepath"
 	"reflect"
-	"strings"
 	"sync"
 	"text/template"
 )
+
+var defaultExtensions = []string{
+	"", // in case the path is given with the correct extension already
+	".jet",
+	".html.jet",
+	".jet.html",
+}
 
 // Set is responsible to load,invoke parse and cache templates and relations
 // every jet template is associated with one set.
@@ -51,19 +57,16 @@ func (s *Set) SetDevelopmentMode(b bool) *Set {
 	return s
 }
 
-func (a *Set) LookupGlobal(key string) (val interface{}, found bool) {
-	a.gmx.RLock()
-	val, found = a.globals[key]
-	a.gmx.RUnlock()
+func (s *Set) LookupGlobal(key string) (val interface{}, found bool) {
+	s.gmx.RLock()
+	val, found = s.globals[key]
+	s.gmx.RUnlock()
 	return
 }
 
 // AddGlobal add or set a global variable into the Set
 func (s *Set) AddGlobal(key string, i interface{}) *Set {
 	s.gmx.Lock()
-	if s.globals == nil {
-		s.globals = make(VarMap)
-	}
 	s.globals[key] = reflect.ValueOf(i)
 	s.gmx.Unlock()
 	return s
@@ -75,7 +78,15 @@ func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
 
 // NewSetLoader creates a new set with custom Loader
 func NewSetLoader(escapee SafeWriter, loader Loader) *Set {
-	return &Set{loader: loader, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), extensions: append([]string{}, defaultExtensions...)}
+	return &Set{
+		loader:     loader,
+		templates:  map[string]*Template{},
+		escapee:    escapee,
+		globals:    VarMap{},
+		tmx:        &sync.RWMutex{},
+		gmx:        &sync.RWMutex{},
+		extensions: append([]string{}, defaultExtensions...),
+	}
 }
 
 // NewHTMLSetLoader creates a new set with custom Loader
@@ -84,33 +95,13 @@ func NewHTMLSetLoader(loader Loader) *Set {
 }
 
 // NewSet creates a new set, dirs is a list of directories to be searched for templates
-func NewSet(escapee SafeWriter, dirs ...string) *Set {
-	return NewSetLoader(escapee, &OSFileSystemLoader{dirs: dirs})
+func NewSet(escapee SafeWriter, dir string) *Set {
+	return NewSetLoader(escapee, &OSFileSystemLoader{dir: dir})
 }
 
 // NewHTMLSet creates a new set, dirs is a list of directories to be searched for templates
-func NewHTMLSet(dirs ...string) *Set {
-	return NewSet(template.HTMLEscape, dirs...)
-}
-
-// AddPath add path to the lookup list, when loading a template the Set will
-// look into the lookup list for the file matching the provided name.
-func (s *Set) AddPath(path string) {
-	if loader, ok := s.loader.(hasAddPath); ok {
-		loader.AddPath(path)
-	} else {
-		panic(fmt.Sprintf("AddPath() not supported on custom loader of type %T", s.loader))
-	}
-}
-
-// AddGopathPath add path based on GOPATH env to the lookup list, when loading a template the Set will
-// look into the lookup list for the file matching the provided name.
-func (s *Set) AddGopathPath(path string) {
-	if loader, ok := s.loader.(hasAddGopathPath); ok {
-		loader.AddGopathPath(path)
-	} else {
-		panic(fmt.Sprintf("AddGopathPath() not supported on custom loader of type %T", s.loader))
-	}
+func NewHTMLSet(dir string) *Set {
+	return NewSet(template.HTMLEscape, dir)
 }
 
 // Delims sets the delimiters to the specified strings. Parsed templates will
@@ -120,64 +111,90 @@ func (s *Set) Delims(left, right string) {
 	s.rightDelim = right
 }
 
-// resolveName try to resolve a template name, the steps as follow
-//	1. try provided path
-//	2. try provided path+extensions
-// ex: set.resolveName("catalog/products.list") with extensions set to []string{".html.jet",".jet"}
-//	try catalog/products.list
-//	try catalog/products.list.html.jet
-//	try catalog/products.list.jet
-func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, foundFile bool) {
-	newName = name
-	if _, foundLoaded = s.templates[newName]; foundLoaded {
-		return
-	}
-
-	if fileName, foundFile = s.loader.Exists(name); foundFile {
-		return
-	}
-
+func (s *Set) getTemplateFromCache(path string) (t *Template, ok bool) {
+	// check path with all possible extensions in cache
 	for _, extension := range s.extensions {
-		newName = name + extension
-		if _, foundLoaded = s.templates[newName]; foundLoaded {
-			return
+		canonicalPath := path + extension
+		if t, found := s.templates[canonicalPath]; found {
+			return t, true
 		}
-		if fileName, foundFile = s.loader.Exists(newName); foundFile {
-			return
+	}
+	return nil, false
+}
+
+func (s *Set) getTemplateFromLoader(path string) (t *Template, err error) {
+	// check path with all possible extensions in loader
+	for _, extension := range s.extensions {
+		canonicalPath := path + extension
+		if found := s.loader.Exists(canonicalPath); found {
+			return s.loadFromFile(canonicalPath)
+		}
+	}
+	return nil, fmt.Errorf("template %s could not be found", path)
+}
+
+// GetTemplate tries to find (and load, if not yet loaded) the template at the specified path.
+//
+// for example, GetTemplate("catalog/products.list") with extensions set to []string{"", ".html.jet",".jet"}
+// will try to look for:
+//     1. catalog/products.list
+//     2. catalog/products.list.html.jet
+//     3. catalog/products.list.jet
+// in the set's templates cache, and if it can't find the template it will try to load the same paths via
+// the loader, and, if parsed successfully, cache the template.
+func (s *Set) GetTemplate(path string) (t *Template, err error) {
+	if !s.developmentMode {
+		s.tmx.RLock()
+		t, found := s.getTemplateFromCache(path)
+		if found {
+			s.tmx.RUnlock()
+			return t, nil
+		}
+		s.tmx.RUnlock()
+	}
+
+	t, err = s.getTemplateFromLoader(path)
+	if err == nil && !s.developmentMode {
+		// load template into cache
+		s.tmx.Lock()
+		s.templates[t.Name] = t
+		s.tmx.Unlock()
+	}
+	return t, err
+}
+
+// same as GetTemplate, but assumes the reader already called s.tmx.RLock(), and
+// doesn't cache a template when found through the loader
+func (s *Set) getTemplate(path string) (t *Template, err error) {
+	if !s.developmentMode {
+		t, found := s.getTemplateFromCache(path)
+		if found {
+			return t, nil
 		}
 	}
 
-	return
+	return s.getTemplateFromLoader(path)
 }
 
-func (s *Set) resolveNameSibling(name, sibling string) (newName, fileName string, foundLoaded, foundFile, isRelativeName bool) {
-	if sibling != "" {
-		i := strings.LastIndex(sibling, "/")
-		if i != -1 {
-			if newName, fileName, foundLoaded, foundFile = s.resolveName(path.Join(sibling[:i+1], name)); foundFile || foundLoaded {
-				isRelativeName = true
-				return
-			}
-		}
+func (s *Set) getSiblingTemplate(path, siblingPath string) (t *Template, err error) {
+	if !filepath.IsAbs(path) {
+		siblingDir := filepath.Dir(siblingPath)
+		path = filepath.Join(siblingDir, path)
 	}
-	newName, fileName, foundLoaded, foundFile = s.resolveName(name)
-	return
+	return s.getTemplate(path)
 }
 
-// Parse parses the template, this method will link the template to the set but not the set to
-func (s *Set) Parse(name, content string) (*Template, error) {
-	sc := *s
-	sc.developmentMode = true
-
-	sc.tmx.RLock()
-	t, err := sc.parse(name, content)
-	sc.tmx.RUnlock()
+// Parse parses the template without adding it to the set's templates cache.
+func (s *Set) Parse(path, content string) (*Template, error) {
+	s.tmx.RLock()
+	t, err := s.parse(path, content)
+	s.tmx.RUnlock()
 
 	return t, err
 }
 
-func (s *Set) loadFromFile(name, fileName string) (template *Template, err error) {
-	f, err := s.loader.Open(fileName)
+func (s *Set) loadFromFile(path string) (template *Template, err error) {
+	f, err := s.loader.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -186,141 +203,33 @@ func (s *Set) loadFromFile(name, fileName string) (template *Template, err error
 	if err != nil {
 		return nil, err
 	}
-	return s.parse(name, string(content))
+	return s.parse(path, string(content))
 }
 
-func (s *Set) getTemplateWhileParsing(parentName, name string) (template *Template, err error) {
-	name = path.Clean(name)
-
-	if s.developmentMode {
-		if newName, fileName, _, foundPath, _ := s.resolveNameSibling(name, parentName); foundPath {
-			return s.loadFromFile(newName, fileName)
-		} else {
-			return nil, fmt.Errorf("template %s can't be loaded", name)
-		}
-	}
-
-	if newName, fileName, foundLoaded, foundPath, isRelative := s.resolveNameSibling(name, parentName); foundPath {
-		template, err = s.loadFromFile(newName, fileName)
-		s.templates[newName] = template
-
-		if !isRelative {
-			s.templates[name] = template
-		}
-	} else if foundLoaded {
-		template = s.templates[newName]
-		if !isRelative && name != newName {
-			s.templates[name] = template
-		}
-	} else {
-		err = fmt.Errorf("template %s can't be loaded", name)
-	}
-	return
-}
-
-// getTemplate gets a template already loaded by name
-func (s *Set) getTemplate(name, sibling string) (template *Template, err error) {
-	name = path.Clean(name)
-
+func (s *Set) LoadTemplate(path, content string) (*Template, error) {
 	if s.developmentMode {
 		s.tmx.RLock()
 		defer s.tmx.RUnlock()
-		if newName, fileName, foundLoaded, foundFile, _ := s.resolveNameSibling(name, sibling); foundFile || foundLoaded {
-			if foundFile {
-				template, err = s.loadFromFile(newName, fileName)
-			} else {
-				template, _ = s.templates[newName]
-			}
-		} else {
-			err = fmt.Errorf("template %s can't be loaded", name)
-		}
-		return
+		return s.parse(path, content)
 	}
 
-	//fast path
+	// fast path (t from cache)
 	s.tmx.RLock()
-	newName, fileName, foundLoaded, foundFile, isRelative := s.resolveNameSibling(name, sibling)
-
-	if foundLoaded {
-		template = s.templates[newName]
+	if t, found := s.templates[path]; found {
 		s.tmx.RUnlock()
-		if !isRelative && name != newName {
-			// creates an alias
-			s.tmx.Lock()
-			if _, found := s.templates[name]; !found {
-				s.templates[name] = template
-			}
-			s.tmx.Unlock()
-		}
-		return
+		return t, nil
 	}
 	s.tmx.RUnlock()
 
-	//not found parses and cache
+	// not found, parse and cache
 	s.tmx.Lock()
 	defer s.tmx.Unlock()
 
-	newName, fileName, foundLoaded, foundFile, isRelative = s.resolveNameSibling(name, sibling)
-	if foundLoaded {
-		template = s.templates[newName]
-		if !isRelative && name != newName {
-			// creates an alias
-			if _, found := s.templates[name]; !found {
-				s.templates[name] = template
-			}
-		}
-	} else if foundFile {
-		template, err = s.loadFromFile(newName, fileName)
-
-		if !isRelative && name != newName {
-			// creates an alias
-			if _, found := s.templates[name]; !found {
-				s.templates[name] = template
-			}
-		}
-
-		s.templates[newName] = template
-	} else {
-		err = fmt.Errorf("template %s can't be loaded", name)
+	t, err := s.parse(path, content)
+	if err == nil {
+		s.templates[path] = t
 	}
-	return
-}
-
-func (s *Set) GetTemplate(name string) (template *Template, err error) {
-	template, err = s.getTemplate(name, "")
-	return
-}
-
-func (s *Set) LoadTemplate(name, content string) (template *Template, err error) {
-	if s.developmentMode {
-		s.tmx.RLock()
-		defer s.tmx.RUnlock()
-		template, err = s.parse(name, content)
-		return
-	}
-
-	//fast path
-	var found bool
-	s.tmx.RLock()
-	if template, found = s.templates[name]; found {
-		s.tmx.RUnlock()
-		return
-	}
-	s.tmx.RUnlock()
-
-	//not found parses and cache
-	s.tmx.Lock()
-	defer s.tmx.Unlock()
-
-	if template, found = s.templates[name]; found {
-		return
-	}
-
-	if template, err = s.parse(name, content); err == nil {
-		s.templates[name] = template
-	}
-
-	return
+	return t, err
 }
 
 // SetExtensions sets extensions.

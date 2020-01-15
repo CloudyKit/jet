@@ -46,7 +46,7 @@ func (p Pos) Position() Pos {
 type NodeType int
 
 type NodeBase struct {
-	TemplateName string
+	TemplatePath string
 	Line         int
 	NodeType
 	Pos
@@ -61,7 +61,7 @@ func (node *NodeBase) error(err error) {
 }
 
 func (node *NodeBase) errorf(format string, v ...interface{}) {
-	panic(fmt.Errorf("Jet Runtime Error (%q:%d): %s", node.TemplateName, node.Line, fmt.Sprintf(format, v...)))
+	panic(fmt.Errorf("Jet Runtime Error (%q:%d): %s", node.TemplatePath, node.Line, fmt.Sprintf(format, v...)))
 }
 
 // Type returns itself and provides an easy default implementation

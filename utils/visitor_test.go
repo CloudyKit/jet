@@ -7,7 +7,7 @@ import (
 	"github.com/CloudyKit/jet/v3"
 )
 
-var Set = jet.NewHTMLSet()
+var Set = jet.NewHTMLSet("")
 
 func TestVisitor(t *testing.T) {
 	var collectedIdentifiers []string

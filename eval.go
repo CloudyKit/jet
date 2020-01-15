@@ -570,17 +570,17 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 }
 
 func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value) {
-	var templateName string
+	var templatePath string
 	name := st.evalPrimaryExpressionGroup(node.Name)
 	if name.Type().Implements(stringerType) {
-		templateName = name.String()
+		templatePath = name.String()
 	} else if name.Kind() == reflect.String {
-		templateName = name.String()
+		templatePath = name.String()
 	} else {
 		node.errorf("evaluating name of template to include: unexpected expression type %q", getTypeString(name))
 	}
 
-	t, err := st.set.getTemplate(templateName, node.TemplateName)
+	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath)
 	if err != nil {
 		node.error(err)
 		return reflect.Value{}

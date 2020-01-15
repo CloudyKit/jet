@@ -27,13 +27,13 @@ func (l *httpFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 
 // Exists checks if the template name exists by walking the list of template paths
 // returns string with the full path of the template and bool true if the template file was found
-func (l *httpFileSystemLoader) Exists(name string) (string, bool) {
+func (l *httpFileSystemLoader) Exists(name string) bool {
 	if l.fs == nil {
-		return "", false
+		return false
 	}
 	if f, err := l.Open(name); err == nil {
 		f.Close()
-		return name, true
+		return true
 	}
-	return "", false
+	return false
 }

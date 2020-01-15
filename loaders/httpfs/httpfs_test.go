@@ -9,12 +9,13 @@ import (
 )
 
 func TestNilHTTPFileSystem(t *testing.T) {
+	const fileName = "does-not-exists.jet"
 	l := NewLoader(nil)
-	if _, err := l.Open("does-not-exist.jet"); err == nil {
+	if _, err := l.Open(fileName); err == nil {
 		t.Fatal("Open should have returned an error but didn't.")
 	}
-	fileName, ok := l.Exists("does-not-exists.jet")
-	if fileName != "" || ok != false {
+	ok := l.Exists(fileName)
+	if ok {
 		t.Fatalf("Exists called on an empty file system should have returned empty and false but returned %q and %+v", fileName, ok)
 	}
 }

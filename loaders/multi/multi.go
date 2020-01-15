@@ -8,6 +8,8 @@ import (
 )
 
 // Multi implements jet.Loader interface and tries to load templates from a list of custom loaders.
+// Caution: When multiple loaders have templates with the same name, the order in which you pass loaders
+// to NewLoader/AddLoaders dictates which template will be returned by Open when you request it!
 type Multi struct {
 	loaders []jet.Loader
 }
@@ -40,11 +42,11 @@ func (m *Multi) Open(name string) (io.ReadCloser, error) {
 
 // Exists checks all loaders in succession, returning the full path of the template and
 // bool true if the template file was found, otherwise it returns an empty string and false.
-func (m *Multi) Exists(name string) (string, bool) {
+func (m *Multi) Exists(name string) bool {
 	for _, loader := range m.loaders {
-		if fileName, ok := loader.Exists(name); ok {
-			return fileName, true
+		if ok := loader.Exists(name); ok {
+			return true
 		}
 	}
-	return "", false
+	return false
 }

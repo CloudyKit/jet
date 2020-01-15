@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	JetTestingSet = NewSet(nil)
+	JetTestingSet = NewSet(nil, "")
 
 	ww    io.Writer = (*devNull)(nil)
 	users           = []*User{
@@ -560,7 +560,7 @@ func TestEvalBuiltinExpression(t *testing.T) {
 }
 
 func TestEvalAutoescape(t *testing.T) {
-	set := NewHTMLSet()
+	set := NewHTMLSet("")
 	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`, "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")
 	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`, "<h1><h1>Hello Buddy!</h1></h1>")
 }
