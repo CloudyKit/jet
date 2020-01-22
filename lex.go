@@ -87,6 +87,7 @@ const (
 	itemExtends
 	itemBlock
 	itemYield
+	itemReturn
 	itemContent
 	itemInclude
 	itemElse
@@ -109,6 +110,7 @@ var key = map[string]itemType{
 	"include": itemInclude,
 	"block":   itemBlock,
 	"yield":   itemYield,
+	"return": itemReturn,
 
 	"else": itemElse,
 	"end":  itemEnd,

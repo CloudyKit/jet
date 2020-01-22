@@ -89,6 +89,7 @@ const (
 	NodeInclude
 	NodeYield
 	NodeSet
+	NodeReturn
 	beginExpressions
 	NodeString //A string constant.
 	NodeNil    //An untyped nil constant.
@@ -663,4 +664,14 @@ func (s *SliceExprNode) String() string {
 		len_string = s.EndIndex.String()
 	}
 	return fmt.Sprintf("%s[%s:%s]", s.Base, index_string, len_string)
+}
+
+
+type ReturnNode struct {
+	NodeBase
+	Value Expression
+}
+
+func (n *ReturnNode) String() string {
+	return fmt.Sprintf("return %v", n.Value)
 }

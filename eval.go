@@ -372,8 +372,13 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 	}
 }
 
-func (st *Runtime) executeList(list *ListNode) {
+func (st *Runtime) executeList(list *ListNode) reflect.Value {
 	inNewSCOPE := false
+	defer func() {
+		if inNewSCOPE {
+			st.releaseScope()
+		}
+	}()
 
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
@@ -541,11 +546,13 @@ func (st *Runtime) executeList(list *ListNode) {
 					st.context = context
 				}
 			}
+		case NodeReturn:
+			node := node.(*ReturnNode)
+			return st.evalPrimaryExpressionGroup(node.Value)
 		}
 	}
-	if inNewSCOPE {
-		st.releaseScope()
-	}
+
+	return reflect.Value{}
 }
 
 var (
@@ -566,7 +573,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	case NodeLogicalExpr:
 		return st.evalLogicalExpression(node.(*LogicalExprNode))
 	case NodeNotExpr:
-		return boolValue(!castBoolean(st.evalPrimaryExpressionGroup(node.(*NotExprNode).Expr)))
+		return reflect.ValueOf(!castBoolean(st.evalPrimaryExpressionGroup(node.(*NotExprNode).Expr)))
 	case NodeTernaryExpr:
 		node := node.(*TernaryExprNode)
 		if castBoolean(st.evalPrimaryExpressionGroup(node.Boolean)) {
@@ -835,7 +842,7 @@ func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExpr
 			node.Left.errorf("a non numeric value in numeric comparative expression")
 		}
 	}
-	return boolValue(isTrue)
+	return reflect.ValueOf(isTrue)
 }
 
 func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
@@ -845,22 +852,18 @@ func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
 	} else {
 		isTrue = isTrue || castBoolean(st.evalPrimaryExpressionGroup(node.Right))
 	}
-	return boolValue(isTrue)
+	return reflect.ValueOf(isTrue)
 }
 
-func boolValue(isTrue bool) reflect.Value {
-	if isTrue {
-		return valueBoolTRUE
-	}
-	return valueBoolFALSE
-}
+
 
 func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
+	equal := checkEquality(left, right)
 	if node.Operator.typ == itemNotEquals {
-		return boolValue(!checkEquality(left, right))
+		return reflect.ValueOf(!equal)
 	}
-	return boolValue(checkEquality(left, right))
+	return reflect.ValueOf(equal)
 }
 
 func toInt(v reflect.Value) int64 {

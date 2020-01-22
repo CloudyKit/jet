@@ -431,6 +431,12 @@ func (t *Template) parseInclude() Node {
 	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
 }
 
+func (t *Template) parseReturn() Node {
+	value := t.expression("return")
+	t.expect(itemRightDelim, "return")
+	return t.newReturn(value.Position(), t.lex.lineNumber(), value)
+}
+
 // itemListBlock:
 //	textOrAction*
 // Terminates at {{end}} or {{else}}, returned separately.
@@ -497,6 +503,8 @@ func (t *Template) action() (n Node) {
 		return t.parseInclude()
 	case itemYield:
 		return t.parseYield()
+	case itemReturn:
+		return t.parseReturn()
 	}
 
 	t.backup()
