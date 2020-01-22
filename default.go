@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"reflect"
 	"strings"
@@ -110,6 +111,36 @@ func init() {
 			a.runtime.releaseScope()
 
 			return hiddenTRUE
+		})),
+		"exec": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
+			a.RequireNumOfArguments("exec", 1,2)
+			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
+			if err != nil {
+				panic(err)
+			}
+
+			a.runtime.newScope()
+			w := a.runtime.Writer
+			a.runtime.Writer = ioutil.Discard
+			a.runtime.blocks = t.processedBlocks
+			root := t.Root
+			if t.extends != nil {
+				root = t.extends.Root
+			}
+
+			if a.NumOfArguments() > 1 {
+				c := a.runtime.context
+				a.runtime.context = a.Get(1)
+				result = a.runtime.executeList(root)
+				a.runtime.context = c
+			} else {
+				result = a.runtime.executeList(root)
+			}
+
+			a.runtime.releaseScope()
+			a.runtime.Writer = w
+
+			return result
 		})),
 	}
 }

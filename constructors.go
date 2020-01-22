@@ -134,6 +134,10 @@ func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *Include
 	return &IncludeNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeInclude, Pos: pos, Line: line}, Name: name, Expression: pipe}
 }
 
+func (t *Template) newReturn(pos Pos, line int, pipe Expression) *ReturnNode {
+	return &ReturnNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeReturn, Pos: pos, Line: line}, Value: pipe}
+}
+
 func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
 	n := &NumberNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNumber, Pos: pos}, Text: text}
 	// todo: optimize
