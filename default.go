@@ -113,7 +113,7 @@ func init() {
 			return hiddenTRUE
 		})),
 		"exec": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
-			a.RequireNumOfArguments("exec", 1,2)
+			a.RequireNumOfArguments("exec", 1, 2)
 			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
 			if err != nil {
 				panic(err)

@@ -110,7 +110,7 @@ var key = map[string]itemType{
 	"include": itemInclude,
 	"block":   itemBlock,
 	"yield":   itemYield,
-	"return": itemReturn,
+	"return":  itemReturn,
 
 	"else": itemElse,
 	"end":  itemEnd,
