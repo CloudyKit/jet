@@ -855,8 +855,6 @@ func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
 	return reflect.ValueOf(isTrue)
 }
 
-
-
 func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
 	equal := checkEquality(left, right)

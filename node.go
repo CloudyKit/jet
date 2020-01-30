@@ -666,7 +666,6 @@ func (s *SliceExprNode) String() string {
 	return fmt.Sprintf("%s[%s:%s]", s.Base, index_string, len_string)
 }
 
-
 type ReturnNode struct {
 	NodeBase
 	Value Expression
