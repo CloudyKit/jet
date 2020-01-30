@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/CloudyKit/fastprinter"
@@ -255,9 +256,10 @@ func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 	}
 	lef := len(fields) - 1
 	for i := 0; i < lef; i++ {
-		value = getFieldOrMethodValue(fields[i], value)
-		if !value.IsValid() {
-			left.errorf("identifier %q is not available in the current scope", fields[i])
+		var err error
+		value, err = resolveIndex(value, reflect.ValueOf(fields[i]))
+		if err != nil {
+			left.errorf("%v", err)
 		}
 	}
 
@@ -431,7 +433,7 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 				}
 			}
 
-			if castBoolean(st.evalPrimaryExpressionGroup(node.Expression)) {
+			if isTrue(st.evalPrimaryExpressionGroup(node.Expression)) {
 				returnValue = st.executeList(node.List)
 			} else if node.ElseList != nil {
 				returnValue = st.executeList(node.ElseList)
@@ -575,10 +577,10 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 	case NodeLogicalExpr:
 		return st.evalLogicalExpression(node.(*LogicalExprNode))
 	case NodeNotExpr:
-		return reflect.ValueOf(!castBoolean(st.evalPrimaryExpressionGroup(node.(*NotExprNode).Expr)))
+		return reflect.ValueOf(!isTrue(st.evalPrimaryExpressionGroup(node.(*NotExprNode).Expr)))
 	case NodeTernaryExpr:
 		node := node.(*TernaryExprNode)
-		if castBoolean(st.evalPrimaryExpressionGroup(node.Boolean)) {
+		if isTrue(st.evalPrimaryExpressionGroup(node.Boolean)) {
 			return st.evalPrimaryExpressionGroup(node.Left)
 		}
 		return st.evalPrimaryExpressionGroup(node.Right)
@@ -591,52 +593,14 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		return st.evalCallExpression(baseExpr, node.Args)
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
+		base := st.evalPrimaryExpressionGroup(node.Base)
+		index := st.evalPrimaryExpressionGroup(node.Index)
 
-		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
-		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
-		indexType := indexExpression.Type()
-
-		if baseExpression.Kind() == reflect.Interface {
-			baseExpression = baseExpression.Elem()
+		resolved, err := resolveIndex(base, index)
+		if err != nil {
+			node.error(err)
 		}
-
-		if baseExpression.Kind() == reflect.Ptr {
-			baseExpression = baseExpression.Elem()
-		}
-
-		switch baseExpression.Kind() {
-		case reflect.Map:
-			key := baseExpression.Type().Key()
-			if !indexType.AssignableTo(key) {
-				if indexType.ConvertibleTo(key) {
-					indexExpression = indexExpression.Convert(key)
-				} else {
-					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
-				}
-			}
-			return baseExpression.MapIndex(indexExpression)
-		case reflect.Array, reflect.String, reflect.Slice:
-			if canNumber(indexType.Kind()) {
-				index := int(castInt64(indexExpression))
-				if 0 <= index && index < baseExpression.Len() {
-					return baseExpression.Index(index)
-				} else {
-					node.errorf("%s index out of range (index: %d, len: %d)", baseExpression.Kind().String(), index, baseExpression.Len())
-				}
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		case reflect.Struct:
-			if canNumber(indexType.Kind()) {
-				return baseExpression.Field(int(castInt64(indexExpression)))
-			} else if indexType.Kind() == reflect.String {
-				return getFieldOrMethodValue(indexExpression.String(), baseExpression)
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		default:
-			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
-		}
+		return indirectEface(resolved)
 	case NodeSliceExpr:
 		node := node.(*SliceExprNode)
 		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
@@ -687,55 +651,15 @@ func (st *Runtime) isSet(node Node) bool {
 	switch nodeType {
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
-		if !st.isSet(node.Base) {
+		if !st.isSet(node.Base) || !st.isSet(node.Index) {
 			return false
 		}
 
-		if !st.isSet(node.Index) {
-			return false
-		}
+		base := st.evalPrimaryExpressionGroup(node.Base)
+		index := st.evalPrimaryExpressionGroup(node.Index)
 
-		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
-		indexExpression := st.evalPrimaryExpressionGroup(node.Index)
-
-		indexType := indexExpression.Type()
-		if baseExpression.Kind() == reflect.Ptr || baseExpression.Kind() == reflect.Interface {
-			baseExpression = baseExpression.Elem()
-		}
-
-		switch baseExpression.Kind() {
-		case reflect.Map:
-			key := baseExpression.Type().Key()
-			if !indexType.AssignableTo(key) {
-				if indexType.ConvertibleTo(key) {
-					indexExpression = indexExpression.Convert(key)
-				} else {
-					node.errorf("%s is not assignable|convertible to map key %s", indexType.String(), key.String())
-				}
-			}
-			value := baseExpression.MapIndex(indexExpression)
-			return notNil(value)
-		case reflect.Array, reflect.String, reflect.Slice:
-			if canNumber(indexType.Kind()) {
-				i := int(castInt64(indexExpression))
-				return i >= 0 && i < baseExpression.Len()
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		case reflect.Struct:
-			if canNumber(indexType.Kind()) {
-				i := int(castInt64(indexExpression))
-				return i >= 0 && i < baseExpression.NumField()
-			} else if indexType.Kind() == reflect.String {
-				fieldValue := getFieldOrMethodValue(indexExpression.String(), baseExpression)
-				return notNil(fieldValue)
-
-			} else {
-				node.errorf("non numeric value in index expression kind %s", baseExpression.Kind().String())
-			}
-		default:
-			node.errorf("indexing is not supported in value type %s", baseExpression.Kind().String())
-		}
+		resolved, err := resolveIndex(base, index)
+		return err == nil && notNil(resolved)
 	case NodeIdentifier:
 		value := st.Resolve(node.String())
 		return notNil(value)
@@ -743,15 +667,16 @@ func (st *Runtime) isSet(node Node) bool {
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
-			resolved = getFieldOrMethodValue(node.Ident[i], resolved)
-			if !notNil(resolved) {
+			var err error
+			resolved, err = resolveIndex(resolved, reflect.ValueOf(node.Ident[i]))
+			if err != nil || !notNil(resolved) {
 				return false
 			}
 		}
 	case NodeChain:
 		node := node.(*ChainNode)
-		resolved, _ := st.evalFieldAccessExpression(node)
-		return notNil(resolved)
+		resolved, err := st.evalChainNodeExpression(node)
+		return err == nil && notNil(resolved)
 	default:
 		//todo: maybe work some edge cases
 		if !(nodeType > beginExpressions && nodeType < endExpressions) {
@@ -848,13 +773,13 @@ func (st *Runtime) evalNumericComparativeExpression(node *NumericComparativeExpr
 }
 
 func (st *Runtime) evalLogicalExpression(node *LogicalExprNode) reflect.Value {
-	isTrue := castBoolean(st.evalPrimaryExpressionGroup(node.Left))
+	truthy := isTrue(st.evalPrimaryExpressionGroup(node.Left))
 	if node.Operator.typ == itemAnd {
-		isTrue = isTrue && castBoolean(st.evalPrimaryExpressionGroup(node.Right))
+		truthy = truthy && isTrue(st.evalPrimaryExpressionGroup(node.Right))
 	} else {
-		isTrue = isTrue || castBoolean(st.evalPrimaryExpressionGroup(node.Right))
+		truthy = truthy || isTrue(st.evalPrimaryExpressionGroup(node.Right))
 	}
-	return reflect.ValueOf(isTrue)
+	return reflect.ValueOf(truthy)
 }
 
 func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.Value {
@@ -1021,7 +946,7 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				return reflect.ValueOf(-right.Float())
 			}
 		}
-		node.Left.errorf("a non numeric value in additive expression")
+		node.Left.errorf("additive expression: right side %s (%s) is not a numeric value (left is nil)", node.Right, getTypeString(right))
 	}
 
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
@@ -1043,7 +968,7 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				left = reflect.ValueOf(float64(left.Uint()) - right.Float())
 			}
 		} else {
-			node.Left.errorf("a non numeric value in additive expression")
+			node.Left.errorf("additive expression: left side (%s (%s) needs float promotion but neither int nor uint)", node.Left, getTypeString(left))
 		}
 	} else {
 		if isInt(kind) {
@@ -1071,7 +996,7 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				node.Right.errorf("minus signal is not allowed with strings")
 			}
 		} else {
-			node.Left.errorf("a non numeric value in additive expression")
+			node.Left.errorf("additive expression: left side %s (%s) is not a numeric value", node.Left, getTypeString(left))
 		}
 	}
 
@@ -1082,7 +1007,7 @@ func getTypeString(value reflect.Value) string {
 	if value.IsValid() {
 		return value.Type().String()
 	}
-	return "nil"
+	return "<invalid>"
 }
 
 func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
@@ -1099,27 +1024,29 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	case NodeIdentifier:
 		resolved := st.Resolve(node.(*IdentifierNode).Ident)
 		if !resolved.IsValid() {
-			node.errorf("identifier %q is not available in the current scope %v", node, st.variables)
+			node.errorf("identifier '%s' is not available in the current scope (%+v)", node, st.variables)
 		}
-
-		return resolved
+		return indirectEface(resolved)
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
-			fieldResolved := getFieldOrMethodValue(node.Ident[i], resolved)
-			if !fieldResolved.IsValid() {
-				node.errorf("there is no field or method %q in %s", node.Ident[i], getTypeString(resolved))
+			field, err := resolveIndex(resolved, reflect.ValueOf(node.Ident[i]))
+			if err != nil {
+				node.errorf("%v", err)
 			}
-			resolved = fieldResolved
+			if !field.IsValid() {
+				node.errorf("there is no field or method '%s' in %s (.%s)", node.Ident[i], getTypeString(resolved), strings.Join(node.Ident, "."))
+			}
+			resolved = field
 		}
-		return resolved
+		return indirectEface(resolved)
 	case NodeChain:
-		resolved, err := st.evalFieldAccessExpression(node.(*ChainNode))
+		resolved, err := st.evalChainNodeExpression(node.(*ChainNode))
 		if err != nil {
 			node.error(err)
 		}
-		return resolved
+		return indirectEface(resolved)
 	case NodeNumber:
 		node := node.(*NumberNode)
 		if node.IsFloat {
@@ -1175,13 +1102,24 @@ func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool
 	return term, false
 }
 
-func (st *Runtime) evalFieldAccessExpression(node *ChainNode) (reflect.Value, error) {
+func (st *Runtime) evalChainNodeExpression(node *ChainNode) (reflect.Value, error) {
 	resolved := st.evalPrimaryExpressionGroup(node.Node)
+
 	for i := 0; i < len(node.Field); i++ {
-		resolved = getFieldOrMethodValue(node.Field[i], resolved)
-		if !resolved.IsValid() {
-			return resolved, fmt.Errorf("there is no field or method %q in %s", node.Field[i], getTypeString(resolved))
+		resolved = indirectEface(resolved)
+		field, err := resolveIndex(resolved, reflect.ValueOf(node.Field[i]))
+		if err != nil {
+			return reflect.Value{}, err
 		}
+		if !field.IsValid() {
+			if resolved.Kind() == reflect.Map && i == len(node.Field)-1 {
+				// TODO: should this return the map element type's zero value instead, like Go would?
+				// return reflect.Zero(resolved.Type().Elem()), nil
+				return reflect.Value{}, nil
+			}
+			return reflect.Value{}, fmt.Errorf("there is no field or method '%s' in %s (%s)", node.Field[i], getTypeString(resolved), node)
+		}
+		resolved = field
 	}
 	return resolved, nil
 }
@@ -1301,6 +1239,8 @@ func isFloat(kind reflect.Kind) bool {
 
 // checkEquality of two reflect values in the semantic of the jet runtime
 func checkEquality(v1, v2 reflect.Value) bool {
+	v1 = indirectInterface(v1)
+	v2 = indirectInterface(v2)
 
 	if !v1.IsValid() || !v2.IsValid() {
 		return v1.IsValid() == v2.IsValid()
@@ -1310,7 +1250,7 @@ func checkEquality(v1, v2 reflect.Value) bool {
 	v2Type := v2.Type()
 
 	// fast path
-	if v1Type != v2.Type() && !v2Type.AssignableTo(v1Type) && !v2Type.ConvertibleTo(v1Type) {
+	if v1Type != v2Type && !v2Type.AssignableTo(v1Type) && !v2Type.ConvertibleTo(v1Type) {
 		return false
 	}
 
@@ -1327,7 +1267,7 @@ func checkEquality(v1, v2 reflect.Value) bool {
 
 	switch kind {
 	case reflect.Bool:
-		return v1.Bool() == castBoolean(v2)
+		return v1.Bool() == isTrue(v2)
 	case reflect.String:
 		return v1.String() == v2.String()
 	case reflect.Array:
@@ -1342,7 +1282,6 @@ func checkEquality(v1, v2 reflect.Value) bool {
 		}
 		return true
 	case reflect.Slice:
-
 		if v1.IsNil() != v2.IsNil() {
 			return false
 		}
@@ -1403,43 +1342,8 @@ func checkEquality(v1, v2 reflect.Value) bool {
 	}
 }
 
-func castBoolean(v reflect.Value) bool {
-	kind := v.Kind()
-	switch kind {
-	case reflect.Ptr:
-		return v.IsNil() == false
-	case reflect.Bool:
-		return v.Bool()
-	case reflect.Array:
-		numItems := v.Len()
-		for i, n := 0, numItems; i < n; i++ {
-			if !castBoolean(v.Index(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Struct:
-		numField := v.NumField()
-		for i, n := 0, numField; i < n; i++ {
-			if !castBoolean(v.Field(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Map, reflect.Slice, reflect.String:
-		return v.Len() > 0
-	default:
-		if isInt(kind) {
-			return v.Int() > 0
-		}
-		if isUint(kind) {
-			return v.Uint() > 0
-		}
-		if isFloat(kind) {
-			return v.Float() > 0
-		}
-	}
-	return false
+func isTrue(v reflect.Value) bool {
+	return v.IsValid() && !v.IsZero()
 }
 
 func canNumber(kind reflect.Kind) bool {
@@ -1462,74 +1366,131 @@ func castInt64(v reflect.Value) int64 {
 var cachedStructsMutex = sync.RWMutex{}
 var cachedStructsFieldIndex = map[reflect.Type]map[string][]int{}
 
-func getFieldOrMethodValue(key string, v reflect.Value) reflect.Value {
-	if !v.IsValid() {
-		return reflect.Value{}
-	}
-
-	value := getValue(key, v)
-	if value.Kind() == reflect.Interface && !value.IsNil() {
-		value = value.Elem()
-	}
-
-	for dereferenceLimit := 2; value.Kind() == reflect.Ptr && dereferenceLimit >= 0; dereferenceLimit-- {
-		if value.IsNil() {
-			return reflect.ValueOf("")
+// from text/template's exec.go:
+//
+// indirect returns the item at the end of indirection, and a bool to indicate
+// if it's nil. If the returned bool is true, the returned value's kind will be
+// either a pointer or interface.
+func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
+		if v.IsNil() {
+			return v, true
 		}
-		value = reflect.Indirect(value)
 	}
-
-	return value
+	return v, false
 }
 
-func getValue(key string, v reflect.Value) reflect.Value {
+// indirectInterface returns the concrete value in an interface value, or else v itself.
+// That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
+// the fact that x was an interface value is forgotten.
+func indirectInterface(v reflect.Value) reflect.Value {
+	if v.Kind() == reflect.Interface {
+		return v.Elem()
+	}
+	return v
+}
+
+// indirectEface is the same as indirectInterface, but only indirects through v if its type
+// is the empty interface and its value is not nil.
+func indirectEface(v reflect.Value) reflect.Value {
+	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 && !v.IsNil() {
+		return v.Elem()
+	}
+	return v
+}
+
+// mostly copied from text/template's evalField() (exec.go):
+func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 	if !v.IsValid() {
-		return reflect.Value{}
+		return reflect.Value{}, fmt.Errorf("there is no field or method '%s' in %s (%s)", index, v, getTypeString(v))
 	}
 
-	value := v.MethodByName(key)
-
-	if value.IsValid() {
-		return value
+	v, isNil := indirect(v)
+	if v.Kind() == reflect.Interface && isNil {
+		// Calling a method on a nil interface can't work. The
+		// MethodByName method call below would panic.
+		return reflect.Value{}, fmt.Errorf("nil pointer evaluating %s.%s", v.Type(), index)
 	}
 
-	k := v.Kind()
-	if k == reflect.Ptr || k == reflect.Interface {
-		v = v.Elem()
-		k = v.Kind()
-		value = v.MethodByName(key)
-		if value.IsValid() {
-			return value
+	// Unless it's an interface, need to get to a value of type *T to guarantee
+	// we see all methods of T and *T.
+	if index.Kind() == reflect.String {
+		ptr := v
+		if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Ptr && ptr.CanAddr() {
+			ptr = ptr.Addr()
 		}
-	} else if v.CanAddr() {
-		value = v.Addr().MethodByName(key)
-		if value.IsValid() {
-			return value
+		if method := ptr.MethodByName(index.String()); method.IsValid() {
+			return method, nil
 		}
 	}
 
-	if k == reflect.Struct {
-		typ := v.Type()
-		cachedStructsMutex.RLock()
-		cache, ok := cachedStructsFieldIndex[typ]
-		cachedStructsMutex.RUnlock()
-		if !ok {
-			cachedStructsMutex.Lock()
-			if cache, ok = cachedStructsFieldIndex[typ]; !ok {
-				cache = make(map[string][]int)
-				buildCache(typ, cache, nil)
-				cachedStructsFieldIndex[typ] = cache
+	// It's not a method on v; so now:
+	//  - if v is array/slice/string, use index as numeric index
+	//  - if v is a struct, use index as field name
+	//  - if v is a map, use index as key
+	//  - if v is (still) a pointer, indexing will fail but we check for nil to get a useful error
+	switch v.Kind() {
+	case reflect.Array, reflect.Slice, reflect.String:
+		x, err := indexArg(index, v.Len())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return v.Index(x), nil
+	case reflect.Struct:
+		if index.Kind() != reflect.String {
+			return reflect.Value{}, fmt.Errorf("can't use %s (%s, not string) as field name in struct type %s", index, index.Type(), v.Type())
+		}
+		tField, ok := v.Type().FieldByName(index.String())
+		if ok {
+			field := v.FieldByIndex(tField.Index)
+			if tField.PkgPath != "" { // field is unexported
+				return reflect.Value{}, fmt.Errorf("%s is an unexported field of struct type %s", index.String(), v.Type())
 			}
-			cachedStructsMutex.Unlock()
+			return field, nil
 		}
-		if id, ok := cache[key]; ok {
-			return v.FieldByIndex(id)
+		return reflect.Value{}, fmt.Errorf("can't use %s as field name in struct type %s", index, v.Type())
+	case reflect.Map:
+		if !index.Type().AssignableTo(v.Type().Key()) {
+			return reflect.Value{}, fmt.Errorf("can't use %s (%s) as key for map of type %s", index, index.Type(), v.Type())
 		}
-		return reflect.Value{}
-	} else if k == reflect.Map {
-		return v.MapIndex(reflect.ValueOf(key))
+		return v.MapIndex(index), nil
+	case reflect.Ptr:
+		etyp := v.Type().Elem()
+		if etyp.Kind() == reflect.Struct && index.Kind() == reflect.String {
+			if _, ok := etyp.FieldByName(index.String()); !ok {
+				// If there's no such field, say "can't evaluate"
+				// instead of "nil pointer evaluating".
+				break
+			}
+		}
+		if isNil {
+			return reflect.Value{}, fmt.Errorf("nil pointer evaluating %s.%s", v.Type(), index)
+		}
 	}
-	return reflect.Value{}
+	return reflect.Value{}, fmt.Errorf("can't evaluate index %s (%s) in type %s", index, index.Type(), v.Type())
+}
+
+// from Go's text/template's funcs.go:
+//
+// indexArg checks if a reflect.Value can be used as an index, and converts it to int if possible.
+func indexArg(index reflect.Value, cap int) (int, error) {
+	var x int64
+	switch index.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		x = index.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		x = int64(index.Uint())
+	case reflect.Float32, reflect.Float64:
+		x = int64(index.Float())
+	case reflect.Invalid:
+		return 0, fmt.Errorf("cannot index slice/array/string with nil")
+	default:
+		return 0, fmt.Errorf("cannot index slice/array/string with type %s", index.Type())
+	}
+	if int(x) < 0 || int(x) >= cap {
+		return 0, fmt.Errorf("index out of range: %d", x)
+	}
+	return int(x), nil
 }
 
 func buildCache(typ reflect.Type, cache map[string][]int, parent []int) {
