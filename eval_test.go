@@ -605,6 +605,12 @@ func TestSet_Parse(t *testing.T) {
 	group.Wait()
 }
 
+func TestExecReturn(t *testing.T) {
+	set := NewHTMLSet("./testData/execReturn")
+	RunJetTestWithSet(t, set, nil, nil, "foo", "", "\n\n... some content that will be discarded when this template runs inside exec() ...\n")
+	RunJetTestWithSet(t, set, nil, nil, "test", "", "foo")
+}
+
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
 	for i := 0; i < b.N; i++ {

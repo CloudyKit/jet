@@ -1,0 +1,4 @@
+{{ f := "f" }}
+{{ o := "o" }}
+... some content that will be discarded when this template runs inside exec() ...
+{{ return f+o+o }}
