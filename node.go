@@ -79,6 +79,9 @@ const (
 	nodeEnd                        //An end action. Not added to tree.
 	NodeField                      //A field or method name.
 	NodeIdentifier                 //An identifier; always a function name.
+	NodeCase                       //A case action
+	NodeSwitch                     //A switch action
+	NodeFilter                     //A filter action
 	NodeIf                         //An if action.
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
@@ -105,6 +108,7 @@ const (
 	NodeIndexExpr
 	NodeSliceExpr
 	endExpressions
+	NodeUndefined
 )
 
 // Nodes.
@@ -216,6 +220,15 @@ type IdentifierNode struct {
 
 func (i *IdentifierNode) String() string {
 	return i.Ident
+}
+
+// UndefinedNode holds an undefined identifier
+type UndefinedNode struct {
+	NodeBase
+}
+
+func (u *UndefinedNode) String() string {
+	return ""
 }
 
 // NilNode holds the special identifier 'nil' representing an untyped nil constant.
@@ -425,6 +438,27 @@ func (b *BranchNode) String() string {
 			return fmt.Sprintf("{{range %s}}%s{{else}}%s{{end}}", s, b.List, b.ElseList)
 		}
 		return fmt.Sprintf("{{range %s}}%s{{end}}", s, b.List)
+	} else if b.NodeType == NodeFilter {
+		s := ""
+		if b.Set != nil {
+			s = b.Set.String() + ";"
+		}
+		if b.ElseList != nil {
+			return fmt.Sprintf("{{filter %s%s}}%s{{else}}%s{{end}}", s, b.Expression, b.List, b.ElseList)
+		}
+		return fmt.Sprintf("{{filter %s%s}}%s{{end}}", s, b.Expression, b.List)
+	} else if b.NodeType == NodeSwitch {
+		s := ""
+		if b.Set != nil {
+			s = b.Set.String() + ";"
+		}
+		return fmt.Sprintf("{{switch %s%s}}%s{{end}}", s, b.Expression, b.List)
+	} else if b.NodeType == NodeCase {
+		s := ""
+		if b.Set != nil {
+			s = b.Set.String() + ";"
+		}
+		return fmt.Sprintf("{{case %s%s}}%s{{end}}", s, b.Expression, b.List)
 	} else {
 		s := ""
 		if b.Set != nil {
@@ -435,6 +469,21 @@ func (b *BranchNode) String() string {
 		}
 		return fmt.Sprintf("{{if %s%s}}%s{{end}}", s, b.Expression, b.List)
 	}
+}
+
+// FilterNode represents a {{filter}} action and its commands.
+type FilterNode struct {
+	BranchNode
+}
+
+// CaseNode represents a {{case}} action and its commands.
+type CaseNode struct {
+	BranchNode
+}
+
+// SwitchNode represents a {{switch}} action and its commands.
+type SwitchNode struct {
+	BranchNode
 }
 
 // IfNode represents an {{if}} action and its commands.
@@ -626,7 +675,7 @@ func (s *CallExprNode) String() string {
 	return fmt.Sprintf("%s(%s)", s.BaseExpr, arguments)
 }
 
-// TernaryExprNod represents a ternary expression,
+// TernaryExprNode represents a ternary expression,
 // ex: expression '?' expression ':' expression
 type TernaryExprNode struct {
 	NodeBase

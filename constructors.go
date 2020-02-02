@@ -86,6 +86,10 @@ func (t *Template) newNil(pos Pos) *NilNode {
 	return &NilNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeNil, Pos: pos}}
 }
 
+func (t *Template) newUndefined(pos Pos) *UndefinedNode {
+	return &UndefinedNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeUndefined, Pos: pos}}
+}
+
 func (t *Template) newField(pos Pos, ident string) *FieldNode {
 	return &FieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} //[1:] to drop leading period
 }
@@ -112,6 +116,18 @@ func (t *Template) newContent(pos Pos) *contentNode {
 
 func (t *Template) newElse(pos Pos, line int) *elseNode {
 	return &elseNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeElse, Pos: pos, Line: line}}
+}
+
+func (t *Template) newFilter(pos Pos, line int, set *SetNode, pipe Expression, list, elseList *ListNode) *FilterNode {
+	return &FilterNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeFilter, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
+}
+
+func (t *Template) newCase(pos Pos, line int, pipe Expression, list *ListNode) *CaseNode {
+	return &CaseNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeCase, Pos: pos, Line: line}, Expression: pipe, List: list}}
+}
+
+func (t *Template) newSwitch(pos Pos, line int, set *SetNode, pipe Expression, list, elseList *ListNode) *SwitchNode {
+	return &SwitchNode{BranchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeSwitch, Pos: pos, Line: line}, Set: set, Expression: pipe, List: list, ElseList: elseList}}
 }
 
 func (t *Template) newIf(pos Pos, line int, set *SetNode, pipe Expression, list, elseList *ListNode) *IfNode {

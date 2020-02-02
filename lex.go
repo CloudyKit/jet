@@ -100,6 +100,9 @@ const (
 	itemNot
 	itemMSG
 	itemTrans
+	itemFilter
+	itemSwitch
+	itemCase
 )
 
 var key = map[string]itemType{
@@ -110,9 +113,11 @@ var key = map[string]itemType{
 	"block":   itemBlock,
 	"yield":   itemYield,
 
-	"else": itemElse,
-	"end":  itemEnd,
-	"if":   itemIf,
+	"else":   itemElse,
+	"end":    itemEnd,
+	"if":     itemIf,
+	"switch": itemSwitch,
+	"case":   itemCase,
 
 	"range": itemRange,
 	"nil":   itemNil,
@@ -123,6 +128,8 @@ var key = map[string]itemType{
 	"content": itemContent,
 	"msg":     itemMSG,
 	"trans":   itemTrans,
+
+	"filter": itemFilter,
 }
 
 const eof = -1

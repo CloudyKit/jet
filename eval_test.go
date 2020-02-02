@@ -174,7 +174,7 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_Add3Minus", `{{ 2+1+4-3 }}`, fmt.Sprint(2+1+4-3))
 
 	RunJetTest(t, data, nil, "actionNode_AddIntString", `{{ 2+"1" }}`, "3")
-	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "12")
+	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "3")
 
 	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
 	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
@@ -291,6 +291,16 @@ func TestEvalRangeNode(t *testing.T) {
 	RunJetTest(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
 	var resultString2 = `<h1>0: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>2: Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	RunJetTest(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
+}
+
+func TestEvalSwitchNode(t *testing.T) {
+	var data = make(VarMap)
+	data.Set("a", 10)
+	RunJetTest(t, data, nil, "Switch_Expression_1", `{{switch a}}{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
+	RunJetTest(t, data, nil, "Switch_Expression_2", `{{switch a}}{{end}}`, "")
+	RunJetTest(t, data, nil, "Switch_Expression_3", `{{switch a}}{{case 15}}a is 15{{end}}{{case}}a is something else: {{a}}{{end}}{{end}}`, "a is something else: 10")
+	RunJetTest(t, data, nil, "Switch_Expression_4", `{{switch a}}text before first case is ignored{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
+	RunJetTest(t, data, nil, "Switch_Expression_5", `{{switch a}}{* comments before first case are ignored *}{{case 10}}a is 10{{end}}{{end}}`, "a is 10")
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {

@@ -1,0 +1,7 @@
+{{ switch a }}{{ end }}
+{{ switch a }}{{ case 10 }}a is 10{{ end }}{{ end }}
+{{ switch a }}{{ case 20 }}a is 20{{ end }}{{ case }}a is something else{{ end }}{{ end }}
+===
+{{switch a}}{{end}}
+{{switch a}}{{case 10}}a is 10{{end}}{{end}}
+{{switch a}}{{case 20}}a is 20{{end}}{{case }}a is something else{{end}}{{end}}
