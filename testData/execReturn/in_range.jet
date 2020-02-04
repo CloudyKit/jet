@@ -1,0 +1,4 @@
+{{ range i, v := .arr }}
+{{ i }}: {{ v }}
+{{ if v == "foo" }}{{ return "from inside if branch inside range" }}{{ end }}
+{{ end }}

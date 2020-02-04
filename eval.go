@@ -380,6 +380,8 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 		}
 	}()
 
+	returnValue := reflect.Value{}
+
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
 		switch node.Type() {
@@ -430,9 +432,9 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 			}
 
 			if castBoolean(st.evalPrimaryExpressionGroup(node.Expression)) {
-				st.executeList(node.List)
+				returnValue = st.executeList(node.List)
 			} else if node.ElseList != nil {
-				st.executeList(node.ElseList)
+				returnValue = st.executeList(node.ElseList)
 			}
 			if isLet {
 				st.releaseScope()
@@ -461,7 +463,7 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 			ranger := getRanger(expression)
 			indexValue, rangeValue, end := ranger.Range()
 			if !end {
-				for !end {
+				for !end && !returnValue.IsValid() {
 					if isSet {
 						if isLet {
 							if isKeyVal {
@@ -481,11 +483,11 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 					} else {
 						st.context = rangeValue
 					}
-					st.executeList(node.List)
+					returnValue = st.executeList(node.List)
 					indexValue, rangeValue, end = ranger.Range()
 				}
 			} else if node.ElseList != nil {
-				st.executeList(node.ElseList)
+				returnValue = st.executeList(node.ElseList)
 			}
 			st.context = context
 			if isLet {
@@ -540,7 +542,7 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 					t = t.extends
 					Root = t.Root
 				}
-				st.executeList(Root)
+				returnValue = st.executeList(Root)
 				st.releaseScope()
 				if node.Expression != nil {
 					st.context = context
@@ -548,11 +550,11 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 			}
 		case NodeReturn:
 			node := node.(*ReturnNode)
-			return st.evalPrimaryExpressionGroup(node.Value)
+			returnValue = st.evalPrimaryExpressionGroup(node.Value)
 		}
 	}
 
-	return reflect.Value{}
+	return returnValue
 }
 
 var (

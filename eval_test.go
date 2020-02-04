@@ -607,8 +607,16 @@ func TestSet_Parse(t *testing.T) {
 
 func TestExecReturn(t *testing.T) {
 	set := NewHTMLSet("./testData/execReturn")
-	RunJetTestWithSet(t, set, nil, nil, "foo", "", "\n\n... some content that will be discarded when this template runs inside exec() ...\n")
-	RunJetTestWithSet(t, set, nil, nil, "test", "", "foo\n")
+	RunJetTestWithSet(t, set, nil, nil, "simple", "", "\n\n... some content that will be discarded when this template runs inside exec() ...\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_simple", "", "foo\n")
+	RunJetTestWithSet(t, set, nil, nil, "in_if", "", "\n\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_in_if", "", "from inside if branch\n")
+	context := map[string]interface{}{"arr": []string{"foo", "bar"}}
+	RunJetTestWithSet(t, set, nil, context, "in_range", "", "\n0: foo\n\n\n")
+	RunJetTestWithSet(t, set, nil, context, "test_in_range", "", "from inside if branch inside range\n")
+	RunJetTestWithSet(t, set, nil, nil, "included", "", "... some content that will be discarded when this template runs inside exec() ...\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "in_include", "", "bla bla\n... some content that will be discarded when this template runs inside exec() ...\n\n\nfoo\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_in_include", "", "from inside included template\n")
 }
 
 func BenchmarkSimpleAction(b *testing.B) {
