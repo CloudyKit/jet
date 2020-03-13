@@ -33,16 +33,16 @@ import (
 // every jet template is associated with one set.
 // create a set with jet.NewSet(escapeeFn) returns a pointer to the Set
 type Set struct {
-	loader            Loader
-	templates         map[string]*Template // parsed templates
-	escapee           SafeWriter           // escapee to use at runtime
-	globals           VarMap               // global scope for this template set
-	tmx               *sync.RWMutex        // template parsing mutex
-	gmx               *sync.RWMutex        // global variables map mutex
-	defaultExtensions []string
-	developmentMode   bool
-	leftDelim         string
-	rightDelim        string
+	loader          Loader
+	templates       map[string]*Template // parsed templates
+	escapee         SafeWriter           // escapee to use at runtime
+	globals         VarMap               // global scope for this template set
+	tmx             *sync.RWMutex        // template parsing mutex
+	gmx             *sync.RWMutex        // global variables map mutex
+	extensions      []string
+	developmentMode bool
+	leftDelim       string
+	rightDelim      string
 }
 
 // SetDevelopmentMode set's development mode on/off, in development mode template will be recompiled on every run
@@ -75,7 +75,7 @@ func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
 
 // NewSetLoader creates a new set with custom Loader
 func NewSetLoader(escapee SafeWriter, loader Loader) *Set {
-	return &Set{loader: loader, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), defaultExtensions: append([]string{}, defaultExtensions...)}
+	return &Set{loader: loader, tmx: &sync.RWMutex{}, gmx: &sync.RWMutex{}, escapee: escapee, templates: make(map[string]*Template), extensions: append([]string{}, defaultExtensions...)}
 }
 
 // NewHTMLSetLoader creates a new set with custom Loader
@@ -122,8 +122,8 @@ func (s *Set) Delims(left, right string) {
 
 // resolveName try to resolve a template name, the steps as follow
 //	1. try provided path
-//	2. try provided path+defaultExtensions
-// ex: set.resolveName("catalog/products.list") with defaultExtensions set to []string{".html.jet",".jet"}
+//	2. try provided path+extensions
+// ex: set.resolveName("catalog/products.list") with extensions set to []string{".html.jet",".jet"}
 //	try catalog/products.list
 //	try catalog/products.list.html.jet
 //	try catalog/products.list.jet
@@ -137,7 +137,7 @@ func (s *Set) resolveName(name string) (newName, fileName string, foundLoaded, f
 		return
 	}
 
-	for _, extension := range s.defaultExtensions {
+	for _, extension := range s.extensions {
 		newName = name + extension
 		if _, foundLoaded = s.templates[newName]; foundLoaded {
 			return
@@ -321,6 +321,11 @@ func (s *Set) LoadTemplate(name, content string) (template *Template, err error)
 	}
 
 	return
+}
+
+// SetExtensions sets extensions.
+func (s *Set) SetExtensions(extensions []string) {
+	s.extensions = extensions
 }
 
 func (t *Template) String() (template string) {
