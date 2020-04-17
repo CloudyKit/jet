@@ -12,7 +12,6 @@ environment:
   GOPATH: c:\gopath
   GO111MODULE: on
   matrix:
-    - GOVERSION: 112
     - GOVERSION: 113
 
 install:
