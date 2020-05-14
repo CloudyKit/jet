@@ -218,7 +218,7 @@ func (state *Runtime) Resolve(name string) reflect.Value {
 			vl, ok = defaultVariables[name]
 		}
 	}
-	return vl
+	return indirectEface(vl)
 }
 
 func (st *Runtime) recover(err *error) {
@@ -600,7 +600,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		if err != nil {
 			node.error(err)
 		}
-		return indirectEface(resolved)
+		return resolved
 	case NodeSliceExpr:
 		node := node.(*SliceExprNode)
 		baseExpression := st.evalPrimaryExpressionGroup(node.Base)
@@ -1026,7 +1026,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		if !resolved.IsValid() {
 			node.errorf("identifier '%s' is not available in the current scope (%+v)", node, st.variables)
 		}
-		return indirectEface(resolved)
+		return resolved
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
@@ -1040,13 +1040,13 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 			}
 			resolved = field
 		}
-		return indirectEface(resolved)
+		return resolved
 	case NodeChain:
 		resolved, err := st.evalChainNodeExpression(node.(*ChainNode))
 		if err != nil {
 			node.error(err)
 		}
-		return indirectEface(resolved)
+		return resolved
 	case NodeNumber:
 		node := node.(*NumberNode)
 		if node.IsFloat {
@@ -1106,14 +1106,12 @@ func (st *Runtime) evalChainNodeExpression(node *ChainNode) (reflect.Value, erro
 	resolved := st.evalPrimaryExpressionGroup(node.Node)
 
 	for i := 0; i < len(node.Field); i++ {
-		resolved = indirectEface(resolved)
 		field, err := resolveIndex(resolved, reflect.ValueOf(node.Field[i]))
 		if err != nil {
 			return reflect.Value{}, err
 		}
 		if !field.IsValid() {
 			if resolved.Kind() == reflect.Map && i == len(node.Field)-1 {
-				// TODO: should this return the map element type's zero value instead, like Go would?
 				// return reflect.Zero(resolved.Type().Elem()), nil
 				return reflect.Value{}, nil
 			}
@@ -1121,6 +1119,7 @@ func (st *Runtime) evalChainNodeExpression(node *ChainNode) (reflect.Value, erro
 		}
 		resolved = field
 	}
+
 	return resolved, nil
 }
 
@@ -1435,7 +1434,7 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 		if err != nil {
 			return reflect.Value{}, err
 		}
-		return v.Index(x), nil
+		return indirectEface(v.Index(x)), nil
 	case reflect.Struct:
 		if index.Kind() != reflect.String {
 			return reflect.Value{}, fmt.Errorf("can't use %s (%s, not string) as field name in struct type %s", index, index.Type(), v.Type())
@@ -1446,14 +1445,15 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 			if tField.PkgPath != "" { // field is unexported
 				return reflect.Value{}, fmt.Errorf("%s is an unexported field of struct type %s", index.String(), v.Type())
 			}
-			return field, nil
+			return indirectEface(field), nil
 		}
 		return reflect.Value{}, fmt.Errorf("can't use %s as field name in struct type %s", index, v.Type())
 	case reflect.Map:
+		// If it's a map, attempt to use the field name as a key.
 		if !index.Type().AssignableTo(v.Type().Key()) {
 			return reflect.Value{}, fmt.Errorf("can't use %s (%s) as key for map of type %s", index, index.Type(), v.Type())
 		}
-		return v.MapIndex(index), nil
+		return indirectEface(v.MapIndex(index)), nil
 	case reflect.Ptr:
 		etyp := v.Type().Elem()
 		if etyp.Kind() == reflect.Struct && index.Kind() == reflect.String {
