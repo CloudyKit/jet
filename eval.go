@@ -319,6 +319,11 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 		st.newScope()
 		for i := 0; i < len(yieldParam.List); i++ {
 			p := &yieldParam.List[i]
+			
+			if p.Expression == nil {
+				block.errorf("missing name for block parameter '%s'", blockParam.List[i].Identifier)
+			}
+
 			st.variables[p.Identifier] = st.evalPrimaryExpressionGroup(p.Expression)
 		}
 		for i := 0; i < len(blockParam.List); i++ {
