@@ -341,7 +341,19 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, nil, map[string]interface{}{"nested": map[string]string{"name": "value"}}, "IndexExpressionMap_6", `{{.["nested"].name}}`, "value")
 
 	vars := make(VarMap)
-	vars.Set("nested", map[string]interface{}{"key": "nested", "nested": map[string]interface{}{"nested": map[string]interface{}{"nested": map[string]interface{}{"name": "value", "strings": []string{"hello"}, "arr": []interface{}{"hello"}, "nil": nil}}}})
+	vars.Set("nested", map[string]interface{}{
+		"key": "nested",
+		"nested": map[string]interface{}{
+			"nested": map[string]interface{}{
+				"nested": map[string]interface{}{
+					"name":    "value",
+					"strings": []string{"hello"},
+					"arr":     []interface{}{"hello"},
+					"nil":     nil,
+				},
+			},
+		},
+	})
 
 	//RunJetTest(t, vars, nil, "IndexExpressionMap_6", `{{nested.nested.nested.nested.name}}`, "value")
 	// todo: this test is failing with race detector enabled, but looks like a bug when running with the race detector enabled
@@ -357,7 +369,6 @@ func TestEvalIndexExpression(t *testing.T) {
 	RunJetTest(t, vars, nil, "IndexExpressionMap_15", `{{nested["nested"]["nested"].nested.name}}`, "value")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_16_1", `{{nested.nested.nested.nested.nil}}`, "<nil>")
 	RunJetTest(t, vars, nil, "IndexExpressionMap_16_2", `{{nested.nested.nested.nested["nil"]}}`, "<nil>")
-	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_1", `{{.[0]}}`, "José Santos")
 	RunJetTest(t, nil, &User{"José Santos", "email@example.com"}, "IndexExpressionStruct_2", `{{.["Email"]}}`, "email@example.com")
 }
 
@@ -498,7 +509,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	}
 	data.Set("structWithPointerFields", s)
 	RunJetTest(t, data, nil, "PointerFields_1", `{{ structWithPointerFields.IntField }}`, "10")
-	RunJetTest(t, data, nil, "PointerFields_2", `{{ structWithPointerFields.StructField.IntField }}`, "")
+	RunJetTest(t, data, nil, "PointerFields_2", `{{ structWithPointerFields.StructField.IntField }}`, "<nil>")
 	RunJetTest(t, data, nil, "PointerFields_3", `{{ structWithPointerFields.StringField }}`, "test")
 	RunJetTest(t, data, nil, "PointerFields_4", `{{ structWithPointerFields.StructField.StringField }}`, "nested")
 
@@ -509,7 +520,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	data.Set("structWithPointerFields2", s2)
 	RunJetTest(t, data, nil, "PointerFields_5", `{{ structWithPointerFields2.IntField }}`, "10")
 	RunJetTest(t, data, nil, "PointerFields_6", `{{ structWithPointerFields2.StringField }}`, "test")
-	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "")
+	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "<nil>")
 
 	var set = NewSet(nil, "./testData")
 	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`)
@@ -519,7 +530,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	buff := bytes.NewBuffer(nil)
 	err = tt.Execute(buff, data, nil)
 	if err == nil {
-		t.Error("expected evaluating field of nil structto fail with a runtime error but got nil")
+		t.Error("expected evaluating field of nil struct to fail with a runtime error but got nil")
 	}
 }
 
@@ -535,13 +546,13 @@ func TestEvalBuiltinExpression(t *testing.T) {
 			},
 		},
 	)
-	RunJetTest(t, data, nil, "IsSetExpression_1", `{{isset(foo)}}`, "true")
-	RunJetTest(t, data, nil, "IsSetExpression_2", `{{isset(foo.asd)}}`, "true")
-	RunJetTest(t, data, nil, "IsSetExpression_3", `{{isset(foo.asd.bar)}}`, "true")
-	RunJetTest(t, data, nil, "IsSetExpression_4", `{{isset(asd)}}`, "false")
-	RunJetTest(t, data, nil, "IsSetExpression_5", `{{isset(foo.bar)}}`, "false")
-	RunJetTest(t, data, nil, "IsSetExpression_6", `{{isset(foo.asd.foo)}}`, "false")
-	RunJetTest(t, data, nil, "IsSetExpression_7", `{{isset(foo.asd.bar.xyz)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_7", `{{isset(foo)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_8", `{{isset(foo.asd)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_9", `{{isset(foo.asd.bar)}}`, "true")
+	RunJetTest(t, data, nil, "IsSetExpression_10", `{{isset(asd)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_11", `{{isset(foo.bar)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_12", `{{isset(foo.asd.foo)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_13", `{{isset(foo.asd.bar.xyz)}}`, "false")
 }
 
 func TestEvalAutoescape(t *testing.T) {
