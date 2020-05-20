@@ -77,7 +77,7 @@ func init() {
 				return reflect.ValueOf(expression.NumField())
 			}
 
-			a.Panicf("inválid value type %s in len builtin", expression.Type())
+			a.Panicf("invalid value type %s in len builtin", expression.Type())
 			return reflect.Value{}
 		})),
 		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
