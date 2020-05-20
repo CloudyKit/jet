@@ -321,7 +321,7 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 		st.newScope()
 		for i := 0; i < len(yieldParam.List); i++ {
 			p := &yieldParam.List[i]
-			
+
 			if p.Expression == nil {
 				block.errorf("missing name for block parameter '%s'", blockParam.List[i].Identifier)
 			}
@@ -1520,16 +1520,16 @@ func buildCache(typ reflect.Type, cache map[string][]int, parent []int) {
 }
 
 func getRanger(v reflect.Value) Ranger {
-	tuP := v.Type()
-	if tuP.Implements(rangerType) {
+	t := v.Type()
+	if t.Implements(rangerType) {
 		return v.Interface().(Ranger)
 	}
-	k := tuP.Kind()
+	v, isNil := indirect(v)
+	if isNil {
+		panic(fmt.Errorf("cannot range over nil pointer/interface (%s)", t))
+	}
+	k := v.Kind()
 	switch k {
-	case reflect.Ptr, reflect.Interface:
-		v = v.Elem()
-		k = v.Kind()
-		fallthrough
 	case reflect.Slice, reflect.Array:
 		sliceranger := pool_sliceRanger.Get().(*sliceRanger)
 		sliceranger.i = -1
@@ -1545,7 +1545,7 @@ func getRanger(v reflect.Value) Ranger {
 		*chanranger = chanRanger{v: v}
 		return chanranger
 	}
-	panic(fmt.Errorf("type %s is not rangeable", tuP))
+	panic(fmt.Errorf("value %v (type %s) is not rangeable", v, t))
 }
 
 var (
