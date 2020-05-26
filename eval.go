@@ -650,7 +650,14 @@ func notNil(v reflect.Value) bool {
 	}
 }
 
-func (st *Runtime) isSet(node Node) bool {
+func (st *Runtime) isSet(node Node) (ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			// something panicked while evaluating node
+			ok = false
+		}
+	}()
+
 	nodeType := node.Type()
 
 	switch nodeType {
