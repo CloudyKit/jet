@@ -553,6 +553,10 @@ func TestEvalBuiltinExpression(t *testing.T) {
 	RunJetTest(t, data, nil, "IsSetExpression_11", `{{isset(foo.bar)}}`, "false")
 	RunJetTest(t, data, nil, "IsSetExpression_12", `{{isset(foo.asd.foo)}}`, "false")
 	RunJetTest(t, data, nil, "IsSetExpression_13", `{{isset(foo.asd.bar.xyz)}}`, "false")
+	data.Set(
+		"foo", map[string]interface{}{},
+	)
+	RunJetTest(t, data, nil, "IsSetExpression_14", `{{isset(foo.asd[0].bar)}}`, "false")
 }
 
 func TestEvalAutoescape(t *testing.T) {
