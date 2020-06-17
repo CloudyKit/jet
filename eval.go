@@ -130,34 +130,6 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
-// YieldTemplate yields a template same as include
-func (st *Runtime) YieldTemplate(name string, context interface{}) {
-
-	t, err := st.set.GetTemplate(name)
-	if err != nil {
-		panic(fmt.Errorf("include: template %q was not found: %s", name, err))
-	}
-
-	st.newScope()
-	st.blocks = t.processedBlocks
-
-	Root := t.Root
-	if t.extends != nil {
-		Root = t.extends.Root
-	}
-
-	if context != nil {
-		c := st.context
-		st.context = reflect.ValueOf(context)
-		st.executeList(Root)
-		st.context = c
-	} else {
-		st.executeList(Root)
-	}
-
-	st.releaseScope()
-}
-
 // Set sets variable ${name} in the current template scope
 func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
