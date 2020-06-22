@@ -166,16 +166,16 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 
 // Resolve resolves a value from the execution context
 func (state *Runtime) Resolve(name string) (reflect.Value, error) {
-	v := reflect.Value{}
+	v, ok := reflect.Value{}, false
 	defer func() { v = indirectEface(v) }()
 
 	if name == "." {
-		return state.context, nil
+		return state.context, nil // indirectEface not needed
 	}
 
 	// try current, then parent variable scopes
-	sc, ok := state.scope, false
-	for !ok && sc != nil {
+	sc := state.scope
+	for sc != nil {
 		v, ok = sc.variables[name]
 		if ok {
 			return v, nil
