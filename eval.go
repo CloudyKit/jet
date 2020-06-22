@@ -15,6 +15,7 @@
 package jet
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -135,33 +136,28 @@ func (state *Runtime) Set(name string, val interface{}) {
 	state.setValue(name, reflect.ValueOf(val))
 }
 
-func (state *Runtime) setValue(name string, val reflect.Value) bool {
+func (state *Runtime) setValue(name string, val reflect.Value) {
+	// try changing existing variable in current or parent scope
 	sc := state.scope
-	initial := sc
-
-	// try to resolve variables in the current scope
-	_, ok := sc.variables[name]
-
-	// if not found walks parent scopes
-	for !ok && sc.parent != nil {
+	for sc != nil {
+		if _, ok := sc.variables[name]; ok {
+			sc.variables[name] = val
+			return
+		}
 		sc = sc.parent
-		_, ok = sc.variables[name]
 	}
 
-	if ok {
-		sc.variables[name] = val
-		return false
+	// find first non-nil variable scope and set as new variable
+	sc = state.scope
+	for sc != nil {
+		if sc.variables != nil {
+			sc.variables[name] = val
+			return
+		}
+		sc = sc.parent
 	}
 
-	for initial.variables == nil && initial.parent != nil {
-		initial = initial.parent
-	}
-
-	if initial.variables != nil {
-		sc.variables[name] = val
-		return false
-	}
-	return true
+	panic(fmt.Errorf("could not find non-nil variable scope to set %q = %v", name, val))
 }
 
 // Resolve resolves a value from the execution context
@@ -197,7 +193,7 @@ func (state *Runtime) Resolve(name string) (reflect.Value, error) {
 		return v, nil
 	}
 
-	return reflect.Value{}, fmt.Errorf("identifier '%q' not available in current (%+v) or parent scope, global, or default variables", name, state.scope.variables)
+	return reflect.Value{}, fmt.Errorf("identifier %q not available in current (%+v) or parent scope, global, or default variables", name, state.scope.variables)
 }
 
 func (state *Runtime) MustResolve(name string) reflect.Value {
@@ -214,12 +210,12 @@ func (st *Runtime) recover(err *error) {
 	st.context = reflect.Value{}
 	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
-		var is bool
-		if _, is = recovered.(runtime.Error); is {
+		var ok bool
+		if _, ok = recovered.(runtime.Error); ok {
 			panic(recovered)
 		}
-		*err, is = recovered.(error)
-		if !is {
+		*err, ok = recovered.(error)
+		if !ok {
 			panic(recovered)
 		}
 	}
@@ -481,6 +477,9 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 			if isLet {
 				st.releaseScope()
 			}
+		case NodeTry:
+			node := node.(*TryNode)
+			returnValue = st.executeTry(node)
 		case NodeYield:
 			node := node.(*YieldNode)
 			if node.IsContent {
@@ -513,6 +512,39 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 	return returnValue
 }
 
+func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
+	writer := st.Writer
+	buf := new(bytes.Buffer)
+
+	defer func() {
+		r := recover()
+
+		// copy buffered render output to writer only if no panic occured
+		if r == nil {
+			io.Copy(writer, buf)
+		} else {
+			// st.Writer is already set to its original value since the later defer ran first
+			if try.Recover != nil {
+				if try.Recover.Err != nil {
+					st.newScope()
+					st.executeSet(try.Recover.Err, reflect.ValueOf(r))
+				}
+				if try.Recover.List != nil {
+					returnValue = st.executeList(try.Recover.List)
+				}
+				if try.Recover.Err != nil {
+					st.releaseScope()
+				}
+			}
+		}
+	}()
+
+	st.Writer = buf
+	defer func() { st.Writer = writer }()
+
+	return st.executeList(try.List)
+}
+
 func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value) {
 	var templateName string
 	name := st.evalPrimaryExpressionGroup(node.Name)
@@ -536,10 +568,10 @@ func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value)
 	st.blocks = t.processedBlocks
 
 	var context reflect.Value
-	if node.Expression != nil {
+	if node.Context != nil {
 		context = st.context
 		defer func() { st.context = context }()
-		st.context = st.evalPrimaryExpressionGroup(node.Expression)
+		st.context = st.evalPrimaryExpressionGroup(node.Context)
 	}
 
 	Root := t.Root
@@ -548,9 +580,7 @@ func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value)
 		Root = t.Root
 	}
 
-	returnValue = st.executeList(Root)
-
-	return returnValue
+	return st.executeList(Root)
 }
 
 var (
