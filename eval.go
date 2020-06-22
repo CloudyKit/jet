@@ -165,32 +165,47 @@ func (state *Runtime) setValue(name string, val reflect.Value) bool {
 }
 
 // Resolve resolves a value from the execution context
-func (state *Runtime) Resolve(name string) reflect.Value {
+func (state *Runtime) Resolve(name string) (reflect.Value, error) {
+	v := reflect.Value{}
+	defer func() { v = indirectEface(v) }()
 
 	if name == "." {
-		return state.context
+		return state.context, nil
 	}
 
-	sc := state.scope
-	// try to resolve variables in the current scope
-	vl, ok := sc.variables[name]
-	// if not found walks parent scopes
-	for !ok && sc.parent != nil {
-		sc = sc.parent
-		vl, ok = sc.variables[name]
-	}
-
-	// if not found check globals
-	if !ok {
-		state.set.gmx.RLock()
-		vl, ok = state.set.globals[name]
-		state.set.gmx.RUnlock()
-		// not found check defaultVariables
-		if !ok {
-			vl, ok = defaultVariables[name]
+	// try current, then parent variable scopes
+	sc, ok := state.scope, false
+	for !ok && sc != nil {
+		v, ok = sc.variables[name]
+		if ok {
+			return v, nil
 		}
+		sc = sc.parent
 	}
-	return indirectEface(vl)
+
+	// try globals
+	state.set.gmx.RLock()
+	v, ok = state.set.globals[name]
+	state.set.gmx.RUnlock()
+	if ok {
+		return v, nil
+	}
+
+	// try default variables
+	v, ok = defaultVariables[name]
+	if ok {
+		return v, nil
+	}
+
+	return reflect.Value{}, fmt.Errorf("identifier '%q' not available in current (%+v) or parent scope, global, or default variables", name, state.scope.variables)
+}
+
+func (state *Runtime) MustResolve(name string) reflect.Value {
+	v, err := state.Resolve(name)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (st *Runtime) recover(err *error) {
@@ -351,15 +366,8 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 	}
 }
 
-func (st *Runtime) executeList(list *ListNode) reflect.Value {
-	inNewSCOPE := false
-	defer func() {
-		if inNewSCOPE {
-			st.releaseScope()
-		}
-	}()
-
-	returnValue := reflect.Value{}
+func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
+	inNewScope := false // to use just one scope for multiple actions with variable declarations
 
 	for i := 0; i < len(list.Nodes); i++ {
 		node := list.Nodes[i]
@@ -375,9 +383,10 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 			node := node.(*ActionNode)
 			if node.Set != nil {
 				if node.Set.Let {
-					if !inNewSCOPE {
-						st.newScope() //creates new scope in the back state
-						inNewSCOPE = true
+					if !inNewScope {
+						st.newScope()
+						inNewScope = true
+						defer st.releaseScope()
 					}
 					st.executeLetList(node.Set)
 				} else {
@@ -494,44 +503,52 @@ func (st *Runtime) executeList(list *ListNode) reflect.Value {
 			st.executeYieldBlock(block, block.Parameters, block.Parameters, block.Expression, block.Content)
 		case NodeInclude:
 			node := node.(*IncludeNode)
-			var Name string
-
-			name := st.evalPrimaryExpressionGroup(node.Name)
-			if name.Type().Implements(stringerType) {
-				Name = name.String()
-			} else if name.Kind() == reflect.String {
-				Name = name.String()
-			} else {
-				node.errorf("unexpected expression type %q in template yielding", getTypeString(name))
-			}
-
-			t, err := st.set.getTemplate(Name, node.TemplateName)
-			if err != nil {
-				node.error(err)
-			} else {
-				st.newScope()
-				st.blocks = t.processedBlocks
-				var context reflect.Value
-				if node.Expression != nil {
-					context = st.context
-					st.context = st.evalPrimaryExpressionGroup(node.Expression)
-				}
-				Root := t.Root
-				for t.extends != nil {
-					t = t.extends
-					Root = t.Root
-				}
-				returnValue = st.executeList(Root)
-				st.releaseScope()
-				if node.Expression != nil {
-					st.context = context
-				}
-			}
+			returnValue = st.executeInclude(node)
 		case NodeReturn:
 			node := node.(*ReturnNode)
 			returnValue = st.evalPrimaryExpressionGroup(node.Value)
 		}
 	}
+
+	return returnValue
+}
+
+func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value) {
+	var templateName string
+	name := st.evalPrimaryExpressionGroup(node.Name)
+	if name.Type().Implements(stringerType) {
+		templateName = name.String()
+	} else if name.Kind() == reflect.String {
+		templateName = name.String()
+	} else {
+		node.errorf("evaluating name of template to include: unexpected expression type %q", getTypeString(name))
+	}
+
+	t, err := st.set.getTemplate(templateName, node.TemplateName)
+	if err != nil {
+		node.error(err)
+		return reflect.Value{}
+	}
+
+	st.newScope()
+	defer st.releaseScope()
+
+	st.blocks = t.processedBlocks
+
+	var context reflect.Value
+	if node.Expression != nil {
+		context = st.context
+		defer func() { st.context = context }()
+		st.context = st.evalPrimaryExpressionGroup(node.Expression)
+	}
+
+	Root := t.Root
+	for t.extends != nil {
+		t = t.extends
+		Root = t.Root
+	}
+
+	returnValue = st.executeList(Root)
 
 	return returnValue
 }
@@ -645,8 +662,8 @@ func (st *Runtime) isSet(node Node) (ok bool) {
 		resolved, err := resolveIndex(base, index)
 		return err == nil && notNil(resolved)
 	case NodeIdentifier:
-		value := st.Resolve(node.String())
-		return notNil(value)
+		value, err := st.Resolve(node.String())
+		return err == nil && notNil(value)
 	case NodeField:
 		node := node.(*FieldNode)
 		resolved := st.context
@@ -1006,9 +1023,9 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	case NodeString:
 		return reflect.ValueOf(&node.(*StringNode).Text).Elem()
 	case NodeIdentifier:
-		resolved := st.Resolve(node.(*IdentifierNode).Ident)
-		if !resolved.IsValid() {
-			node.errorf("identifier '%s' is not available in the current scope (%+v)", node, st.variables)
+		resolved, err := st.Resolve(node.(*IdentifierNode).Ident)
+		if err != nil {
+			node.error(err)
 		}
 		return resolved
 	case NodeField:
