@@ -130,12 +130,20 @@ func (t *Template) newYield(pos Pos, line int, name string, bplist *BlockParamet
 	return &YieldNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeYield, Pos: pos, Line: line}, Name: name, Parameters: bplist, Expression: pipe, Content: content, IsContent: isContent}
 }
 
-func (t *Template) newInclude(pos Pos, line int, name, pipe Expression) *IncludeNode {
-	return &IncludeNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeInclude, Pos: pos, Line: line}, Name: name, Expression: pipe}
+func (t *Template) newInclude(pos Pos, line int, name, context Expression) *IncludeNode {
+	return &IncludeNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeInclude, Pos: pos, Line: line}, Name: name, Context: context}
 }
 
 func (t *Template) newReturn(pos Pos, line int, pipe Expression) *ReturnNode {
 	return &ReturnNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeReturn, Pos: pos, Line: line}, Value: pipe}
+}
+
+func (t *Template) newTry(pos Pos, line int, list *ListNode, recov *recoverNode) *TryNode {
+	return &TryNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTry, Pos: pos, Line: line}, List: list, Recover: recov}
+}
+
+func (t *Template) newRecover(pos Pos, line int, errVar Expression, list *ListNode) *recoverNode {
+	return &recoverNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeRecover, Pos: pos, Line: line}, Err: errVar, List: list}
 }
 
 func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {

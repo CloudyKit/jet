@@ -75,20 +75,22 @@ const (
 	NodeAction                     //A non-control action such as a field evaluation.
 	NodeChain                      //A sequence of field accesses.
 	NodeCommand                    //An element of a pipeline.
-	nodeElse                       //An else action. Not added to tree.
-	nodeEnd                        //An end action. Not added to tree.
 	NodeField                      //A field or method name.
 	NodeIdentifier                 //An identifier; always a function name.
-	NodeIf                         //An if action.
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
-	NodeRange                      //A range action.
-	nodeContent
-	//NodeWith                       //A with action.
-	NodeBlock
-	NodeInclude
-	NodeYield
 	NodeSet
+	//NodeWith                       //A with action.
+	NodeInclude
+	NodeBlock
+	nodeEnd //An end action. Not added to tree.
+	NodeYield
+	nodeContent
+	NodeIf    //An if action.
+	nodeElse  //An else action. Not added to tree.
+	NodeRange //A range action.
+	NodeTry
+	nodeRecover
 	NodeReturn
 	beginExpressions
 	NodeString //A string constant.
@@ -546,15 +548,15 @@ func (t *YieldNode) String() string {
 // IncludeNode represents a {{include }} action.
 type IncludeNode struct {
 	NodeBase
-	Name       Expression
-	Expression Expression
+	Name    Expression
+	Context Expression
 }
 
 func (t *IncludeNode) String() string {
-	if t.Expression == nil {
+	if t.Context == nil {
 		return fmt.Sprintf("{{include %s}}", t.Name)
 	}
-	return fmt.Sprintf("{{include %s %s}}", t.Name, t.Expression)
+	return fmt.Sprintf("{{include %s %s}}", t.Name, t.Context)
 }
 
 type binaryExprNode struct {
@@ -673,4 +675,27 @@ type ReturnNode struct {
 
 func (n *ReturnNode) String() string {
 	return fmt.Sprintf("return %v", n.Value)
+}
+
+type TryNode struct {
+	NodeBase
+	List    *ListNode
+	Recover *recoverNode
+}
+
+func (n *TryNode) String() string {
+	if n.Recover != nil {
+		return fmt.Sprintf("{{try}}%s%s", n.List, n.Recover)
+	}
+	return fmt.Sprintf("{{try}}%s{{end}}", n.List)
+}
+
+type recoverNode struct {
+	NodeBase
+	Err  Expression
+	List *ListNode
+}
+
+func (n *recoverNode) String() string {
+	return fmt.Sprintf("{{recover %s}}%s{{end}}", n.Err, n.List)
 }

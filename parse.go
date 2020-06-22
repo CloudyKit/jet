@@ -347,16 +347,11 @@ func (t *Template) parseBlock() Node {
 
 	t.expect(itemRightDelim, context)
 
-	list, end := t.itemList()
+	list, end := t.itemList(nodeContent, nodeEnd)
 	var contentList *ListNode
 
 	if end.Type() == nodeContent {
-		contentList, end = t.itemList()
-		if end.Type() != nodeEnd {
-			t.errorf("unexpected %s in %s", end, context)
-		}
-	} else if end.Type() != nodeEnd {
-		t.errorf("unexpected %s in %s", end, context)
+		contentList, end = t.itemList(nodeEnd)
 	}
 
 	block := t.newBlock(name.pos, t.lex.lineNumber(), name.val, bplist, pipe, list, contentList)
@@ -372,7 +367,6 @@ func (t *Template) parseYield() Node {
 		name    item
 		bplist  *BlockParameterList
 		content *ListNode
-		end     Node
 	)
 
 	// parse block name
@@ -407,10 +401,7 @@ func (t *Template) parseYield() Node {
 			// parse content from following nodes (until {{end}})
 			t.nextNonSpace()
 			t.expect(itemRightDelim, context)
-			content, end = t.itemList()
-			if end.Type() != nodeEnd {
-				t.errorf("unexpected %s in %s", end, context)
-			}
+			content, _ = t.itemList(nodeEnd)
 		} else {
 			t.unexpected(t.nextNonSpace(), context)
 		}
@@ -420,17 +411,13 @@ func (t *Template) parseYield() Node {
 }
 
 func (t *Template) parseInclude() Node {
-	var pipe Expression
-
+	var context Expression
 	name := t.expression("include")
-
 	if t.peekNonSpace().typ != itemRightDelim {
-		pipe = t.expression("include")
+		context = t.expression("include")
 	}
-
 	t.expect(itemRightDelim, "include invocation")
-
-	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
+	return t.newInclude(name.Position(), t.lex.lineNumber(), name, context)
 }
 
 func (t *Template) parseReturn() Node {
@@ -439,33 +426,17 @@ func (t *Template) parseReturn() Node {
 	return t.newReturn(value.Position(), t.lex.lineNumber(), value)
 }
 
-// itemListBlock:
+// itemList:
 //	textOrAction*
-// Terminates at {{end}} or {{else}}, returned separately.
-func (t *Template) itemListBlock() (list *ListNode, next Node) {
+// Terminates at any of the given nodes, returned separately.
+func (t *Template) itemList(terminatedBy ...NodeType) (list *ListNode, next Node) {
 	list = t.newList(t.peekNonSpace().pos)
 	for t.peekNonSpace().typ != itemEOF {
 		n := t.textOrAction()
-		switch n.Type() {
-		case nodeEnd, nodeContent:
-			return list, n
-		}
-		list.append(n)
-	}
-	t.errorf("unexpected EOF")
-	return
-}
-
-// itemListControl:
-//	textOrAction*
-// Terminates at {{end}}, returned separately.
-func (t *Template) itemList() (list *ListNode, next Node) {
-	list = t.newList(t.peekNonSpace().pos)
-	for t.peekNonSpace().typ != itemEOF {
-		n := t.textOrAction()
-		switch n.Type() {
-		case nodeEnd, nodeElse, nodeContent:
-			return list, n
+		for _, terminatorType := range terminatedBy {
+			if n.Type() == terminatorType {
+				return list, n
+			}
 		}
 		list.append(n)
 	}
@@ -489,22 +460,26 @@ func (t *Template) textOrAction() Node {
 
 func (t *Template) action() (n Node) {
 	switch token := t.nextNonSpace(); token.typ {
-	case itemElse:
-		return t.elseControl()
+	case itemInclude:
+		return t.parseInclude()
+	case itemBlock:
+		return t.parseBlock()
 	case itemEnd:
 		return t.endControl()
+	case itemYield:
+		return t.parseYield()
 	case itemContent:
 		return t.contentControl()
 	case itemIf:
 		return t.ifControl()
+	case itemElse:
+		return t.elseControl()
 	case itemRange:
 		return t.rangeControl()
-	case itemBlock:
-		return t.parseBlock()
-	case itemInclude:
-		return t.parseInclude()
-	case itemYield:
-		return t.parseYield()
+	case itemTry:
+		return t.parseTry()
+	case itemRecover:
+		return t.parseRecover()
 	case itemReturn:
 		return t.parseReturn()
 	}
@@ -887,11 +862,9 @@ func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line
 
 	t.expect(itemRightDelim, context)
 	var next Node
-	list, next = t.itemList()
-	switch next.Type() {
-	case nodeEnd: //done
-	case nodeElse:
-		if allowElseIf {
+	list, next = t.itemList(nodeElse, nodeEnd)
+	if next.Type() == nodeElse {
+		if allowElseIf && t.peek().typ == itemIf {
 			// Special case for "else if". If the "else" is followed immediately by an "if",
 			// the elseControl will have left the "if" token pending. Treat
 			//	{{if a}}_{{else if b}}_{{end}}
@@ -899,17 +872,12 @@ func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line
 			//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}.
 			// To do this, parse the if as usual and stop at it {{end}}; the subsequent{{end}}
 			// is assumed. This technique works even for long if-else-if chains.
-			if t.peek().typ == itemIf {
-				t.next() // Consume the "if" token.
-				elseList = t.newList(next.Position())
-				elseList.append(t.ifControl())
-				// Do not consume the next item - only one {{end}} required.
-				break
-			}
-		}
-		elseList, next = t.itemList()
-		if next.Type() != nodeEnd {
-			t.errorf("expected end; found %s", next)
+			t.next() // Consume the "if" token.
+			elseList = t.newList(next.Position())
+			elseList.append(t.ifControl())
+			// Do not consume the next item - only one {{end}} required.
+		} else {
+			elseList, next = t.itemList(nodeEnd)
 		}
 	}
 	return pos, line, set, expression, list, elseList
@@ -956,6 +924,48 @@ func (t *Template) elseControl() Node {
 		return t.newElse(peek.pos, t.lex.lineNumber())
 	}
 	return t.newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+}
+
+// Try-recover:
+//	{{try}}
+//    itemList
+//  {{recover <ident>}}
+//    itemList
+//  {{end}}
+// try keyword is past.
+func (t *Template) parseTry() *TryNode {
+	var recov *recoverNode
+	line := t.lex.lineNumber()
+	pos := t.expect(itemRightDelim, "try").pos
+	list, next := t.itemList(nodeRecover, nodeEnd)
+	if next.Type() == nodeRecover {
+		recov = next.(*recoverNode)
+	}
+
+	return t.newTry(pos, line, list, recov)
+}
+
+// recover:
+//  {{recover <ident>}}
+//    itemList
+//  {{end}}
+// recover keyword is past.
+func (t *Template) parseRecover() *recoverNode {
+	line := t.lex.lineNumber()
+	var errVar Expression
+	peek := t.peekNonSpace()
+	if peek.typ != itemRightDelim {
+		errVar = t.expression("recover")
+		switch typ := errVar.Type(); typ {
+		case NodeField, NodeChain, NodeIdentifier:
+			// ok
+		default:
+			t.errorf("unexpected node type '%s' in recover", typ)
+		}
+	}
+	t.expect(itemRightDelim, "recover")
+	list, _ := t.itemList(nodeEnd)
+	return t.newRecover(peek.pos, line, errVar, list)
 }
 
 // term:

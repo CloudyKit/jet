@@ -85,20 +85,22 @@ const (
 	// Keywords appear after all the rest.
 	itemKeyword // used only to delimit the keywords
 	itemExtends
-	itemBlock
-	itemYield
-	itemReturn
-	itemContent
-	itemInclude
-	itemElse
-	itemEnd
-	itemIf
-	itemNil
-	itemRange
 	itemImport
+	itemInclude
+	itemBlock
+	itemEnd
+	itemYield
+	itemContent
+	itemIf
+	itemElse
+	itemRange
+	itemTry
+	itemRecover
+	itemReturn
 	itemAnd
 	itemOr
 	itemNot
+	itemNil
 	itemMSG
 	itemTrans
 )
@@ -109,22 +111,28 @@ var key = map[string]itemType{
 
 	"include": itemInclude,
 	"block":   itemBlock,
+	"end":     itemEnd,
 	"yield":   itemYield,
-	"return":  itemReturn,
+	"content": itemContent,
 
-	"else": itemElse,
-	"end":  itemEnd,
 	"if":   itemIf,
+	"else": itemElse,
 
 	"range": itemRange,
-	"nil":   itemNil,
-	"and":   itemAnd,
-	"or":    itemOr,
-	"not":   itemNot,
 
-	"content": itemContent,
-	"msg":     itemMSG,
-	"trans":   itemTrans,
+	"try":     itemTry,
+	"recover": itemRecover,
+
+	"return": itemReturn,
+
+	"and": itemAnd,
+	"or":  itemOr,
+	"not": itemNot,
+
+	"nil": itemNil,
+
+	"msg":   itemMSG,
+	"trans": itemTrans,
 }
 
 const eof = -1
