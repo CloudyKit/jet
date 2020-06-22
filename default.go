@@ -81,7 +81,6 @@ func init() {
 			return reflect.Value{}
 		})),
 		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
-
 			a.RequireNumOfArguments("includeIfExists", 1, 2)
 			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
 			// If template exists but returns an error then panic instead of failing silently
@@ -93,22 +92,21 @@ func init() {
 			}
 
 			a.runtime.newScope()
+			defer a.runtime.releaseScope()
+
 			a.runtime.blocks = t.processedBlocks
-			Root := t.Root
+			root := t.Root
 			if t.extends != nil {
-				Root = t.extends.Root
+				root = t.extends.Root
 			}
 
 			if a.NumOfArguments() > 1 {
 				c := a.runtime.context
+				defer func() { a.runtime.context = c }()
 				a.runtime.context = a.Get(1)
-				a.runtime.executeList(Root)
-				a.runtime.context = c
-			} else {
-				a.runtime.executeList(Root)
 			}
 
-			a.runtime.releaseScope()
+			a.runtime.executeList(root)
 
 			return hiddenTRUE
 		})),
@@ -120,8 +118,12 @@ func init() {
 			}
 
 			a.runtime.newScope()
+			defer a.runtime.releaseScope()
+
 			w := a.runtime.Writer
+			defer func() { a.runtime.Writer = w }()
 			a.runtime.Writer = ioutil.Discard
+
 			a.runtime.blocks = t.processedBlocks
 			root := t.Root
 			if t.extends != nil {
@@ -130,15 +132,10 @@ func init() {
 
 			if a.NumOfArguments() > 1 {
 				c := a.runtime.context
+				defer func() { a.runtime.context = c }()
 				a.runtime.context = a.Get(1)
-				result = a.runtime.executeList(root)
-				a.runtime.context = c
-			} else {
-				result = a.runtime.executeList(root)
 			}
-
-			a.runtime.releaseScope()
-			a.runtime.Writer = w
+			result = a.runtime.executeList(root)
 
 			return result
 		})),

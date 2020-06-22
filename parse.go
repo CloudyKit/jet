@@ -375,9 +375,10 @@ func (t *Template) parseYield() Node {
 		end     Node
 	)
 
-	// content yield {{yield content}}
+	// parse block name
 	name = t.nextNonSpace()
 	if name.typ == itemContent {
+		// content yield {{yield content}}
 		if t.peekNonSpace().typ != itemRightDelim {
 			pipe = t.expression(context)
 		}
@@ -386,10 +387,24 @@ func (t *Template) parseYield() Node {
 	} else if name.typ != itemIdentifier {
 		t.unexpected(name, context)
 	}
+
+	// parse block parameters
 	bplist = t.blockParametersList(false, context)
+
+	// parse optional context & content
 	typ := t.peekNonSpace().typ
-	if typ != itemRightDelim {
-		if typ == itemContent {
+	if typ == itemRightDelim {
+		t.expect(itemRightDelim, context)
+	} else {
+		if typ != itemContent {
+			// parse context expression
+			pipe = t.expression("yield")
+			typ = t.peekNonSpace().typ
+		}
+		if typ == itemRightDelim {
+			t.expect(itemRightDelim, context)
+		} else if typ == itemContent {
+			// parse content from following nodes (until {{end}})
 			t.nextNonSpace()
 			t.expect(itemRightDelim, context)
 			content, end = t.itemList()
@@ -397,20 +412,8 @@ func (t *Template) parseYield() Node {
 				t.errorf("unexpected %s in %s", end, context)
 			}
 		} else {
-			pipe = t.expression("yield")
-			if t.peekNonSpace().typ == itemContent {
-				t.nextNonSpace()
-				t.expect(itemRightDelim, context)
-				content, end = t.itemList()
-				if end.Type() != nodeEnd {
-					t.errorf("unexpected %s in %s", end, context)
-				}
-			} else {
-				t.expect(itemRightDelim, context)
-			}
+			t.unexpected(t.nextNonSpace(), context)
 		}
-	} else {
-		t.expect(itemRightDelim, context)
 	}
 
 	return t.newYield(name.pos, t.lex.lineNumber(), name.val, bplist, pipe, content, false)
@@ -421,12 +424,11 @@ func (t *Template) parseInclude() Node {
 
 	name := t.expression("include")
 
-	if t.nextNonSpace().typ != itemRightDelim {
-		t.backup()
+	if t.peekNonSpace().typ != itemRightDelim {
 		pipe = t.expression("include")
-		t.expect(itemRightDelim, "include invocation")
-
 	}
+
+	t.expect(itemRightDelim, "include invocation")
 
 	return t.newInclude(name.Position(), t.lex.lineNumber(), name, pipe)
 }
