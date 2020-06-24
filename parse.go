@@ -478,8 +478,8 @@ func (t *Template) action() (n Node) {
 		return t.rangeControl()
 	case itemTry:
 		return t.parseTry()
-	case itemRecover:
-		return t.parseRecover()
+	case itemCatch:
+		return t.parseCatch()
 	case itemReturn:
 		return t.parseReturn()
 	}
@@ -926,46 +926,46 @@ func (t *Template) elseControl() Node {
 	return t.newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
 }
 
-// Try-recover:
+// Try-catch:
 //	{{try}}
 //    itemList
-//  {{recover <ident>}}
+//  {{catch <ident>}}
 //    itemList
 //  {{end}}
 // try keyword is past.
 func (t *Template) parseTry() *TryNode {
-	var recov *recoverNode
+	var recov *catchNode
 	line := t.lex.lineNumber()
 	pos := t.expect(itemRightDelim, "try").pos
-	list, next := t.itemList(nodeRecover, nodeEnd)
-	if next.Type() == nodeRecover {
-		recov = next.(*recoverNode)
+	list, next := t.itemList(nodeCatch, nodeEnd)
+	if next.Type() == nodeCatch {
+		recov = next.(*catchNode)
 	}
 
 	return t.newTry(pos, line, list, recov)
 }
 
-// recover:
-//  {{recover <ident>}}
+// catch:
+//  {{catch <ident>}}
 //    itemList
 //  {{end}}
-// recover keyword is past.
-func (t *Template) parseRecover() *recoverNode {
+// catch keyword is past.
+func (t *Template) parseCatch() *catchNode {
 	line := t.lex.lineNumber()
 	var errVar Expression
 	peek := t.peekNonSpace()
 	if peek.typ != itemRightDelim {
-		errVar = t.expression("recover")
+		errVar = t.expression("catch")
 		switch typ := errVar.Type(); typ {
 		case NodeField, NodeChain, NodeIdentifier:
 			// ok
 		default:
-			t.errorf("unexpected node type '%s' in recover", typ)
+			t.errorf("unexpected node type '%s' in catch", typ)
 		}
 	}
-	t.expect(itemRightDelim, "recover")
+	t.expect(itemRightDelim, "catch")
 	list, _ := t.itemList(nodeEnd)
-	return t.newRecover(peek.pos, line, errVar, list)
+	return t.newCatch(peek.pos, line, errVar, list)
 }
 
 // term:

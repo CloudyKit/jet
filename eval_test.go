@@ -634,11 +634,11 @@ func TestExecReturn(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "test_in_include", "", "from inside included template\n")
 }
 
-func TestTryRecover(t *testing.T) {
-	set := NewHTMLSet("./testData/tryRecover")
+func TestTryCatch(t *testing.T) {
+	set := NewHTMLSet("./testData/tryCatch")
 	RunJetTestWithSet(t, set, nil, nil, "try", "", "before try without panic ...\n\nsome content\n\nfoo\n\nafter try without panic ...\nbefore panic ...\n\nafter panic ...")
-	RunJetTestWithSet(t, set, nil, nil, "try_recover", "", "before panic ...\n\nan error occured!\n\nafter panic ...")
-	RunJetTestWithSet(t, set, nil, nil, "try_recover_err", "", "before panic ...\n\nan error occured: Jet Runtime Error (&#34;try_recover_err.jet&#34;:3): identifier &#34;undefined_identifier_that_causes_panic&#34; not available in current (map[]) or parent scope, global, or default variables\n\nafter panic ...")
+	RunJetTestWithSet(t, set, nil, nil, "try_catch", "", "before panic ...\n\nan error occured!\n\nafter panic ...")
+	RunJetTestWithSet(t, set, nil, nil, "try_catch_err", "", "before panic ...\n\nan error occured: Jet Runtime Error (&#34;try_catch_err.jet&#34;:3): identifier &#34;undefined_identifier_that_causes_panic&#34; not available in current (map[]) or parent scope, global, or default variables\n\nafter panic ...")
 	RunJetTestWithSet(t, set, nil, nil, "try_include", "", "before broken include ...\n\nafter broken include ...")
 }
 

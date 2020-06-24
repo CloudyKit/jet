@@ -138,12 +138,12 @@ func (t *Template) newReturn(pos Pos, line int, pipe Expression) *ReturnNode {
 	return &ReturnNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeReturn, Pos: pos, Line: line}, Value: pipe}
 }
 
-func (t *Template) newTry(pos Pos, line int, list *ListNode, recov *recoverNode) *TryNode {
-	return &TryNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTry, Pos: pos, Line: line}, List: list, Recover: recov}
+func (t *Template) newTry(pos Pos, line int, list *ListNode, catch *catchNode) *TryNode {
+	return &TryNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTry, Pos: pos, Line: line}, List: list, Catch: catch}
 }
 
-func (t *Template) newRecover(pos Pos, line int, errVar Expression, list *ListNode) *recoverNode {
-	return &recoverNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeRecover, Pos: pos, Line: line}, Err: errVar, List: list}
+func (t *Template) newCatch(pos Pos, line int, errVar Expression, list *ListNode) *catchNode {
+	return &catchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeCatch, Pos: pos, Line: line}, Err: errVar, List: list}
 }
 
 func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
