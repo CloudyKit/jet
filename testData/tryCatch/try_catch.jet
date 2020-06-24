@@ -1,7 +1,7 @@
 before panic ...
 {{try}}
 {{undefined_identifier_that_causes_panic}}
-{{recover err}}
-an error occured: {{err}}
+{{catch}}
+an error occured!
 {{end}}
 after panic ...

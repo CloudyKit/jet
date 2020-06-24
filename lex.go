@@ -95,7 +95,7 @@ const (
 	itemElse
 	itemRange
 	itemTry
-	itemRecover
+	itemCatch
 	itemReturn
 	itemAnd
 	itemOr
@@ -120,8 +120,8 @@ var key = map[string]itemType{
 
 	"range": itemRange,
 
-	"try":     itemTry,
-	"recover": itemRecover,
+	"try":   itemTry,
+	"catch": itemCatch,
 
 	"return": itemReturn,
 

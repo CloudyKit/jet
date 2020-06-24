@@ -524,15 +524,15 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 			io.Copy(writer, buf)
 		} else {
 			// st.Writer is already set to its original value since the later defer ran first
-			if try.Recover != nil {
-				if try.Recover.Err != nil {
+			if try.Catch != nil {
+				if try.Catch.Err != nil {
 					st.newScope()
-					st.executeSet(try.Recover.Err, reflect.ValueOf(r))
+					st.executeSet(try.Catch.Err, reflect.ValueOf(r))
 				}
-				if try.Recover.List != nil {
-					returnValue = st.executeList(try.Recover.List)
+				if try.Catch.List != nil {
+					returnValue = st.executeList(try.Catch.List)
 				}
-				if try.Recover.Err != nil {
+				if try.Catch.Err != nil {
 					st.releaseScope()
 				}
 			}

@@ -90,7 +90,7 @@ const (
 	nodeElse  //An else action. Not added to tree.
 	NodeRange //A range action.
 	NodeTry
-	nodeRecover
+	nodeCatch
 	NodeReturn
 	beginExpressions
 	NodeString //A string constant.
@@ -679,23 +679,23 @@ func (n *ReturnNode) String() string {
 
 type TryNode struct {
 	NodeBase
-	List    *ListNode
-	Recover *recoverNode
+	List  *ListNode
+	Catch *catchNode
 }
 
 func (n *TryNode) String() string {
-	if n.Recover != nil {
-		return fmt.Sprintf("{{try}}%s%s", n.List, n.Recover)
+	if n.Catch != nil {
+		return fmt.Sprintf("{{try}}%s%s", n.List, n.Catch)
 	}
 	return fmt.Sprintf("{{try}}%s{{end}}", n.List)
 }
 
-type recoverNode struct {
+type catchNode struct {
 	NodeBase
 	Err  Expression
 	List *ListNode
 }
 
-func (n *recoverNode) String() string {
-	return fmt.Sprintf("{{recover %s}}%s{{end}}", n.Err, n.List)
+func (n *catchNode) String() string {
+	return fmt.Sprintf("{{catch %s}}%s{{end}}", n.Err, n.List)
 }
