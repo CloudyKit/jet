@@ -174,35 +174,32 @@ func (state *Runtime) SetGlobal(name string, val interface{}) {
 
 // Resolve resolves a value from the execution context.
 func (state *Runtime) resolve(name string) (reflect.Value, error) {
-	v, ok := reflect.Value{}, false
-	defer func() { v = indirectEface(v) }()
-
 	if name == "." {
-		return state.context, nil // indirectEface not needed
+		return state.context, nil
 	}
 
 	// try current, then parent variable scopes
 	sc := state.scope
 	for sc != nil {
-		v, ok = sc.variables[name]
+		v, ok := sc.variables[name]
 		if ok {
-			return v, nil
+			return indirectEface(v), nil
 		}
 		sc = sc.parent
 	}
 
 	// try globals
 	state.set.gmx.RLock()
-	v, ok = state.set.globals[name]
+	v, ok := state.set.globals[name]
 	state.set.gmx.RUnlock()
 	if ok {
-		return v, nil
+		return indirectEface(v), nil
 	}
 
 	// try default variables
 	v, ok = defaultVariables[name]
 	if ok {
-		return v, nil
+		return indirectEface(v), nil
 	}
 
 	return reflect.Value{}, fmt.Errorf("identifier %q not available in current (%+v) or parent scope, global, or default variables", name, state.scope.variables)
