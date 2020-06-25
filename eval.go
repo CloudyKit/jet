@@ -160,8 +160,8 @@ func (state *Runtime) setValue(name string, val reflect.Value) {
 	panic(fmt.Errorf("could not find non-nil variable scope to set %q = %v", name, val))
 }
 
-// Resolve resolves a value from the execution context
-func (state *Runtime) Resolve(name string) (reflect.Value, error) {
+// Resolve resolves a value from the execution context.
+func (state *Runtime) resolve(name string) (reflect.Value, error) {
 	v, ok := reflect.Value{}, false
 	defer func() { v = indirectEface(v) }()
 
@@ -196,8 +196,15 @@ func (state *Runtime) Resolve(name string) (reflect.Value, error) {
 	return reflect.Value{}, fmt.Errorf("identifier %q not available in current (%+v) or parent scope, global, or default variables", name, state.scope.variables)
 }
 
+// Resolve calls resolve() and ignores any errors, meaning it may return a zero reflect.Value.
+func (state *Runtime) Resolve(name string) reflect.Value {
+	v, _ := state.resolve(name)
+	return v
+}
+
+// Resolve calls resolve() and panics if there is an error.
 func (state *Runtime) MustResolve(name string) reflect.Value {
-	v, err := state.Resolve(name)
+	v, err := state.resolve(name)
 	if err != nil {
 		panic(err)
 	}
@@ -692,7 +699,7 @@ func (st *Runtime) isSet(node Node) (ok bool) {
 		resolved, err := resolveIndex(base, index)
 		return err == nil && notNil(resolved)
 	case NodeIdentifier:
-		value, err := st.Resolve(node.String())
+		value, err := st.resolve(node.String())
 		return err == nil && notNil(value)
 	case NodeField:
 		node := node.(*FieldNode)
@@ -1053,7 +1060,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	case NodeString:
 		return reflect.ValueOf(&node.(*StringNode).Text).Elem()
 	case NodeIdentifier:
-		resolved, err := st.Resolve(node.(*IdentifierNode).Ident)
+		resolved, err := st.resolve(node.(*IdentifierNode).Ident)
 		if err != nil {
 			node.error(err)
 		}
