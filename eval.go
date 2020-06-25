@@ -131,11 +131,6 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
-// Set sets variable ${name} in the current template scope
-func (state *Runtime) Set(name string, val interface{}) {
-	state.setValue(name, reflect.ValueOf(val))
-}
-
 func (state *Runtime) setValue(name string, val reflect.Value) {
 	// try changing existing variable in current or parent scope
 	sc := state.scope
@@ -158,6 +153,23 @@ func (state *Runtime) setValue(name string, val reflect.Value) {
 	}
 
 	panic(fmt.Errorf("could not find non-nil variable scope to set %q = %v", name, val))
+}
+
+// Set sets variable ${name} in the current template scope
+func (state *Runtime) Set(name string, val interface{}) {
+	state.setValue(name, reflect.ValueOf(val))
+}
+
+// SetGlobal sets variable ${name} in the top-most template scope
+func (state *Runtime) SetGlobal(name string, val interface{}) {
+	sc := state.scope
+
+	// walk up to top-most valid scope
+	for sc.parent != nil && sc.parent.variables != nil {
+		sc = sc.parent
+	}
+
+	sc.variables[name] = reflect.ValueOf(val)
 }
 
 // Resolve resolves a value from the execution context.
