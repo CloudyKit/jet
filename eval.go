@@ -131,18 +131,18 @@ func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
 	return
 }
 
-func (state *Runtime) setValue(name string, val reflect.Value) {
+func (state *Runtime) setValue(name string, val reflect.Value) error {
 	// try changing existing variable in current or parent scope
 	sc := state.scope
 	for sc != nil {
 		if _, ok := sc.variables[name]; ok {
 			sc.variables[name] = val
-			return
+			return nil
 		}
 		sc = sc.parent
 	}
 
-	panic(fmt.Errorf("could not find non-nil variable scope to set %q = %v", name, val))
+	return fmt.Errorf("could not assign %q = %v because variable %q is uninitialised", name, val, name)
 }
 
 // SetGlobal sets variable ${name} in the top-most template scope
@@ -158,8 +158,8 @@ func (state *Runtime) SetGlobal(name string, val interface{}) {
 }
 
 // Set sets the existing variable ${name} in the template scope it lives in.
-func (state *Runtime) Set(name string, val interface{}) {
-	state.setValue(name, reflect.ValueOf(val))
+func (state *Runtime) Set(name string, val interface{}) error {
+	return state.setValue(name, reflect.ValueOf(val))
 }
 
 // Let creates a variable ${name} in the current template scope (possibly shadowing an existing variable of the same name in a parent scope).
@@ -245,7 +245,10 @@ func (st *Runtime) recover(err *error) {
 func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 	typ := left.Type()
 	if typ == NodeIdentifier {
-		st.setValue(left.(*IdentifierNode).Ident, right)
+		err := st.setValue(left.(*IdentifierNode).Ident, right)
+		if err != nil {
+			left.error(err)
+		}
 		return
 	}
 	var value reflect.Value
