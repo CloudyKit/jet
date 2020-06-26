@@ -142,7 +142,7 @@ func (t *Template) newTry(pos Pos, line int, list *ListNode, catch *catchNode) *
 	return &TryNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: NodeTry, Pos: pos, Line: line}, List: list, Catch: catch}
 }
 
-func (t *Template) newCatch(pos Pos, line int, errVar Expression, list *ListNode) *catchNode {
+func (t *Template) newCatch(pos Pos, line int, errVar *IdentifierNode, list *ListNode) *catchNode {
 	return &catchNode{NodeBase: NodeBase{TemplateName: t.Name, NodeType: nodeCatch, Pos: pos, Line: line}, Err: errVar, List: list}
 }
 
