@@ -142,22 +142,7 @@ func (state *Runtime) setValue(name string, val reflect.Value) {
 		sc = sc.parent
 	}
 
-	// find first non-nil variable scope and set as new variable
-	sc = state.scope
-	for sc != nil {
-		if sc.variables != nil {
-			sc.variables[name] = val
-			return
-		}
-		sc = sc.parent
-	}
-
 	panic(fmt.Errorf("could not find non-nil variable scope to set %q = %v", name, val))
-}
-
-// Set sets variable ${name} in the current template scope
-func (state *Runtime) Set(name string, val interface{}) {
-	state.setValue(name, reflect.ValueOf(val))
 }
 
 // SetGlobal sets variable ${name} in the top-most template scope
@@ -170,6 +155,26 @@ func (state *Runtime) SetGlobal(name string, val interface{}) {
 	}
 
 	sc.variables[name] = reflect.ValueOf(val)
+}
+
+// Set sets the existing variable ${name} in the template scope it lives in.
+func (state *Runtime) Set(name string, val interface{}) {
+	state.setValue(name, reflect.ValueOf(val))
+}
+
+// Let creates a variable ${name} in the current template scope (possibly shadowing an existing variable of the same name in a parent scope).
+func (state *Runtime) Let(name string, val interface{}) {
+	state.scope.variables[name] = reflect.ValueOf(val)
+}
+
+// SetOrLet calls Set() (if a variable with the given name is visible from the current scope) or Let() (if there is no variable with the given name in the current or any parent scope).
+func (state *Runtime) SetOrLet(name string, val interface{}) {
+	_, err := state.resolve(name)
+	if err != nil {
+		state.Let(name, val)
+	} else {
+		state.Set(name, val)
+	}
 }
 
 // Resolve resolves a value from the execution context.
