@@ -692,7 +692,7 @@ func (n *TryNode) String() string {
 
 type catchNode struct {
 	NodeBase
-	Err  Expression
+	Err  *IdentifierNode
 	List *ListNode
 }
 

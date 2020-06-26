@@ -548,7 +548,7 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 			if try.Catch != nil {
 				if try.Catch.Err != nil {
 					st.newScope()
-					st.executeSet(try.Catch.Err, reflect.ValueOf(r))
+					st.scope.variables[try.Catch.Err.Ident] = reflect.ValueOf(r)
 				}
 				if try.Catch.List != nil {
 					returnValue = st.executeList(try.Catch.List)

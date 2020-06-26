@@ -952,16 +952,14 @@ func (t *Template) parseTry() *TryNode {
 // catch keyword is past.
 func (t *Template) parseCatch() *catchNode {
 	line := t.lex.lineNumber()
-	var errVar Expression
+	var errVar *IdentifierNode
 	peek := t.peekNonSpace()
 	if peek.typ != itemRightDelim {
-		errVar = t.expression("catch")
-		switch typ := errVar.Type(); typ {
-		case NodeField, NodeChain, NodeIdentifier:
-			// ok
-		default:
+		_errVar := t.term()
+		if typ := _errVar.Type(); typ != NodeIdentifier {
 			t.errorf("unexpected node type '%s' in catch", typ)
 		}
+		errVar = _errVar.(*IdentifierNode)
 	}
 	t.expect(itemRightDelim, "catch")
 	list, _ := t.itemList(nodeEnd)
