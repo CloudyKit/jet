@@ -14,9 +14,9 @@ func TestNilHTTPFileSystem(t *testing.T) {
 	if _, err := l.Open(fileName); err == nil {
 		t.Fatal("Open should have returned an error but didn't.")
 	}
-	ok := l.Exists(fileName)
+	actualName, ok := l.Exists(fileName)
 	if ok {
-		t.Fatalf("Exists called on an empty file system should have returned empty and false but returned %q and %+v", fileName, ok)
+		t.Fatalf("Exists called on an empty file system should have returned empty and false but said the template exists under the name %q", actualName)
 	}
 }
 

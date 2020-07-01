@@ -15,9 +15,9 @@ func TestZeroLoaders(t *testing.T) {
 	if _, err := l.Open("does-not-exist.jet"); err == nil {
 		t.Fatal("Open should have returned an error but didn't.")
 	}
-	ok := l.Exists(fileName)
+	fullPath, ok := l.Exists(fileName)
 	if ok {
-		t.Fatalf("Exists called on an empty file system should have returned empty and false but returned %q and %+v", fileName, ok)
+		t.Fatalf("Exists called on an empty file system should have returned empty and false but reported the template exists under the full path %q", fullPath)
 	}
 }
 
