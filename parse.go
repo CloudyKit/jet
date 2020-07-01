@@ -143,7 +143,12 @@ func (t *Template) expectOneOf(expected1, expected2 itemType, context string) it
 
 // unexpected complains about the token and terminates processing.
 func (t *Template) unexpected(token item, context string) {
-	t.errorf("unexpected %s in %s", token, context)
+	switch token.typ {
+	case itemImport, itemExtends:
+		t.errorf("parsing %s: unexpected '%s' statement ('%s' statements must be at the beginning of the template)", context, token.val, token.val)
+	default:
+		t.errorf("parsing %s: unexpected token '%s'", context, token.val)
+	}
 }
 
 // recover is the handler that turns panics into returns from the top level of Parse.
@@ -565,16 +570,15 @@ func (t *Template) unaryExpression(context string) (Expression, item) {
 		expr, endToken := t.comparativeExpression(context)
 		return t.newNotExpr(expr.Position(), t.lex.lineNumber(), expr), endToken
 	case itemMinus, itemAdd:
-		return t.newAdditiveExpr(next.pos, t.lex.lineNumber(), nil, t.operand(), next), t.nextNonSpace()
+		return t.newAdditiveExpr(next.pos, t.lex.lineNumber(), nil, t.operand("additive expression"), next), t.nextNonSpace()
 	default:
 		t.backup()
 	}
-	operand := t.operand()
+	operand := t.operand("expression")
 	return operand, t.nextNonSpace()
 }
 
 func (t *Template) assignmentOrExpression(context string) (operand Expression) {
-
 	t.peekNonSpace()
 	line := t.lex.lineNumber()
 	var right, left []Expression
@@ -734,10 +738,10 @@ func (t *Template) command(baseExpr Expression) *CommandNode {
 // An operand is a space-separated component of a command,
 // a term possibly followed by field accesses.
 // A nil return means the next item is not an operand.
-func (t *Template) operand() Expression {
+func (t *Template) operand(context string) Expression {
 	node := t.term()
 	if node == nil {
-		t.errorf("unexpected token %s on operand", t.next())
+		t.unexpected(t.next(), context)
 	}
 RESET:
 	if t.peek().typ == itemField {

@@ -32,7 +32,7 @@ func lexerTestCaseCustomLexer(t *testing.T, lexer *lexer, input string, items ..
 	}
 	item := lexer.nextItem()
 	if item.typ != itemEOF {
-		t.Errorf("Unexpected token %s EOF is expected", item)
+		t.Errorf("Unexpected token %s, expected EOF", item)
 	}
 }
 
