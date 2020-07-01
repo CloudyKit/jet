@@ -16,6 +16,7 @@ package jet
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -135,6 +136,18 @@ func init() {
 
 			return result
 		})),
+		"ints": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
+			var from, to int
+			err := a.ParseInto(&from, &to)
+			if err != nil {
+				panic(err)
+			}
+			// check to > from
+			if to <= from {
+				panic(errors.New("invalid range for ints ranger: 'from' must be smaller than 'to'"))
+			}
+			return reflect.ValueOf(&intsRanger{from: from, to: to})
+		})),
 	}
 }
 
@@ -173,5 +186,20 @@ func newMap(values ...interface{}) (nmap map[string]interface{}) {
 	for i := 0; i < len(values); i += 2 {
 		nmap[fmt.Sprint(values[i])] = values[i+1]
 	}
+	return
+}
+
+type intsRanger struct {
+	i, from, to int
+}
+
+// implements Ranger type
+var _ Ranger = &intsRanger{}
+
+func (ir *intsRanger) Range() (index, value reflect.Value, end bool) {
+	index = reflect.ValueOf(ir.i)
+	value = reflect.ValueOf(ir.from + ir.i)
+	end = ir.i == ir.to-ir.from
+	ir.i++
 	return
 }
