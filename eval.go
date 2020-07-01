@@ -145,8 +145,8 @@ func (state *Runtime) setValue(name string, val reflect.Value) error {
 	return fmt.Errorf("could not assign %q = %v because variable %q is uninitialised", name, val, name)
 }
 
-// SetGlobal sets variable ${name} in the top-most template scope
-func (state *Runtime) SetGlobal(name string, val interface{}) {
+// LetGlobal sets or initialises a variable in the top-most template scope.
+func (state *Runtime) LetGlobal(name string, val interface{}) {
 	sc := state.scope
 
 	// walk up to top-most valid scope
@@ -157,12 +157,12 @@ func (state *Runtime) SetGlobal(name string, val interface{}) {
 	sc.variables[name] = reflect.ValueOf(val)
 }
 
-// Set sets the existing variable ${name} in the template scope it lives in.
+// Set sets an existing variable in the template scope it lives in.
 func (state *Runtime) Set(name string, val interface{}) error {
 	return state.setValue(name, reflect.ValueOf(val))
 }
 
-// Let creates a variable ${name} in the current template scope (possibly shadowing an existing variable of the same name in a parent scope).
+// Let initialises a variable in the current template scope (possibly shadowing an existing variable of the same name in a parent scope).
 func (state *Runtime) Let(name string, val interface{}) {
 	state.scope.variables[name] = reflect.ValueOf(val)
 }
