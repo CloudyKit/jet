@@ -126,7 +126,7 @@ func (s *Set) getTemplateFromLoader(path string) (t *Template, err error) {
 	// check path with all possible extensions in loader
 	for _, extension := range s.extensions {
 		canonicalPath := path + extension
-		if found := s.loader.Exists(canonicalPath); found {
+		if _, found := s.loader.Exists(canonicalPath); found {
 			return s.loadFromFile(canonicalPath)
 		}
 	}

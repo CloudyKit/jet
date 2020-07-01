@@ -23,7 +23,7 @@ import (
 // Loader is a minimal interface required for loading templates.
 type Loader interface {
 	// Exists checks for template existence.
-	Exists(path string) bool
+	Exists(path string) (string, bool)
 	// Open opens the underlying reader with template content.
 	Open(path string) (io.ReadCloser, error)
 }
@@ -50,7 +50,11 @@ func (l *OSFileSystemLoader) Open(path string) (io.ReadCloser, error) {
 
 // Exists checks if the template name exists by walking the list of template paths
 // returns true if the template file was found
-func (l *OSFileSystemLoader) Exists(path string) bool {
-	stat, err := os.Stat(filepath.Join(l.dir, path))
-	return err == nil && !stat.IsDir()
+func (l *OSFileSystemLoader) Exists(path string) (string, bool) {
+	path = filepath.Join(l.dir, path)
+	stat, err := os.Stat(path)
+	if err == nil && !stat.IsDir() {
+		return path, true
+	}
+	return "", false
 }

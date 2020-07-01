@@ -25,15 +25,15 @@ func (l *httpFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 	return l.fs.Open(name)
 }
 
-// Exists checks if the template name exists by walking the list of template paths
+// Exists checks if the template with the given name exists by walking the list of template paths
 // returns string with the full path of the template and bool true if the template file was found
-func (l *httpFileSystemLoader) Exists(name string) bool {
+func (l *httpFileSystemLoader) Exists(name string) (string, bool) {
 	if l.fs == nil {
-		return false
+		return "", false
 	}
 	if f, err := l.Open(name); err == nil {
 		f.Close()
-		return true
+		return name, true
 	}
-	return false
+	return "", false
 }
