@@ -50,6 +50,21 @@ func (t ParserTestCase) ExpectPrint(input, output string) {
 	t.ExpectPrintName("", input, output)
 }
 
+func (t ParserTestCase) ExpectError(name, input, errorMessage string) {
+	set := parseSet
+	if t.set != nil {
+		set = t.set
+	}
+	_, err := set.parse(name, input)
+	if err == nil {
+		t.Errorf("expected %q but got no error", errorMessage)
+		return
+	}
+	if err.Error() != errorMessage {
+		t.Errorf("expected %q but got %q", errorMessage, err.Error())
+	}
+}
+
 func (t ParserTestCase) TestPrintFile(file string) {
 	content, err := ioutil.ReadFile(path.Join("./testData", file))
 	if err != nil {
@@ -68,6 +83,12 @@ func TestParseTemplateAndImport(t *testing.T) {
 	p := ParserTestCase{T: t}
 	p.TestPrintFile("extends.jet")
 	p.TestPrintFile("imports.jet")
+}
+
+func TestUsefulErrorOnLateImportOrExtends(t *testing.T) {
+	p := ParserTestCase{T: t}
+	p.ExpectError("late_import.jet", `<html><head>{{import "./foo.jet"}}</head></html>`, "template: late_import.jet:1: parsing expression: unexpected 'import' statement ('import' statements must be at the beginning of the template)")
+	p.ExpectError("late_extends.jet", `<html><head>{{extends "./foo.jet"}}</head></html>`, "template: late_extends.jet:1: parsing expression: unexpected 'extends' statement ('extends' statements must be at the beginning of the template)")
 }
 
 func TestParseTemplateControl(t *testing.T) {
