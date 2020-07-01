@@ -54,12 +54,6 @@ func (renderer RendererFunc) Render(r *Runtime) {
 	renderer(r)
 }
 
-// Ranger a value implementing a ranger interface is able to iterate on his value
-// and can be used directly in a range statement
-type Ranger interface {
-	Range() (reflect.Value, reflect.Value, bool)
-}
-
 type escapeeWriter struct {
 	Writer  io.Writer
 	escapee SafeWriter
@@ -468,7 +462,7 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 				expression = st.evalPrimaryExpressionGroup(node.Expression)
 			}
 
-			ranger := getRanger(expression)
+			ranger, cleanup := getRanger(expression)
 			indexValue, rangeValue, end := ranger.Range()
 			if !end {
 				for !end && !returnValue.IsValid() {
@@ -497,6 +491,7 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 			} else if node.ElseList != nil {
 				returnValue = st.executeList(node.ElseList)
 			}
+			cleanup()
 			st.context = context
 			if isLet {
 				st.releaseScope()
@@ -1567,100 +1562,4 @@ func buildCache(typ reflect.Type, cache map[string][]int, parent []int) {
 		}
 		cache[field.Name] = index
 	}
-}
-
-func getRanger(v reflect.Value) Ranger {
-	t := v.Type()
-	if t.Implements(rangerType) {
-		return v.Interface().(Ranger)
-	}
-	v, isNil := indirect(v)
-	if isNil {
-		panic(fmt.Errorf("cannot range over nil pointer/interface (%s)", t))
-	}
-	k := v.Kind()
-	switch k {
-	case reflect.Slice, reflect.Array:
-		sliceranger := pool_sliceRanger.Get().(*sliceRanger)
-		sliceranger.i = -1
-		sliceranger.len = v.Len()
-		sliceranger.v = v
-		return sliceranger
-	case reflect.Map:
-		mapranger := pool_mapRanger.Get().(*mapRanger)
-		*mapranger = mapRanger{v: v, keys: v.MapKeys(), len: v.Len()}
-		return mapranger
-	case reflect.Chan:
-		chanranger := pool_chanRanger.Get().(*chanRanger)
-		*chanranger = chanRanger{v: v}
-		return chanranger
-	}
-	panic(fmt.Errorf("value %v (type %s) is not rangeable", v, t))
-}
-
-var (
-	pool_sliceRanger = sync.Pool{
-		New: func() interface{} {
-			return new(sliceRanger)
-		},
-	}
-	pool_mapRanger = sync.Pool{
-		New: func() interface{} {
-			return new(mapRanger)
-		},
-	}
-	pool_chanRanger = sync.Pool{
-		New: func() interface{} {
-			return new(chanRanger)
-		},
-	}
-)
-
-type sliceRanger struct {
-	v   reflect.Value
-	len int
-	i   int
-}
-
-func (s *sliceRanger) Range() (index, value reflect.Value, end bool) {
-	s.i++
-	index = reflect.ValueOf(s.i)
-	if s.i < s.len {
-		value = s.v.Index(s.i)
-		return
-	}
-	pool_sliceRanger.Put(s)
-	end = true
-	return
-}
-
-type chanRanger struct {
-	v reflect.Value
-}
-
-func (s *chanRanger) Range() (_, value reflect.Value, end bool) {
-	value, end = s.v.Recv()
-	if end {
-		pool_chanRanger.Put(s)
-	}
-	return
-}
-
-type mapRanger struct {
-	v    reflect.Value
-	keys []reflect.Value
-	len  int
-	i    int
-}
-
-func (s *mapRanger) Range() (index, value reflect.Value, end bool) {
-	if s.i < s.len {
-		index = s.keys[s.i]
-		value = s.v.MapIndex(index)
-		s.i++
-		return
-	}
-	end = true
-	pool_mapRanger.Put(s)
-	return
 }

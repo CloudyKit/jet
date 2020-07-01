@@ -27,8 +27,6 @@ import (
 	"text/template"
 )
 
-
-
 var defaultVariables map[string]reflect.Value
 
 func init() {
@@ -186,20 +184,5 @@ func newMap(values ...interface{}) (nmap map[string]interface{}) {
 	for i := 0; i < len(values); i += 2 {
 		nmap[fmt.Sprint(values[i])] = values[i+1]
 	}
-	return
-}
-
-type intsRanger struct {
-	i, from, to int
-}
-
-// implements Ranger type
-var _ Ranger = &intsRanger{}
-
-func (ir *intsRanger) Range() (index, value reflect.Value, end bool) {
-	index = reflect.ValueOf(ir.i)
-	value = reflect.ValueOf(ir.from + ir.i)
-	end = ir.i == ir.to-ir.from
-	ir.i++
 	return
 }

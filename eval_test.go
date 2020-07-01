@@ -20,6 +20,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -642,7 +643,27 @@ func TestTryCatch(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "try_include", "", "before broken include ...\n\nafter broken include ...")
 }
 
-func TestIntsRanger(t *testing.T) {
+func TestRanger(t *testing.T) {
+	c := make(chan string)
+	go func() {
+		for i := 0; i < 10; i++ {
+			c <- strconv.Itoa(i)
+		}
+		close(c)
+	}()
+	var data = make(VarMap)
+	data.Set(
+		"m", map[string]interface{}{
+			"asd": 1,
+			//"foo": "blub", // adding more values here means we can't predict the order below
+			//"bar": nil,
+		},
+	)
+	data.Set("s", []string{"asd", "foo", "bar"})
+	data.Set("c", c)
+	RunJetTest(t, data, nil, "slice_ranger", `{{ range i, v := s }}{{i}}:{{v}},{{ end }}`, "0:asd,1:foo,2:bar,")
+	RunJetTest(t, data, nil, "map_ranger", `{{ range k, v := m }}{{k}}:{{v}},{{ end }}`, "asd:1,")
+	RunJetTest(t, data, nil, "chan_ranger", `{{ range v := c }}{{v}}{{ end }}`, "0123456789")
 	RunJetTest(t, nil, nil, "ints_ranger", `{{ range i := ints(0, 10) }}{{ (i == 0 ? "" : ", ") + i }}{{ end }}`, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
 }
 
