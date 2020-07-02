@@ -1500,9 +1500,10 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("can't use %s as field name in struct type %s", index, v.Type())
 	case reflect.Map:
 		// If it's a map, attempt to use the field name as a key.
-		if !index.Type().AssignableTo(v.Type().Key()) {
+		if !index.Type().ConvertibleTo(v.Type().Key()) {
 			return reflect.Value{}, fmt.Errorf("can't use %s (%s) as key for map of type %s", index, index.Type(), v.Type())
 		}
+		index = index.Convert(v.Type().Key()) // noop in most cases, but not expensive
 		return indirectEface(v.MapIndex(index)), nil
 	case reflect.Ptr:
 		etyp := v.Type().Elem()

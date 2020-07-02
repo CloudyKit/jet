@@ -643,6 +643,14 @@ func TestTryCatch(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "try_include", "", "before broken include ...\n\nafter broken include ...")
 }
 
+func TestBuiltinCollectionFuncs(t *testing.T) {
+	RunJetTest(t, nil, nil, "map_builtin", `{{ m := map( "foo", "bar", "asd", 123)}}{{m}}`, "map[asd:123 foo:bar]")
+	RunJetTest(t, nil, nil, "map_builtin_odd_args", `{{ m := map( "foo", "bar", 123, "asd")}}{{m}}`, "map[asd:123 foo:bar]")
+	RunJetTest(t, nil, nil, "slice_builtin", `{{ m := slice( "foo", "bar", "asd", 123)}}{{m}}`, "[foo bar asd 123]")
+	RunJetTest(t, nil, nil, "slice_builtin_subslice", `{{ m := slice( "foo", "bar", "asd", 123)}}{{m[1:3]}}`, "[bar asd]")
+	RunJetTest(t, nil, nil, "array_builtin", `{{ m := array( "foo", "bar", "asd", 123)}}{{m}}`, "[foo bar asd 123]")
+}
+
 func TestRanger(t *testing.T) {
 	c := make(chan string)
 	go func() {

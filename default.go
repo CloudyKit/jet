@@ -17,7 +17,6 @@ package jet
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html"
 	"io"
 	"io/ioutil"
@@ -39,7 +38,6 @@ func init() {
 		"replace":   reflect.ValueOf(strings.Replace),
 		"split":     reflect.ValueOf(strings.Split),
 		"trimSpace": reflect.ValueOf(strings.TrimSpace),
-		"map":       reflect.ValueOf(newMap),
 		"html":      reflect.ValueOf(html.EscapeString),
 		"url":       reflect.ValueOf(url.QueryEscape),
 		"safeHtml":  reflect.ValueOf(SafeWriter(template.HTMLEscape)),
@@ -48,6 +46,9 @@ func init() {
 		"unsafe":    reflect.ValueOf(SafeWriter(unsafePrinter)),
 		"writeJson": reflect.ValueOf(jsonRenderer),
 		"json":      reflect.ValueOf(json.Marshal),
+		"map":       reflect.ValueOf(newMap),
+		"slice":     reflect.ValueOf(newSlice),
+		"array":     reflect.ValueOf(newSlice),
 		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("isset", 1, -1)
 			for i := 0; i < len(a.argExpr); i++ {
@@ -72,7 +73,7 @@ func init() {
 				return reflect.ValueOf(expression.NumField())
 			}
 
-			a.Panicf("invalid value type %s in len builtin", expression.Type())
+			a.Panicf("len(): invalid value type %s", expression.Type())
 			return reflect.Value{}
 		})),
 		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
@@ -83,7 +84,7 @@ func init() {
 				panic(err)
 			}
 			if err != nil {
-				return hiddenFALSE
+				return hiddenFalse
 			}
 
 			a.runtime.newScope()
@@ -103,7 +104,7 @@ func init() {
 
 			a.runtime.executeList(root)
 
-			return hiddenTRUE
+			return hiddenTrue
 		})),
 		"exec": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
 			a.RequireNumOfArguments("exec", 1, 2)
@@ -151,12 +152,10 @@ func init() {
 
 type hiddenBool bool
 
-func (m hiddenBool) Render(r *Runtime) {
+func (m hiddenBool) Render(r *Runtime) { /* render nothing -> hidden */ }
 
-}
-
-var hiddenTRUE = reflect.ValueOf(hiddenBool(true))
-var hiddenFALSE = reflect.ValueOf(hiddenBool(false))
+var hiddenTrue = reflect.ValueOf(hiddenBool(true))
+var hiddenFalse = reflect.ValueOf(hiddenBool(false))
 
 func jsonRenderer(v interface{}) RendererFunc {
 	return func(r *Runtime) {
@@ -175,14 +174,31 @@ func unsafePrinter(w io.Writer, b []byte) {
 // skipping the escape phase; use this type to create special types of escapee funcs.
 type SafeWriter func(io.Writer, []byte)
 
-func newMap(values ...interface{}) (nmap map[string]interface{}) {
-	if len(values)%2 > 0 {
-		panic("new map: invalid number of arguments on call to map")
-	}
-	nmap = make(map[string]interface{})
+var stringType = reflect.TypeOf("")
 
-	for i := 0; i < len(values); i += 2 {
-		nmap[fmt.Sprint(values[i])] = values[i+1]
+var newMap = Func(func(a Arguments) reflect.Value {
+	if a.NumOfArguments()%2 > 0 {
+		panic("map(): incomplete key-value pair (even number of arguments required)")
 	}
-	return
-}
+
+	m := reflect.ValueOf(make(map[string]interface{}, a.NumOfArguments()/2))
+
+	for i := 0; i < a.NumOfArguments(); i += 2 {
+		key := a.Get(i)
+		if !key.Type().ConvertibleTo(stringType) {
+			a.Panicf("map(): can't use %+v as string key: %s is not convertible to string", key, key.Type())
+		}
+		key = key.Convert(stringType)
+		m.SetMapIndex(a.Get(i), a.Get(i+1))
+	}
+
+	return m
+})
+
+var newSlice = Func(func(a Arguments) reflect.Value {
+	arr := make([]interface{}, a.NumOfArguments())
+	for i := 0; i < a.NumOfArguments(); i++ {
+		arr[i] = a.Get(i).Interface()
+	}
+	return reflect.ValueOf(arr)
+})
