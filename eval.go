@@ -16,6 +16,7 @@ package jet
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -447,12 +448,15 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 
 			isSet := node.Set != nil
 			isLet := false
-			isKeyVal := false
+			keyVarSlot := 0
+			valVarSlot := -1
 
 			context := st.context
 
 			if isSet {
-				isKeyVal = len(node.Set.Left) > 1
+				if len(node.Set.Left) > 1 {
+					valVarSlot = 1
+				}
 				expression = st.evalPrimaryExpressionGroup(node.Set.Right[0])
 				if node.Set.Let {
 					isLet = true
@@ -463,26 +467,35 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 			}
 
 			ranger, cleanup := getRanger(expression)
+			if !ranger.ProvidesIndex() {
+				if len(node.Set.Left) > 1 {
+					// two-vars assignment with ranger that doesn't provide an index
+					node.error(errors.New("two-var range over ranger that does not provide an index"))
+				}
+				keyVarSlot, valVarSlot = -1, 0
+			}
+
 			indexValue, rangeValue, end := ranger.Range()
 			if !end {
 				for !end && !returnValue.IsValid() {
 					if isSet {
 						if isLet {
-							if isKeyVal {
-								st.variables[node.Set.Left[0].String()] = indexValue
-								st.variables[node.Set.Left[1].String()] = rangeValue
-							} else {
-								st.variables[node.Set.Left[0].String()] = rangeValue
+							if keyVarSlot >= 0 {
+								st.variables[node.Set.Left[keyVarSlot].String()] = indexValue
+							}
+							if valVarSlot >= 0 {
+								st.variables[node.Set.Left[valVarSlot].String()] = rangeValue
 							}
 						} else {
-							if isKeyVal {
-								st.executeSet(node.Set.Left[0], indexValue)
-								st.executeSet(node.Set.Left[1], rangeValue)
-							} else {
-								st.executeSet(node.Set.Left[0], rangeValue)
+							if keyVarSlot >= 0 {
+								st.executeSet(node.Set.Left[keyVarSlot], indexValue)
+							}
+							if valVarSlot >= 0 {
+								st.executeSet(node.Set.Left[valVarSlot], rangeValue)
 							}
 						}
-					} else {
+					}
+					if valVarSlot < 0 {
 						st.context = rangeValue
 					}
 					returnValue = st.executeList(node.List)

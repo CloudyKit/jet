@@ -11,6 +11,7 @@ import (
 // encountered on the right hand side of a range's "let" expression.
 type Ranger interface {
 	Range() (reflect.Value, reflect.Value, bool)
+	ProvidesIndex() bool
 }
 
 type intsRanger struct {
@@ -26,6 +27,8 @@ func (r *intsRanger) Range() (index, value reflect.Value, end bool) {
 	r.i++
 	return
 }
+
+func (r *intsRanger) ProvidesIndex() bool { return true }
 
 type pooledRanger interface {
 	Ranger
@@ -56,22 +59,7 @@ func (r *sliceRanger) Range() (index, value reflect.Value, end bool) {
 	return
 }
 
-type chanRanger struct {
-	v reflect.Value
-}
-
-var _ Ranger = &chanRanger{}
-var _ pooledRanger = &chanRanger{}
-
-func (r *chanRanger) Setup(v reflect.Value) {
-	r.v = v
-}
-
-func (r *chanRanger) Range() (_, value reflect.Value, end bool) {
-	v, ok := r.v.Recv()
-	value, end = v, !ok
-	return
-}
+func (r *sliceRanger) ProvidesIndex() bool { return true }
 
 type mapRanger struct {
 	iter    *reflect.MapIter
@@ -95,6 +83,27 @@ func (r *mapRanger) Range() (key, value reflect.Value, end bool) {
 	r.hasMore = r.iter.Next()
 	return
 }
+
+func (r *mapRanger) ProvidesIndex() bool { return true }
+
+type chanRanger struct {
+	v reflect.Value
+}
+
+var _ Ranger = &chanRanger{}
+var _ pooledRanger = &chanRanger{}
+
+func (r *chanRanger) Setup(v reflect.Value) {
+	r.v = v
+}
+
+func (r *chanRanger) Range() (_, value reflect.Value, end bool) {
+	v, ok := r.v.Recv()
+	value, end = v, !ok
+	return
+}
+
+func (r *chanRanger) ProvidesIndex() bool { return false }
 
 // ranger pooling
 
