@@ -289,7 +289,7 @@ func TestEvalRangeNode(t *testing.T) {
 
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	RunJetTest(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
-	RunJetTest(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
+	RunJetTest(t, data, nil, "Range_ExpressionValue", `{{range _,user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
 	var resultString2 = `<h1>0: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>2: Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	RunJetTest(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
 }
@@ -661,15 +661,20 @@ func TestRanger(t *testing.T) {
 	var data = make(VarMap)
 	data.Set(
 		"m", map[string]interface{}{
-			"asd": 1,
+			"asd": 123,
 			//"foo": "blub", // adding more values here means we can't predict the order below
 			//"bar": nil,
 		},
 	)
 	data.Set("s", []string{"asd", "foo", "bar"})
 	data.Set("c", c)
-	RunJetTest(t, data, nil, "slice_ranger", `{{ range i, v := s }}{{i}}:{{v}},{{ end }}`, "0:asd,1:foo,2:bar,")
-	RunJetTest(t, data, nil, "map_ranger", `{{ range k, v := m }}{{k}}:{{v}},{{ end }}`, "asd:1,")
+	RunJetTest(t, data, nil, "slice_ranger", `{{ range s }}{{.}},{{ end }}`, "asd,foo,bar,")
+	RunJetTest(t, data, nil, "slice_ranger_value", `{{ range v := s }}{{v}},{{ end }}`, "0,1,2,")
+	RunJetTest(t, data, nil, "slice_ranger_value_context", `{{ range v := s }}{{.}},{{ end }}`, "asd,foo,bar,")
+	RunJetTest(t, data, nil, "slice_ranger_index_value", `{{ range i, v := s }}{{i}}:{{v}},{{ end }}`, "0:asd,1:foo,2:bar,")
+	RunJetTest(t, data, nil, "map_ranger", `{{ range m }}{{.}},{{ end }}`, "123,")
+	RunJetTest(t, data, nil, "map_ranger_key_context", `{{ range k := m }}{{k}}:{{.}},{{ end }}`, "asd:123,")
+	RunJetTest(t, data, nil, "map_ranger_key_value", `{{ range k, v := m }}{{k}}:{{v}},{{ end }}`, "asd:123,")
 	RunJetTest(t, data, nil, "chan_ranger", `{{ range v := c }}{{v}}{{ end }}`, "0123456789")
 	RunJetTest(t, nil, nil, "ints_ranger", `{{ range i := ints(0, 10) }}{{ (i == 0 ? "" : ", ") + i }}{{ end }}`, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
 }
