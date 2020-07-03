@@ -7,6 +7,8 @@ import (
 	"github.com/CloudyKit/jet/v4"
 )
 
+var _ jet.Loader = (*Multi)(nil)
+
 // Multi implements jet.Loader interface and tries to load templates from a list of custom loaders.
 // Caution: When multiple loaders have templates with the same name, the order in which you pass loaders
 // to NewLoader/AddLoaders dictates which template will be returned by Open when you request it!
