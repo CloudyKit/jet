@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CloudyKit/jet/v3"
+	"github.com/CloudyKit/jet/v4"
 )
 
 var Set = jet.NewHTMLSet("")

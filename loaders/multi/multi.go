@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/CloudyKit/jet/v3"
+	"github.com/CloudyKit/jet/v4"
 )
 
 // Multi implements jet.Loader interface and tries to load templates from a list of custom loaders.
