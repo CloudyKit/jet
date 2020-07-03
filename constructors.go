@@ -20,8 +20,8 @@ import (
 	"strings"
 )
 
-func (t *Template) newSliceExpr(pos Pos, line int, base, index, len Expression) *SliceExprNode {
-	return &SliceExprNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeSliceExpr, Pos: pos, Line: line}, Index: index, Base: base, EndIndex: len}
+func (t *Template) newSliceExpr(pos Pos, line int, base, index, endIndex Expression) *SliceExprNode {
+	return &SliceExprNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeSliceExpr, Pos: pos, Line: line}, Index: index, Base: base, EndIndex: endIndex}
 }
 
 func (t *Template) newIndexExpr(pos Pos, line int, base, index Expression) *IndexExprNode {
