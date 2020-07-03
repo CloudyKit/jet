@@ -465,6 +465,8 @@ gives you:
 
 Templates can set a value as their return value using `return`. This is only useful when the template was executed using the `exec()` built-in function, which will make the return value of a template available in another template.
 
+`return` will **not** stop execution of the current block or template!
+
     <!-- file: "foo.jet" -->
     {{ f := "f" }}
     {{ o := "o" }}
@@ -477,7 +479,6 @@ Templates can set a value as their return value using `return`. This is only use
 The output will simply be:
 
     Hello, foo!
-
 
 ## Blocks
 
