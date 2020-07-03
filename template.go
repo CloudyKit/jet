@@ -265,13 +265,14 @@ func (t *Template) String() (template string) {
 }
 
 func (t *Template) addBlocks(blocks map[string]*BlockNode) {
-	if len(blocks) > 0 {
-		if t.processedBlocks == nil {
-			t.processedBlocks = make(map[string]*BlockNode)
-		}
-		for key, value := range blocks {
-			t.processedBlocks[key] = value
-		}
+	if len(blocks) == 0 {
+		return
+	}
+	if t.processedBlocks == nil {
+		t.processedBlocks = make(map[string]*BlockNode)
+	}
+	for key, value := range blocks {
+		t.processedBlocks[key] = value
 	}
 }
 

@@ -215,7 +215,7 @@ func TestEvalIfNode(t *testing.T) {
 	RunJetTest(t, data, nil, "ifNode_else", `{{if false}}hello{{else}}world{{end}}`, `world`)
 	RunJetTest(t, data, nil, "ifNode_elseif", `{{if false}}hello{{else if true}}world{{end}}`, `world`)
 	RunJetTest(t, data, nil, "ifNode_elseif_else", `{{if false}}hello{{else if false}}world{{else}}buddy{{end}}`, `buddy`)
-	RunJetTest(t, data, nil, "ifNode_string_comparison", `{{user.Name}} (email: {{user.Email}}): {{if user.Email == "email2@example.com"}}email is email2@example.com{{else}}email is not email2@example.com{{end}}`, `José Santos (email: email@example.com): email is not email2@example.com`)
+	RunJetTest(t, data, nil, "ifNode_string_comparison", `{{user["Name"]}} (email: {{user.Email}}): {{if user.Email == "email2@example.com"}}email is email2@example.com{{else}}email is not email2@example.com{{end}}`, `José Santos (email: email@example.com): email is not email2@example.com`)
 
 }
 
@@ -547,6 +547,7 @@ func TestEvalBuiltinExpression(t *testing.T) {
 			},
 		},
 	)
+	RunJetTest(t, data, nil, "LenExpression_pipeline", `{{"123" | len}}`, "3")
 	RunJetTest(t, data, nil, "IsSetExpression_7", `{{isset(foo)}}`, "true")
 	RunJetTest(t, data, nil, "IsSetExpression_8", `{{isset(foo.asd)}}`, "true")
 	RunJetTest(t, data, nil, "IsSetExpression_9", `{{isset(foo.asd.bar)}}`, "true")
@@ -558,6 +559,8 @@ func TestEvalBuiltinExpression(t *testing.T) {
 		"foo", map[string]interface{}{},
 	)
 	RunJetTest(t, data, nil, "IsSetExpression_14", `{{isset(foo.asd[0].bar)}}`, "false")
+	RunJetTest(t, data, nil, "IsSetExpression_pipeline", `{{foo | isset}}`, "true")
+
 }
 
 func TestEvalAutoescape(t *testing.T) {
