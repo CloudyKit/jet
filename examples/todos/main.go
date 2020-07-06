@@ -64,6 +64,8 @@ func (dt *doneTODOs) Range() (reflect.Value, reflect.Value, bool) {
 	return reflect.Value{}, reflect.Value{}, true
 }
 
+func (dt *doneTODOs) ProvidesIndex() bool { return true }
+
 // Render implements jet.Renderer interface
 func (t *tTODO) Render(r *jet.Runtime) {
 	done := "yes"
