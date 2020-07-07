@@ -154,7 +154,7 @@ func (t *Template) unexpected(token item, context, expected string) {
 	case token.typ > itemKeyword:
 		t.errorf("parsing %s: unexpected keyword '%s' (expected %s)", context, token.val, expected)
 	default:
-		t.errorf("parsing %s: unexpected token '%s' (expected %s)", context, token.val)
+		t.errorf("parsing %s: unexpected token '%s' (expected %s)", context, token.val, expected)
 	}
 }
 
@@ -510,8 +510,11 @@ func (t *Template) action() (n Node) {
 	if expr.Type() == NodeSet {
 		action.Set = expr.(*SetNode)
 		expr = nil
+		if t.expectOneOf(itemSemicolon, itemRightDelim, "command", "semicolon or right delimiter").typ == itemSemicolon {
+			expr = t.expression("command", "pipeline base expression")
+		}
 	}
-	if action.Set == nil || t.expectOneOf(itemSemicolon, itemRightDelim, "command", "semicolon or right delimiter").typ == itemSemicolon {
+	if expr != nil {
 		action.Pipe = t.pipeline("command", expr)
 	}
 	return action
@@ -588,7 +591,7 @@ func (t *Template) unaryExpression(context string) (Expression, item) {
 	default:
 		t.backup()
 	}
-	operand := t.operand("expression")
+	operand := t.operand(context)
 	return operand, t.nextNonSpace()
 }
 
@@ -684,44 +687,27 @@ func (t *Template) expression(context, as string) Expression {
 func (t *Template) pipeline(context string, baseExprMutate Expression) (pipe *PipeNode) {
 	pos := t.peekNonSpace().pos
 	pipe = t.newPipeline(pos, t.lex.lineNumber())
-	var token item
-	if baseExprMutate != nil {
-		//special case
-		pipe.append(t.command(baseExprMutate))
-		token = t.nextNonSpace()
-		if token.typ == itemPipe {
-			token = t.nextNonSpace()
-		} else {
-			t.backup()
-			t.expectRightDelim(context)
-			return
-		}
-	} else {
-		token = t.nextNonSpace()
-	}
 
-loop:
+	if baseExprMutate == nil {
+		pipe.errorf("parsing pipeline: first expression cannot be nil")
+	}
+	pipe.append(t.command(baseExprMutate))
+
 	for {
+		token := t.expectOneOf(itemPipe, itemRightDelim, "pipeline", "pipe or right delimiter")
+		if token.typ == itemRightDelim {
+			break
+		}
+		token = t.nextNonSpace()
 		switch token.typ {
-		case itemBool, itemCharConstant, itemComplex, itemField, itemIdentifier,
-			itemNumber, itemNil, itemRawString, itemString, itemLeftParen, itemNot:
+		case itemField, itemIdentifier:
 			t.backup()
 			pipe.append(t.command(nil))
-			token = t.nextNonSpace()
-			if token.typ == itemPipe {
-				token = t.nextNonSpace()
-				continue loop
-			} else {
-				t.backup()
-				break loop
-			}
 		default:
-			t.backup()
-			break loop
+			t.unexpected(token, "pipeline", "field or identifier")
 		}
 	}
 
-	t.expectRightDelim(context)
 	return
 }
 
@@ -729,21 +715,30 @@ func (t *Template) command(baseExpr Expression) *CommandNode {
 	cmd := t.newCommand(t.peekNonSpace().pos)
 
 	if baseExpr == nil {
-		cmd.BaseExpr = t.expression("command", "name")
-	} else {
-		cmd.BaseExpr = baseExpr
+		baseExpr = t.expression("command", "name")
 	}
 
-	if t.nextNonSpace().typ == itemColon {
-		cmd.Call = true
+	if baseExpr.Type() == NodeCallExpr {
+		call := baseExpr.(*CallExprNode)
+		cmd.BaseExpr = call.BaseExpr
+		cmd.Args = call.Args
+		return cmd
+	}
+
+	cmd.BaseExpr = baseExpr
+
+	next := t.nextNonSpace()
+	switch next.typ {
+	case itemColon:
 		cmd.Args = t.parseArguments()
-	} else {
+	default:
 		t.backup()
 	}
 
 	if cmd.BaseExpr == nil {
 		t.errorf("empty command")
 	}
+
 	return cmd
 }
 
@@ -825,42 +820,22 @@ RESET:
 	return node
 }
 
-func (t *Template) parseArguments() (args []Expression) {
-	if t.peekNonSpace().typ != itemRightParen {
-	loop:
-		for {
-			expr, endtoken := t.parseExpression("call expression")
-			args = append(args, expr)
-			switch endtoken.typ {
-			case itemComma:
-				if t.peekNonSpace().typ == itemRightParen {
-					break loop
-				}
-				continue loop
-			default:
-				t.backup()
-				break loop
-			}
+func (t *Template) parseArguments() []Expression {
+	args := []Expression{}
+	context := "call expression argument list"
+loop:
+	for t.peekNonSpace().typ != itemRightParen {
+		expr, endtoken := t.parseExpression(context)
+		args = append(args, expr)
+		switch endtoken.typ {
+		case itemComma:
+			// continue with closing parens (allowed because of multiline syntax) or next arg
+		default:
+			t.backup()
+			break loop
 		}
 	}
-	return
-}
-
-func (t *Template) checkPipeline(pipe *PipeNode, context string) {
-
-	// Reject empty pipelines
-	if len(pipe.Cmds) == 0 {
-		t.errorf("missing value for %s", context)
-	}
-
-	// Only the first command of a pipeline can start with a non executable operand
-	for i, c := range pipe.Cmds[1:] {
-		switch c.Args[0].Type() {
-		case NodeBool, NodeNil, NodeNumber, NodeString:
-			// With A|B|C, pipeline stage 2 is B
-			t.errorf("non executable command in pipeline stage %d", i+2)
-		}
-	}
+	return args
 }
 
 func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line int, set *SetNode, expression Expression, list, elseList *ListNode) {

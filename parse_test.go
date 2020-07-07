@@ -87,8 +87,8 @@ func TestParseTemplateAndImport(t *testing.T) {
 
 func TestUsefulErrorOnLateImportOrExtends(t *testing.T) {
 	p := ParserTestCase{T: t}
-	p.ExpectError("late_import.jet", `<html><head>{{import "./foo.jet"}}</head></html>`, "template: late_import.jet:1: parsing expression: unexpected keyword 'import' ('import' statements must be at the beginning of the template)")
-	p.ExpectError("late_extends.jet", `<html><head>{{extends "./foo.jet"}}</head></html>`, "template: late_extends.jet:1: parsing expression: unexpected keyword 'extends' ('extends' statements must be at the beginning of the template)")
+	p.ExpectError("late_import.jet", `<html><head>{{import "./foo.jet"}}</head></html>`, "template: late_import.jet:1: parsing command: unexpected keyword 'import' ('import' statements must be at the beginning of the template)")
+	p.ExpectError("late_extends.jet", `<html><head>{{extends "./foo.jet"}}</head></html>`, "template: late_extends.jet:1: parsing command: unexpected keyword 'extends' ('extends' statements must be at the beginning of the template)")
 }
 
 func TestKeywordsDisallowedAsBlockNames(t *testing.T) {
