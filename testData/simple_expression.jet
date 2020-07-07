@@ -5,6 +5,7 @@
 {{ val.Field }}
 {{ url: "" }}
 {{ url: "","" |pipe }}
+{{ "foo"|pipe (asd) }}
 {{ url("") |pipe |pipe }}
 {{ url("","").Field |pipe }}
 {{ url("","").Method("") |pipe }}
@@ -14,8 +15,9 @@
 {{nil}}
 {{""}}
 {{val.Field}}
-{{url:""}}
-{{url:"", "" | pipe}}
+{{url("")}}
+{{url("", "") | pipe}}
+{{"foo" | pipe(asd)}}
 {{url("") | pipe | pipe}}
 {{url("", "").Field | pipe}}
 {{url("", "").Method("") | pipe}}

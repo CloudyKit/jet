@@ -14,8 +14,8 @@
 {{nil}}
 {{""}}
 {{val.Field}}
-{{url:""}}
-{{url:"", "" | pipe}}
+{{url("")}}
+{{url("", "") | pipe}}
 {{url("") | pipe | pipe}}
 {{url("", "").Field | pipe}}
 {{url("", "").Method("") | pipe}}

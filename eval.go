@@ -1151,7 +1151,7 @@ func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args []Expression,
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
-	if node.Call {
+	if node.Args != nil {
 		if term.Kind() == reflect.Func {
 			if term.Type() == safeWriterType {
 				st.evalSafeWriter(term, node)

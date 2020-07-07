@@ -183,9 +183,7 @@ func (a *ActionNode) String() string {
 // CommandNode holds a command (a pipeline inside an evaluating action).
 type CommandNode struct {
 	NodeBase
-	Call     bool
-	BaseExpr Expression
-	Args     []Expression
+	CallExprNode
 }
 
 func (c *CommandNode) append(arg Node) {
@@ -193,22 +191,18 @@ func (c *CommandNode) append(arg Node) {
 }
 
 func (c *CommandNode) String() string {
-	s := c.BaseExpr.String()
-	if c.Call {
-		s += ":"
+	if c.Args == nil {
+		return c.BaseExpr.String()
 	}
-	for i, arg := range c.Args {
-		if i > 0 {
-			s += ", "
-		}
-		if _, ok := arg.(*PipeNode); ok {
-			s += "(" + arg.String() + ")"
-		} else {
-			s += arg.String()
-		}
 
+	arguments := ""
+	for i, expr := range c.Args {
+		if i > 0 {
+			arguments += ", "
+		}
+		arguments += expr.String()
 	}
-	return s
+	return fmt.Sprintf("%s(%s)", c.BaseExpr, arguments)
 }
 
 // IdentifierNode holds an identifier.
