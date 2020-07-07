@@ -23,7 +23,6 @@
   - [Function calls](#function-calls)
     - [Prefix syntax](#prefix-syntax)
     - [Pipelining](#pipelining)
-    - [Combining syntaxes](#combining-syntaxes)
 - [Control Structures](#control-structures)
   - [if](#if)
     - [if / else](#if--else)
@@ -203,14 +202,16 @@ You can call exported methods of Go types:
 
 ### Function calls
 
-Function calls can be written using familiar syntax:
+Function calls can be written using familiar C-like syntax:
 
-    {{ length := len(s) }}
+    {{ len(s) }}
+    {{ isset(foo, bar) }}
 
 #### Prefix syntax
 
 Function calls can also be written using a colon instead of parentheses:
 
+    {{ len: s }}
     {{ isset: foo, bar }}
 
 Note that function calls using this syntax can't be nested! This is valid: `{{ len: slice("asd", "foo") }}`, but this isn't: `{{ len: slice: "asd", "foo" }}`
@@ -230,30 +231,16 @@ is equivalent to
 
     {{ len(upper(lower("123"))) }}
 
-#### Combining syntaxes
-
-Inside a pipeline, functions can be enriched with additional parameters using prefix syntax, but not using parentheses. This is ok:
+Inside a pipeline, functions can be enriched with additional parameters:
 
     {{ "hello" | repeat: 2 | len }}
+    {{ "hello" | repeat(2) | len }}
 
-And equivalent to this:
+Both of the above are equivalent to this:
 
     {{ len(repeat("hello", 2)) }}
 
-The following is **invalid**:
-
-    {{ "hello" | slice("world") | len }}
-
-A call expression using parentheses in a pipeline is evaluated before before it's looked at in the context of the pipeline, meaning function calls using `()` after a `|` must evaluate to a function.
-
-`slice("world"))` is evaluated before it's used in the pipeline (to a slice value), causing the piping to fail (because slices can't be called like functions).
-
-However, assuming you have a custom function `translateTo()` that returns either the `translateToSpanish()` or the `translateToJapanese()` function, both of these are valid and do the same thing:
-
-    {{ "an english term" | translateToSpanish }}
-    {{ "an english term" | translateTo("spanish") }}
-
-Please note that the raw, unsafe, safeHtml or safeJs built-in escapers or custom safe writers need to be the last command evaluated in an action node. This means they have to come last when used in a pipeline.
+Please note that the raw, unsafe, safeHtml or safeJs built-in escapers (or custom safe writers) need to be the last command evaluated in an action node. This means they have to come last when used in a pipeline.
 
     {{ "hello" | upper | raw }} <!-- valid -->
     {{ raw: "hello" }}          <!-- valid -->
