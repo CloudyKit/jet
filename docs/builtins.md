@@ -6,6 +6,12 @@
   - [isset](#isset)
   - [exec](#exec)
   - [ints](#ints)
+- [SafeWriter](#safewriter)
+  - [safeHtml](#safehtml)
+  - [safeJs](#safejs)
+  - [raw/unsafe](#rawunsafe)
+- [Renderer](#renderer)
+    - [writeJson](#writejson)
 
 ## Functions
 
@@ -23,6 +29,7 @@ The following functions simply expose functions from Go's standard library for c
 - `trimSpace`: exposes Go's [strings.TrimSpace](https://golang.org/pkg/strings/#TrimSpace)
 - `html`: exposes Go's [html.EscapeString](https://golang.org/pkg/html/#EscapeString)
 - `url`: exposes Go's [url.QueryEscape](https://golang.org/pkg/net/url/#QueryEscape)
+- `json`: exposes Go's [json.Marshal](https://golang.org/pkg/encoding/json/#Marshal)
 
 ### len
 
@@ -43,3 +50,27 @@ It panics if you pass a value of any type other than string, array, slice, map, 
 ### ints
 
 `ints()` takes two integers as lower and upper limit and returns a Ranger producing all the integers between them, including the lower and excluding the upper limit. It panics when the arguments can't be converted to integers or when the upper limit is not strictly greater than the lower limit.
+
+## SafeWriter
+
+Jet includes a [`SafeWriter`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#SafeWriter) function type for writing directly to the render output stream. This can be used to circumvent Jet's default HTML escaping. Jet has a few such functions built-in.
+
+### safeHtml
+
+`safeHtml` is an alias for Go's [template.HTMLEscape](https://golang.org/pkg/text/template/#HTMLEscape) (converted to the `SafeWriter` type). This is the same escape function that's also applied to the evalutation result of action nodes by default. It escapes everything that could be interpreted as HTML.
+
+### safeJs
+
+`safeJs` is an alias for Go's [template.JSEscape](https://golang.org/pkg/text/template/#JSEscape). It escapes data to be safe to use in a Javascript context.
+
+### raw/unsafe
+
+`raw` (alias `unsafe`) is a writer that escapes nothing at all, allowing you to circumvent Jet's default HTML escaping. Use with caution!
+
+## Renderer
+
+Jet exports a [`Renderer`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#Renderer) interface (and [`RendererFunc`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#RendererFunc) type which implements the interface). When an action evaluates to a value implementinng this interface, it will not be rendered using [fastprinter](https://github.com/CloudyKit/fastprinter), but by calling its Render() function instead.
+
+#### writeJson
+
+`writeJson` renders the JSON encoding of whatever you pass in to the output, escaping only "<", ">", and "&" (just like the `json` function).

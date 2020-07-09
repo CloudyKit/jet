@@ -41,9 +41,9 @@ var (
 	}
 )
 
-// Renderer any resulting value from an expression in an action that implements this
-// interface will not be printed, instead, we will invoke his Render() method which will be responsible
-// to render his self
+// Renderer is used to detect if a value has its own rendering logic. If the value an action evaluates to implements this
+// interface, it will not be printed using github.com/CloudyKit/fastprinter, instead, its Render() method will be called
+// and is responsible for writing the value to the render output.
 type Renderer interface {
 	Render(*Runtime)
 }

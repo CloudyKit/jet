@@ -170,8 +170,8 @@ func unsafePrinter(w io.Writer, b []byte) {
 	w.Write(b)
 }
 
-// SafeWriter escapee func. Functions implementing this type will write directly into the writer,
-// skipping the escape phase; use this type to create special types of escapee funcs.
+// SafeWriter is a function that writes bytes directly to the render output, without going through Jet's auto-escaping phase.
+// Use/implement this if content should be escaped differently or not at all (see raw/unsafe builtins).
 type SafeWriter func(io.Writer, []byte)
 
 var stringType = reflect.TypeOf("")
