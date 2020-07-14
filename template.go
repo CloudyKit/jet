@@ -177,7 +177,7 @@ func (s *Set) getTemplate(path string) (t *Template, err error) {
 }
 
 func (s *Set) getSiblingTemplate(path, siblingPath string) (t *Template, err error) {
-	if !filepath.IsAbs(path) {
+	if !filepath.IsAbs(filepath.Clean(path)) {
 		siblingDir := filepath.Dir(siblingPath)
 		path = filepath.Join(siblingDir, path)
 	}
