@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -111,10 +112,10 @@ func (s *Set) Delims(left, right string) {
 	s.rightDelim = right
 }
 
-func (s *Set) getTemplateFromCache(path string) (t *Template, ok bool) {
+func (s *Set) getTemplateFromCache(templatePath string) (t *Template, ok bool) {
 	// check path with all possible extensions in cache
 	for _, extension := range s.extensions {
-		canonicalPath := path + extension
+		canonicalPath := templatePath + extension
 		if t, found := s.templates[canonicalPath]; found {
 			return t, true
 		}
@@ -122,15 +123,15 @@ func (s *Set) getTemplateFromCache(path string) (t *Template, ok bool) {
 	return nil, false
 }
 
-func (s *Set) getTemplateFromLoader(path string) (t *Template, err error) {
+func (s *Set) getTemplateFromLoader(templatePath string) (t *Template, err error) {
 	// check path with all possible extensions in loader
 	for _, extension := range s.extensions {
-		canonicalPath := path + extension
+		canonicalPath := templatePath + extension
 		if _, found := s.loader.Exists(canonicalPath); found {
 			return s.loadFromFile(canonicalPath)
 		}
 	}
-	return nil, fmt.Errorf("template %s could not be found", path)
+	return nil, fmt.Errorf("template %s could not be found", templatePath)
 }
 
 // GetTemplate tries to find (and load, if not yet loaded) the template at the specified path.
@@ -142,10 +143,10 @@ func (s *Set) getTemplateFromLoader(path string) (t *Template, err error) {
 //     3. catalog/products.list.jet
 // in the set's templates cache, and if it can't find the template it will try to load the same paths via
 // the loader, and, if parsed successfully, cache the template.
-func (s *Set) GetTemplate(path string) (t *Template, err error) {
+func (s *Set) GetTemplate(templatePath string) (t *Template, err error) {
 	if !s.developmentMode {
 		s.tmx.RLock()
-		t, found := s.getTemplateFromCache(path)
+		t, found := s.getTemplateFromCache(templatePath)
 		if found {
 			s.tmx.RUnlock()
 			return t, nil
@@ -153,7 +154,7 @@ func (s *Set) GetTemplate(path string) (t *Template, err error) {
 		s.tmx.RUnlock()
 	}
 
-	t, err = s.getTemplateFromLoader(path)
+	t, err = s.getTemplateFromLoader(templatePath)
 	if err == nil && !s.developmentMode {
 		// load template into cache
 		s.tmx.Lock()
@@ -165,36 +166,36 @@ func (s *Set) GetTemplate(path string) (t *Template, err error) {
 
 // same as GetTemplate, but assumes the reader already called s.tmx.RLock(), and
 // doesn't cache a template when found through the loader
-func (s *Set) getTemplate(path string) (t *Template, err error) {
+func (s *Set) getTemplate(templatePath string) (t *Template, err error) {
 	if !s.developmentMode {
-		t, found := s.getTemplateFromCache(path)
+		t, found := s.getTemplateFromCache(templatePath)
 		if found {
 			return t, nil
 		}
 	}
 
-	return s.getTemplateFromLoader(path)
+	return s.getTemplateFromLoader(templatePath)
 }
 
-func (s *Set) getSiblingTemplate(path, siblingPath string) (t *Template, err error) {
-	if !filepath.IsAbs(filepath.Clean(path)) {
+func (s *Set) getSiblingTemplate(templatePath, siblingPath string) (t *Template, err error) {
+	if !path.IsAbs(filepath.ToSlash(templatePath)) {
 		siblingDir := filepath.Dir(siblingPath)
-		path = filepath.Join(siblingDir, path)
+		templatePath = filepath.Join(siblingDir, templatePath)
 	}
-	return s.getTemplate(path)
+	return s.getTemplate(templatePath)
 }
 
 // Parse parses the template without adding it to the set's templates cache.
-func (s *Set) Parse(path, content string) (*Template, error) {
+func (s *Set) Parse(templatePath, content string) (*Template, error) {
 	s.tmx.RLock()
-	t, err := s.parse(path, content)
+	t, err := s.parse(templatePath, content)
 	s.tmx.RUnlock()
 
 	return t, err
 }
 
-func (s *Set) loadFromFile(path string) (template *Template, err error) {
-	f, err := s.loader.Open(path)
+func (s *Set) loadFromFile(templatePath string) (template *Template, err error) {
+	f, err := s.loader.Open(templatePath)
 	if err != nil {
 		return nil, err
 	}
@@ -203,19 +204,19 @@ func (s *Set) loadFromFile(path string) (template *Template, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.parse(path, string(content))
+	return s.parse(templatePath, string(content))
 }
 
-func (s *Set) LoadTemplate(path, content string) (*Template, error) {
+func (s *Set) LoadTemplate(templatePath, content string) (*Template, error) {
 	if s.developmentMode {
 		s.tmx.RLock()
 		defer s.tmx.RUnlock()
-		return s.parse(path, content)
+		return s.parse(templatePath, content)
 	}
 
 	// fast path (t from cache)
 	s.tmx.RLock()
-	if t, found := s.templates[path]; found {
+	if t, found := s.templates[templatePath]; found {
 		s.tmx.RUnlock()
 		return t, nil
 	}
@@ -225,9 +226,9 @@ func (s *Set) LoadTemplate(path, content string) (*Template, error) {
 	s.tmx.Lock()
 	defer s.tmx.Unlock()
 
-	t, err := s.parse(path, content)
+	t, err := s.parse(templatePath, content)
 	if err == nil {
-		s.templates[path] = t
+		s.templates[templatePath] = t
 	}
 	return t, err
 }
