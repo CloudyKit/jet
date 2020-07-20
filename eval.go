@@ -989,7 +989,6 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 		right := st.evalPrimaryExpressionGroup(node.Right)
 		kind := right.Kind()
 		// todo: optimize
-		// todo:
 		if isInt(kind) {
 			if isAdditive {
 				return reflect.ValueOf(+right.Int())
@@ -1009,7 +1008,7 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				return reflect.ValueOf(-right.Float())
 			}
 		}
-		node.Left.errorf("additive expression: right side %s (%s) is not a numeric value (left is nil)", node.Right, getTypeString(right))
+		node.Left.errorf("additive expression: right side %s (%s) is not a numeric value (no left side)", node.Right, getTypeString(right))
 	}
 
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
@@ -1053,11 +1052,14 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 				left = reflect.ValueOf(left.Uint() - toUint(right))
 			}
 		} else if kind == reflect.String {
-			if isAdditive {
-				left = reflect.ValueOf(left.String() + fmt.Sprint(right))
-			} else {
+			if !isAdditive {
 				node.Right.errorf("minus signal is not allowed with strings")
 			}
+			// converts []byte (and alias types of []byte) to string
+			if right.Kind() == reflect.Slice && right.Type().Elem().Kind() == reflect.Uint8 {
+				right = right.Convert(left.Type())
+			}
+			left = reflect.ValueOf(left.String() + fmt.Sprint(right))
 		} else {
 			node.Left.errorf("additive expression: left side %s (%s) is not a numeric value", node.Left, getTypeString(left))
 		}

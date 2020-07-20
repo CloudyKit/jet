@@ -179,6 +179,7 @@ func TestEvalActionNode(t *testing.T) {
 
 	RunJetTest(t, data, nil, "actionNode_AddIntString", `{{ 2+"1" }}`, "3")
 	RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"+2 }}`, "12")
+	RunJetTest(t, data, nil, "actionNode_AddStringByteSlice", `{{ "{foo:"+json("asd")+"}" }}`, `{foo:"asd"}`)
 
 	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
 	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
@@ -314,6 +315,17 @@ func TestEvalDefaultFuncs(t *testing.T) {
 		)}}`,
 		"My_Name_Is_II",
 	)
+
+	var data = make(VarMap)
+
+	data.Set("m", map[string]interface{}{
+		"arr":      []string{"foo", "bar"},
+		"str":      "some string",
+		"byte_arr": []byte("a string as byte slice"),
+		"num":      123.45,
+	})
+	RunJetTest(t, data, nil, "DefaultFuncs_json_1", `{{json(m)}}`, `{"arr":["foo","bar"],"byte_arr":"YSBzdHJpbmcgYXMgYnl0ZSBzbGljZQ==","num":123.45,"str":"some string"}`)
+	RunJetTest(t, data, nil, "DefaultFuncs_json_2", `{{json(m.arr)}}`, `["foo","bar"]`)
 }
 
 func TestEvalIssetAndTernaryExpression(t *testing.T) {
