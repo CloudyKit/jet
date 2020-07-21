@@ -1,5 +1,14 @@
 # Breaking Changes
 
+## v5
+
+- `_` discard syntax in assignments
+
+    Version 5 adds Go-like discard syntax in assignments: assigning anything to `_` will make jet skip the assignment. Jet will still always evaluate the corresponding right-hand side of the assignment statement, i.e. you can use `_` to call a function but throw away its return value.
+
+    When you assign (and/or use) a variable called `_` in your code, you will have to rename this variable.
+
+
 ## v4
 
 When updating from version 3 to version 4, there are a few breaking changes:
