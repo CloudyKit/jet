@@ -78,6 +78,12 @@ Variables initialised inside a template have no fixed type, so this is valid, to
 
     {{ foo = 4711 }}
 
+Assigning anything to `_` tells Jet to evalute the right side, but skip the actual assignment to a new or existing identifier. This is useful to call a function but discard its return value:
+
+    {{ _ := stillRuns() }}
+    {{ _ = stillRuns() }}
+
+Since no actual assigning takes place, both of the above are equivalent: `stillRuns` is executed, but the return value will neither be stored in a variable, nor will it be rendered (unlike `{{ stillRuns() }}`, which would render the return value to the output).
 
 ## Expressions
 
