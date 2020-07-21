@@ -204,12 +204,26 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5*5 >= 2*12.5))
 	RunJetTest(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5*5 > 2*12.5) == (5*5 > 2*12.5)))
 
-	// test discard syntax in assignments
+	//
+	// assignments
+	//
+
 	called := false
-	markCalled := func() { called = true }
-	data.Set("foo", markCalled)
-	data.Set("called", &called)
-	RunJetTest(t, data, nil, "actionNode_assign_discard", `{{ _ = foo() ; called }}`, "true")
+	markCalled := func() int { called = true; return 123 }
+	data.Set("mark", markCalled)
+
+	setup := func() {
+		called = false
+		data.Set("called", &called)
+	}
+
+	tearDown := func() {
+		delete(data, "called")
+	}
+
+	setup()
+	// test discard syntax
+	RunJetTest(t, data, nil, "actionNode_assign_discard", `{{ _ = mark() ; called }}`, "true")
 	if !called {
 		t.Log("function whose value should be evaluated but discarded was never called!")
 		t.Fail()
@@ -218,6 +232,12 @@ func TestEvalActionNode(t *testing.T) {
 		t.Log("a variable with name '_' was set!")
 		t.Fail()
 	}
+	tearDown()
+
+	setup()
+	// test identifier starting with '_'
+	RunJetTest(t, data, nil, "actionNode_assign_underscore", `{{ _foo := mark() ; called && _foo == 123 }}`, "true")
+	tearDown()
 }
 
 func TestEvalIfNode(t *testing.T) {
