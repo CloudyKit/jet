@@ -238,3 +238,7 @@ func (t *Template) newNumber(pos Pos, text string, typ itemType) (*NumberNode, e
 func (t *Template) newIdentifier(ident string, pos Pos, line int) *IdentifierNode {
 	return &IdentifierNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeIdentifier, Pos: pos, Line: line}, Ident: ident}
 }
+
+func (t *Template) newDiscard(pos Pos, line int) *DiscardNode {
+	return &DiscardNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeDiscard, Pos: pos, Line: line}}
+}

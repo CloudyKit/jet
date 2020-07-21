@@ -619,7 +619,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 	leftloop:
 		for {
 			switch operand.Type() {
-			case NodeField, NodeChain, NodeIdentifier:
+			case NodeField, NodeChain, NodeIdentifier, NodeDiscard:
 				left = append(left, operand)
 			default:
 				t.errorf("unexpected node in assign")
@@ -638,7 +638,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 
 		if isLet {
 			for _, operand := range left {
-				if operand.Type() != NodeIdentifier {
+				if operand.Type() != NodeIdentifier && operand.Type() != NodeDiscard {
 					t.errorf("unexpected node type %s in variable declaration", operand)
 				}
 			}
@@ -974,6 +974,8 @@ func (t *Template) term() Node {
 		t.errorf("%s", token.val)
 	case itemIdentifier:
 		return t.newIdentifier(token.val, token.pos, t.lex.lineNumber())
+	case itemUnderscore:
+		return t.newDiscard(token.pos, t.lex.lineNumber())
 	case itemNil:
 		return t.newNil(token.pos)
 	case itemField:

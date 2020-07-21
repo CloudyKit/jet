@@ -184,7 +184,7 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_NumberNegative", `{{ -5 }}`, "-5")
 	RunJetTest(t, data, nil, "actionNode_NumberNegative_1", `{{ 1 + -5 }}`, fmt.Sprint(1+-5))
 
-	//this is an error RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"-2 }}`, "12")
+	//this must be an error RunJetTest(t, data, nil, "actionNode_AddStringInt", `{{ "1"-2 }}`, "12")
 
 	RunJetTest(t, data, nil, "actionNode_Mult", `{{ 4*4 }}`, fmt.Sprint(4*4))
 	RunJetTest(t, data, nil, "actionNode_MultAdd", `{{ 2+4*4 }}`, fmt.Sprint(2+4*4))
@@ -203,6 +203,21 @@ func TestEvalActionNode(t *testing.T) {
 	RunJetTest(t, data, nil, "actionNode_NumericCmp", `{{ 5*5 > 2*12.5 }}`, fmt.Sprint(5*5 > 2*12.5))
 	RunJetTest(t, data, nil, "actionNode_NumericCmp1", `{{ 5*5 >= 2*12.5 }}`, fmt.Sprint(5*5 >= 2*12.5))
 	RunJetTest(t, data, nil, "actionNode_NumericCmp1", `{{ 5 * 5 > 2 * 12.5 == 5 * 5 > 2 * 12.5 }}`, fmt.Sprint((5*5 > 2*12.5) == (5*5 > 2*12.5)))
+
+	// test discard syntax in assignments
+	called := false
+	markCalled := func() { called = true }
+	data.Set("foo", markCalled)
+	data.Set("called", &called)
+	RunJetTest(t, data, nil, "actionNode_assign_discard", `{{ _ = foo() ; called }}`, "true")
+	if !called {
+		t.Log("function whose value should be evaluated but discarded was never called!")
+		t.Fail()
+	}
+	if _, ok := data["_"]; ok {
+		t.Log("a variable with name '_' was set!")
+		t.Fail()
+	}
 }
 
 func TestEvalIfNode(t *testing.T) {

@@ -65,6 +65,7 @@ func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{.Ex!1}}`, itemLeftDelim, itemField, itemNot, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{.Ex==1}}`, itemLeftDelim, itemField, itemEquals, itemNumber, itemRightDelim)
 	lexerTestCase(t, `{{.Ex&&1}}`, itemLeftDelim, itemField, itemAnd, itemNumber, itemRightDelim)
+	lexerTestCase(t, `{{ _ = foo }}`, itemLeftDelim, itemUnderscore, itemAssign, itemIdentifier, itemRightDelim)
 }
 
 func TestCustomDelimiters(t *testing.T) {
