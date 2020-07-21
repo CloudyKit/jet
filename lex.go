@@ -82,6 +82,7 @@ const (
 	itemTernary
 	itemLeftBrackets
 	itemRightBrackets
+	itemUnderscore
 	// Keywords appear after all the rest.
 	itemKeyword // used only to delimit the keywords
 	itemExtends
@@ -346,7 +347,7 @@ func lexInsideAction(l *lexer) stateFn {
 		if l.parenDepth == 0 {
 			return lexRightDelim
 		}
-		return l.errorf("unclosed left paren")
+		return l.errorf("unclosed left parenthesis")
 	}
 	switch r := l.next(); {
 	case r == eof:
@@ -467,6 +468,12 @@ func lexInsideAction(l *lexer) stateFn {
 	case '0' <= r && r <= '9':
 		l.backup()
 		return lexNumber
+	case r == '_':
+		if isSpace(l.peek()) {
+			l.emit(itemUnderscore)
+			return lexInsideAction
+		}
+		fallthrough // no space? must be the start of an identifier
 	case isAlphaNumeric(r):
 		l.backup()
 		return lexIdentifier
@@ -485,7 +492,6 @@ func lexInsideAction(l *lexer) stateFn {
 		}
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
-		return lexInsideAction
 	default:
 		return l.errorf("unrecognized character in action: %#U", r)
 	}

@@ -284,15 +284,22 @@ RESTART:
 func (st *Runtime) executeSetList(set *SetNode) {
 	if set.IndexExprGetLookup {
 		value := st.evalPrimaryExpressionGroup(set.Right[0])
-		st.executeSet(set.Left[0], value)
-		if value.IsValid() {
-			st.executeSet(set.Left[1], valueBoolTRUE)
-		} else {
-			st.executeSet(set.Left[1], valueBoolFALSE)
+		if set.Left[0].Type() != NodeDiscard {
+			st.executeSet(set.Left[0], value)
+		}
+		if set.Left[1].Type() != NodeDiscard {
+			if value.IsValid() {
+				st.executeSet(set.Left[1], valueBoolTRUE)
+			} else {
+				st.executeSet(set.Left[1], valueBoolFALSE)
+			}
 		}
 	} else {
 		for i := 0; i < len(set.Left); i++ {
-			st.executeSet(set.Left[i], st.evalPrimaryExpressionGroup(set.Right[i]))
+			value := st.evalPrimaryExpressionGroup(set.Right[i])
+			if set.Left[i].Type() != NodeDiscard {
+				st.executeSet(set.Left[i], value)
+			}
 		}
 	}
 }
@@ -300,18 +307,21 @@ func (st *Runtime) executeSetList(set *SetNode) {
 func (st *Runtime) executeLetList(set *SetNode) {
 	if set.IndexExprGetLookup {
 		value := st.evalPrimaryExpressionGroup(set.Right[0])
-
-		st.variables[set.Left[0].(*IdentifierNode).Ident] = value
-
-		if value.IsValid() {
-			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolTRUE
-		} else {
-			st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolFALSE
+		if set.Left[0].Type() != NodeDiscard {
+			st.variables[set.Left[0].(*IdentifierNode).Ident] = value
 		}
-
+		if set.Left[1].Type() != NodeDiscard {
+			if value.IsValid() {
+				st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolTRUE
+			} else {
+				st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolFALSE
+			}
+		}
 	} else {
 		for i := 0; i < len(set.Left); i++ {
-			st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+			if set.Left[i].Type() != NodeDiscard {
+				st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+			}
 		}
 	}
 }

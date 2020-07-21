@@ -77,6 +77,7 @@ const (
 	NodeCommand                    //An element of a pipeline.
 	NodeField                      //A field or method name.
 	NodeIdentifier                 //An identifier; always a function name.
+	NodeDiscard                    //An underscore
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
 	NodeSet
@@ -213,6 +214,15 @@ type IdentifierNode struct {
 
 func (i *IdentifierNode) String() string {
 	return i.Ident
+}
+
+// DiscardNode signals to discard the corresponding right side of an assignment.
+type DiscardNode struct {
+	NodeBase
+}
+
+func (i *DiscardNode) String() string {
+	return "_"
 }
 
 // NilNode holds the special identifier 'nil' representing an untyped nil constant.

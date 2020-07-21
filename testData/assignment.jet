@@ -2,8 +2,14 @@
 {{ newName := name; safeHtml: newName, " ", "new name" }}
 {{ newName,newValue := name,value }}
 {{ value,found := name["key"] }}
+{{ _ := foo() }}
+{{ _ = foo() }}
+{{ _, _ = name["key"] }}
 ===
 {{newURL:=url("", "").Method("");newURL | pipe}}
 {{newName:=name;safeHtml(newName, " ", "new name")}}
 {{newName, newValue:=name, value}}
 {{value, found:=name["key"]}}
+{{_:=foo()}}
+{{_=foo()}}
+{{_, _=name["key"]}}
