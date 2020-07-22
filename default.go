@@ -51,8 +51,8 @@ func init() {
 		"array":     reflect.ValueOf(newSlice),
 		"isset": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("isset", 1, -1)
-			for i := 0; i < len(a.argExpr); i++ {
-				if !a.runtime.isSet(a.argExpr[i]) {
+			for i := 0; i < a.NumOfArguments(); i++ {
+				if !a.IsSet(i) {
 					return valueBoolFALSE
 				}
 			}

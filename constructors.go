@@ -239,6 +239,6 @@ func (t *Template) newIdentifier(ident string, pos Pos, line int) *IdentifierNod
 	return &IdentifierNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeIdentifier, Pos: pos, Line: line}, Ident: ident}
 }
 
-func (t *Template) newDiscard(pos Pos, line int) *DiscardNode {
-	return &DiscardNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeDiscard, Pos: pos, Line: line}}
+func (t *Template) newUnderscore(pos Pos, line int) *UnderscoreNode {
+	return &UnderscoreNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeUnderscore, Pos: pos, Line: line}}
 }

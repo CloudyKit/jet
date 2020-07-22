@@ -22,23 +22,35 @@ import (
 
 // Arguments holds the arguments passed to jet.Func.
 type Arguments struct {
-	runtime *Runtime
-	argExpr []Expression
-	argVal  []reflect.Value
+	runtime  *Runtime
+	args     CallArgs
+	pipedVal *reflect.Value
 }
 
 // IsSet checks whether an argument is set or not. It behaves like the build-in isset function.
 func (a *Arguments) IsSet(argumentIndex int) bool {
-	return a.runtime.isSet(a.argExpr[argumentIndex])
+	if argumentIndex < len(a.args.Exprs) {
+		if a.args.Exprs[argumentIndex].Type() == NodeUnderscore {
+			return a.pipedVal != nil
+		}
+		return a.runtime.isSet(a.args.Exprs[argumentIndex])
+	}
+	if len(a.args.Exprs) == 0 && argumentIndex == 0 {
+		return a.pipedVal != nil
+	}
+	return false
 }
 
 // Get gets an argument by index.
 func (a *Arguments) Get(argumentIndex int) reflect.Value {
-	if argumentIndex < len(a.argVal) {
-		return a.argVal[argumentIndex]
+	if argumentIndex < len(a.args.Exprs) {
+		if a.args.Exprs[argumentIndex].Type() == NodeUnderscore {
+			return *a.pipedVal
+		}
+		return a.runtime.evalPrimaryExpressionGroup(a.args.Exprs[argumentIndex])
 	}
-	if argumentIndex < len(a.argVal)+len(a.argExpr) {
-		return a.runtime.evalPrimaryExpressionGroup(a.argExpr[argumentIndex-len(a.argVal)])
+	if len(a.args.Exprs) == 0 && argumentIndex == 0 {
+		return *a.pipedVal
 	}
 	return reflect.Value{}
 }
@@ -51,7 +63,7 @@ func (a *Arguments) Panicf(format string, v ...interface{}) {
 // RequireNumOfArguments panics if the number of arguments is not in the range specified by min and max.
 // In case there is no minimum pass -1, in case there is no maximum pass -1 respectively.
 func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
-	num := len(a.argExpr) + len(a.argVal)
+	num := a.NumOfArguments()
 	if min >= 0 && num < min {
 		a.Panicf("unexpected number of arguments in a call to %s", funcname)
 	} else if max >= 0 && num > max {
@@ -61,7 +73,14 @@ func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 
 // NumOfArguments returns the number of arguments
 func (a *Arguments) NumOfArguments() int {
-	return len(a.argExpr) + len(a.argVal)
+	num := len(a.args.Exprs)
+	if a.args.HasPipeSlot {
+		return num
+	}
+	if a.pipedVal != nil {
+		return num + 1
+	}
+	return num
 }
 
 // Runtime get the Runtime context
