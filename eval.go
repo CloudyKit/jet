@@ -1158,8 +1158,6 @@ func (st *Runtime) evalPipeCallExpression(baseExpr reflect.Value, args CallArgs,
 		return reflect.Value{}, fmt.Errorf("call expression: %v", err)
 	}
 
-	fmt.Println(argValues)
-
 	var returns = baseExpr.Call(argValues)
 	if len(returns) == 0 {
 		return reflect.Value{}, nil
@@ -1238,8 +1236,6 @@ func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Va
 		st.evalSafeWriter(term, node, value)
 		return reflect.Value{}, true
 	}
-
-	fmt.Printf("\n%#v\n\n", node)
 
 	ret, err := st.evalPipeCallExpression(term, node.CallArgs, &value)
 	if err != nil {
