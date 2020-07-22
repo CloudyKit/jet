@@ -469,7 +469,7 @@ func lexInsideAction(l *lexer) stateFn {
 		l.backup()
 		return lexNumber
 	case r == '_':
-		if isSpace(l.peek()) {
+		if !isAlphaNumeric(l.peek()) {
 			l.emit(itemUnderscore)
 			return lexInsideAction
 		}
