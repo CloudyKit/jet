@@ -284,10 +284,10 @@ RESTART:
 func (st *Runtime) executeSetList(set *SetNode) {
 	if set.IndexExprGetLookup {
 		value := st.evalPrimaryExpressionGroup(set.Right[0])
-		if set.Left[0].Type() != NodeDiscard {
+		if set.Left[0].Type() != NodeUnderscore {
 			st.executeSet(set.Left[0], value)
 		}
-		if set.Left[1].Type() != NodeDiscard {
+		if set.Left[1].Type() != NodeUnderscore {
 			if value.IsValid() {
 				st.executeSet(set.Left[1], valueBoolTRUE)
 			} else {
@@ -297,7 +297,7 @@ func (st *Runtime) executeSetList(set *SetNode) {
 	} else {
 		for i := 0; i < len(set.Left); i++ {
 			value := st.evalPrimaryExpressionGroup(set.Right[i])
-			if set.Left[i].Type() != NodeDiscard {
+			if set.Left[i].Type() != NodeUnderscore {
 				st.executeSet(set.Left[i], value)
 			}
 		}
@@ -307,10 +307,10 @@ func (st *Runtime) executeSetList(set *SetNode) {
 func (st *Runtime) executeLetList(set *SetNode) {
 	if set.IndexExprGetLookup {
 		value := st.evalPrimaryExpressionGroup(set.Right[0])
-		if set.Left[0].Type() != NodeDiscard {
+		if set.Left[0].Type() != NodeUnderscore {
 			st.variables[set.Left[0].(*IdentifierNode).Ident] = value
 		}
-		if set.Left[1].Type() != NodeDiscard {
+		if set.Left[1].Type() != NodeUnderscore {
 			if value.IsValid() {
 				st.variables[set.Left[1].(*IdentifierNode).Ident] = valueBoolTRUE
 			} else {
@@ -319,7 +319,7 @@ func (st *Runtime) executeLetList(set *SetNode) {
 		}
 	} else {
 		for i := 0; i < len(set.Left); i++ {
-			if set.Left[i].Type() != NodeDiscard {
+			if set.Left[i].Type() != NodeUnderscore {
 				st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
 			}
 		}
@@ -656,7 +656,11 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		if baseExpr.Kind() != reflect.Func {
 			node.errorf("node %q is not func kind %q", node.BaseExpr, baseExpr.Type())
 		}
-		return st.evalCallExpression(baseExpr, node.Args)
+		ret, err := st.evalCallExpression(baseExpr, node.CallArgs)
+		if err != nil {
+			node.error(err)
+		}
+		return ret
 	case NodeIndexExpr:
 		node := node.(*IndexExprNode)
 		base := st.evalPrimaryExpressionGroup(node.Base)
@@ -1140,39 +1144,45 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 	return reflect.Value{}
 }
 
-func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args []Expression, values ...reflect.Value) reflect.Value {
+func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args CallArgs) (reflect.Value, error) {
+	return st.evalPipeCallExpression(baseExpr, args, nil)
+}
 
+func (st *Runtime) evalPipeCallExpression(baseExpr reflect.Value, args CallArgs, pipedArg *reflect.Value) (reflect.Value, error) {
 	if funcType.AssignableTo(baseExpr.Type()) {
-		return baseExpr.Interface().(Func)(Arguments{runtime: st, argExpr: args, argVal: values})
+		return baseExpr.Interface().(Func)(Arguments{runtime: st, args: args, pipedVal: pipedArg}), nil
 	}
 
-	i := len(args) + len(values)
-	var returns []reflect.Value
-	if i <= 10 {
-		returns = reflect_Call10(i, st, baseExpr, args, values...)
-	} else {
-		returns = reflect_Call(make([]reflect.Value, i, i), st, baseExpr, args, values...)
+	argValues, err := st.evaluateArgs(baseExpr.Type(), args, pipedArg)
+	if err != nil {
+		return reflect.Value{}, fmt.Errorf("call expression: %v", err)
 	}
 
+	fmt.Println(argValues)
+
+	var returns = baseExpr.Call(argValues)
 	if len(returns) == 0 {
-		return reflect.Value{}
+		return reflect.Value{}, nil
 	}
 
-	return returns[0]
+	return returns[0], nil
 }
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
-	if node.Args != nil {
+	if node.Exprs != nil {
 		if term.Kind() == reflect.Func {
 			if term.Type() == safeWriterType {
 				st.evalSafeWriter(term, node)
 				return reflect.Value{}, true
 			}
-			return st.evalCallExpression(term, node.Args), false
-		} else {
-			node.Args[0].errorf("command %q type %s is not func", node.Args[0], term.Type())
+			ret, err := st.evalCallExpression(term, node.CallArgs)
+			if err != nil {
+				node.BaseExpr.error(err)
+			}
+			return ret, false
 		}
+		node.Exprs[0].errorf("command %q has arguments but is %s, not a function", node.Exprs[0], term.Type())
 	}
 	return term, false
 }
@@ -1209,28 +1219,33 @@ func (w *escapeWriter) Write(b []byte) (int, error) {
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
-
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
 		fastprinter.PrintValue(sw, v[i])
 	}
-	for i := 0; i < len(node.Args); i++ {
-		fastprinter.PrintValue(sw, st.evalPrimaryExpressionGroup(node.Args[i]))
+	for i := 0; i < len(node.Exprs); i++ {
+		fastprinter.PrintValue(sw, st.evalPrimaryExpressionGroup(node.Exprs[i]))
 	}
 }
 
 func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
-	if term.Kind() == reflect.Func {
-		if term.Type() == safeWriterType {
-			st.evalSafeWriter(term, node, value)
-			return reflect.Value{}, true
-		}
-		return st.evalCallExpression(term, node.Args, value), false
-	} else {
-		node.BaseExpr.errorf("pipe command %q type %s is not func", node.BaseExpr, term.Type())
+	if term.Kind() != reflect.Func {
+		node.BaseExpr.errorf("pipe command %q must be a function, but is %s", node.BaseExpr, term.Type())
 	}
-	return term, false
+
+	if term.Type() == safeWriterType {
+		st.evalSafeWriter(term, node, value)
+		return reflect.Value{}, true
+	}
+
+	fmt.Printf("\n%#v\n\n", node)
+
+	ret, err := st.evalPipeCallExpression(term, node.CallArgs, &value)
+	if err != nil {
+		node.BaseExpr.error(err)
+	}
+	return ret, false
 }
 
 func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, safeWriter bool) {
@@ -1244,61 +1259,71 @@ func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, 
 	return
 }
 
-func reflect_Call(arguments []reflect.Value, st *Runtime, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
-	typ := fn.Type()
-	numIn := typ.NumIn()
+var argValues = [24]reflect.Value{}
 
-	isVariadic := typ.IsVariadic()
-	if isVariadic {
-		numIn--
+func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *reflect.Value) ([]reflect.Value, error) {
+	numArgs := len(args.Exprs)
+	if !args.HasPipeSlot && pipedArg != nil {
+		numArgs++
 	}
-	i, j := 0, 0
+	numArgsRequired := fnType.NumIn()
+	isVariadic := fnType.IsVariadic()
+	if isVariadic {
+		numArgsRequired--
+		if numArgs < numArgsRequired {
+			return nil, fmt.Errorf("need at least %d arguments, but have %d", numArgsRequired, numArgs)
+		}
+	} else {
+		if numArgs != numArgsRequired {
+			return nil, fmt.Errorf("need %d arguments, but have %d", numArgsRequired, numArgs)
+		}
+	}
 
-	for ; i < numIn && i < len(values); i++ {
-		in := typ.In(i)
-		term := values[i]
+	slot, i := 0, 0
+	var term reflect.Value
+
+	if !args.HasPipeSlot && pipedArg != nil {
+		in := fnType.In(slot)
+		if !(*pipedArg).Type().AssignableTo(in) {
+			*pipedArg = (*pipedArg).Convert(in)
+		}
+		argValues[slot] = *pipedArg
+		slot++
+	}
+
+	for i < len(args.Exprs) {
+		in := fnType.In(slot)
+		if args.Exprs[i].Type() == NodeUnderscore {
+			term = *pipedArg
+		} else {
+			term = st.evalPrimaryExpressionGroup(args.Exprs[i])
+		}
 		if !term.Type().AssignableTo(in) {
 			term = term.Convert(in)
 		}
-		arguments[i] = term
+		argValues[slot] = term
+		i++
+		slot++
 	}
 
 	if isVariadic {
-		in := typ.In(numIn).Elem()
-		for ; i < len(values); i++ {
-			term := values[i]
+		in := fnType.In(numArgsRequired).Elem()
+		for i < len(args.Exprs) {
+			if args.Exprs[i].Type() == NodeUnderscore {
+				term = *pipedArg
+			} else {
+				term = st.evalPrimaryExpressionGroup(args.Exprs[i])
+			}
 			if !term.Type().AssignableTo(in) {
 				term = term.Convert(in)
 			}
-			arguments[i] = term
+			argValues[slot] = term
+			i++
+			slot++
 		}
 	}
 
-	for ; i < numIn && j < len(args); i, j = i+1, j+1 {
-		in := typ.In(i)
-		term := st.evalPrimaryExpressionGroup(args[j])
-		if !term.Type().AssignableTo(in) {
-			term = term.Convert(in)
-		}
-		arguments[i] = term
-	}
-
-	if isVariadic {
-		in := typ.In(numIn).Elem()
-		for ; j < len(args); i, j = i+1, j+1 {
-			term := st.evalPrimaryExpressionGroup(args[j])
-			if !term.Type().AssignableTo(in) {
-				term = term.Convert(in)
-			}
-			arguments[i] = term
-		}
-	}
-	return fn.Call(arguments[0:i])
-}
-
-func reflect_Call10(i int, st *Runtime, fn reflect.Value, args []Expression, values ...reflect.Value) []reflect.Value {
-	var arguments [10]reflect.Value
-	return reflect_Call(arguments[0:i], st, fn, args, values...)
+	return argValues[:slot], nil
 }
 
 func isUint(kind reflect.Kind) bool {

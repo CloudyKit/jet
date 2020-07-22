@@ -23,6 +23,7 @@
   - [Function calls](#function-calls)
     - [Prefix syntax](#prefix-syntax)
     - [Pipelining](#pipelining)
+    - [Piped argument slot](#piped-argument-slot)
 - [Control Structures](#control-structures)
   - [if](#if)
     - [if / else](#if--else)
@@ -251,6 +252,21 @@ Please note that the raw, unsafe, safeHtml or safeJs built-in escapers (or custo
     {{ "hello" | upper | raw }} <!-- valid -->
     {{ raw: "hello" }}          <!-- valid -->
     {{ raw: "hello" | upper }}  <!-- invalid (upper would be evaluated after raw) -->
+
+#### Piped argument slot
+
+When pipelining, it can be desirable to use the piped value in a different slot in the function call than the first. To tell Jet where to inject the piped value, use `_`:
+
+    {{ 2 | repeat("foo", _) }}                 <!-- 'foo' two times -->
+    {{ 2 | repeat("foo", _) | repeat(_, 3) }}  <!-- 'foo' six times -->
+
+All of the following produce the same output as the second line in the example above:
+
+    {{ 2 | repeat("foo", _) | repeat(3) }}
+    {{ 2 | repeat: "foo", _ | repeat: 3 }}
+    {{ 2 | repeat: "foo", _ | repeat: _, 3 }}
+
+This feature is inspired by [function capturing](https://gleam.run/tour/functions.html#function-capturing) in Gleam.
 
 ## Control Structures
 

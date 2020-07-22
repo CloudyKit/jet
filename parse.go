@@ -619,7 +619,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 	leftloop:
 		for {
 			switch operand.Type() {
-			case NodeField, NodeChain, NodeIdentifier, NodeDiscard:
+			case NodeField, NodeChain, NodeIdentifier, NodeUnderscore:
 				left = append(left, operand)
 			default:
 				t.errorf("unexpected node in assign")
@@ -638,7 +638,7 @@ func (t *Template) assignmentOrExpression(context string) (operand Expression) {
 
 		if isLet {
 			for _, operand := range left {
-				if operand.Type() != NodeIdentifier && operand.Type() != NodeDiscard {
+				if operand.Type() != NodeIdentifier && operand.Type() != NodeUnderscore {
 					t.errorf("unexpected node type %s in variable declaration", operand)
 				}
 			}
@@ -720,8 +720,7 @@ func (t *Template) command(baseExpr Expression) *CommandNode {
 
 	if baseExpr.Type() == NodeCallExpr {
 		call := baseExpr.(*CallExprNode)
-		cmd.BaseExpr = call.BaseExpr
-		cmd.Args = call.Args
+		cmd.CallExprNode = *call
 		return cmd
 	}
 
@@ -730,7 +729,7 @@ func (t *Template) command(baseExpr Expression) *CommandNode {
 	next := t.nextNonSpace()
 	switch next.typ {
 	case itemColon:
-		cmd.Args = t.parseArguments()
+		cmd.CallArgs = t.parseArguments()
 	default:
 		t.backup()
 	}
@@ -781,7 +780,7 @@ RESET:
 		switch t.nextNonSpace().typ {
 		case itemLeftParen:
 			callExpr := t.newCallExpr(node.Position(), t.lex.lineNumber(), node)
-			callExpr.Args = t.parseArguments()
+			callExpr.CallArgs = t.parseArguments()
 			t.expect(itemRightParen, "call expression", "closing parenthesis")
 			node = callExpr
 			goto RESET
@@ -820,13 +819,28 @@ RESET:
 	return node
 }
 
-func (t *Template) parseArguments() []Expression {
-	args := []Expression{}
+func (t *Template) parseArguments() (args CallArgs) {
 	context := "call expression argument list"
+	args.Exprs = []Expression{}
 loop:
-	for t.peekNonSpace().typ != itemRightParen {
-		expr, endtoken := t.parseExpression(context)
-		args = append(args, expr)
+	for {
+		peek := t.peekNonSpace()
+		if peek.typ == itemRightParen {
+			break
+		}
+		var (
+			expr     Expression
+			endtoken item
+		)
+		expr, endtoken = t.parseExpression(context)
+		if expr.Type() == NodeUnderscore {
+			// slot for piped argument
+			if args.HasPipeSlot {
+				t.errorf("found two pipe slot markers ('_') for the same function call")
+			}
+			args.HasPipeSlot = true
+		}
+		args.Exprs = append(args.Exprs, expr)
 		switch endtoken.typ {
 		case itemComma:
 			// continue with closing parens (allowed because of multiline syntax) or next arg
@@ -835,7 +849,7 @@ loop:
 			break loop
 		}
 	}
-	return args
+	return
 }
 
 func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line int, set *SetNode, expression Expression, list, elseList *ListNode) {
@@ -975,7 +989,7 @@ func (t *Template) term() Node {
 	case itemIdentifier:
 		return t.newIdentifier(token.val, token.pos, t.lex.lineNumber())
 	case itemUnderscore:
-		return t.newDiscard(token.pos, t.lex.lineNumber())
+		return t.newUnderscore(token.pos, t.lex.lineNumber())
 	case itemNil:
 		return t.newNil(token.pos)
 	case itemField:

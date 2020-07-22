@@ -193,7 +193,7 @@ func (vc VisitorContext) visitLogicalExprNode(logicalExprNode *jet.LogicalExprNo
 
 func (vc VisitorContext) visitCallExprNode(callExprNode *jet.CallExprNode) {
 	vc.visitNode(callExprNode.BaseExpr)
-	for _, node := range callExprNode.Args {
+	for _, node := range callExprNode.Exprs {
 		vc.visitNode(node)
 	}
 }
@@ -221,7 +221,7 @@ func (vc VisitorContext) visitSliceExprNode(sliceExprNode *jet.SliceExprNode) {
 
 func (vc VisitorContext) visitCommandNode(commandNode *jet.CommandNode) {
 	vc.visitNode(commandNode.BaseExpr)
-	for _, node := range commandNode.Args {
+	for _, node := range commandNode.Exprs {
 		vc.visitNode(node)
 	}
 }

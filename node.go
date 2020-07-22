@@ -77,7 +77,7 @@ const (
 	NodeCommand                    //An element of a pipeline.
 	NodeField                      //A field or method name.
 	NodeIdentifier                 //An identifier; always a function name.
-	NodeDiscard                    //An underscore
+	NodeUnderscore                 //An underscore (discard in assignment, or slot in argument list for piped value)
 	NodeList                       //A list of Nodes.
 	NodePipe                       //A pipeline of commands.
 	NodeSet
@@ -188,16 +188,16 @@ type CommandNode struct {
 }
 
 func (c *CommandNode) append(arg Node) {
-	c.Args = append(c.Args, arg)
+	c.Exprs = append(c.Exprs, arg)
 }
 
 func (c *CommandNode) String() string {
-	if c.Args == nil {
+	if c.Exprs == nil {
 		return c.BaseExpr.String()
 	}
 
 	arguments := ""
-	for i, expr := range c.Args {
+	for i, expr := range c.Exprs {
 		if i > 0 {
 			arguments += ", "
 		}
@@ -216,12 +216,14 @@ func (i *IdentifierNode) String() string {
 	return i.Ident
 }
 
-// DiscardNode signals to discard the corresponding right side of an assignment.
-type DiscardNode struct {
+// UnderscoreNode is used for one of two things:
+// - signals to discard the corresponding right side of an assignment
+// - tells Jet where in a pipelined function call to inject the piped value
+type UnderscoreNode struct {
 	NodeBase
 }
 
-func (i *DiscardNode) String() string {
+func (i *UnderscoreNode) String() string {
 	return "_"
 }
 
@@ -614,17 +616,22 @@ func (s *NotExprNode) String() string {
 	return fmt.Sprintf("!%s", s.Expr)
 }
 
+type CallArgs struct {
+	Exprs       []Expression
+	HasPipeSlot bool
+}
+
 // CallExprNode represents a call expression
 // ex: expression '(' (expression (',' expression)* )? ')'
 type CallExprNode struct {
 	NodeBase
 	BaseExpr Expression
-	Args     []Expression
+	CallArgs
 }
 
 func (s *CallExprNode) String() string {
 	arguments := ""
-	for i, expr := range s.Args {
+	for i, expr := range s.Exprs {
 		if i > 0 {
 			arguments += ", "
 		}
