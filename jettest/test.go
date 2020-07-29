@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CloudyKit/jet/v4"
+	"github.com/CloudyKit/jet/v5"
 )
 
 // TestingSet holds a template set for running tests

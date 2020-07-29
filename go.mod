@@ -1,4 +1,4 @@
-module github.com/CloudyKit/jet/v4
+module github.com/CloudyKit/jet/v5
 
 go 1.12
 

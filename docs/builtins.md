@@ -53,7 +53,7 @@ It panics if you pass a value of any type other than string, array, slice, map, 
 
 ## SafeWriter
 
-Jet includes a [`SafeWriter`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#SafeWriter) function type for writing directly to the render output stream. This can be used to circumvent Jet's default HTML escaping. Jet has a few such functions built-in.
+Jet includes a [`SafeWriter`](https://pkg.go.dev/github.com/CloudyKit/jet/v5?tab=doc#SafeWriter) function type for writing directly to the render output stream. This can be used to circumvent Jet's default HTML escaping. Jet has a few such functions built-in.
 
 ### safeHtml
 
@@ -69,7 +69,7 @@ Jet includes a [`SafeWriter`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.
 
 ## Renderer
 
-Jet exports a [`Renderer`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#Renderer) interface (and [`RendererFunc`](https://pkg.go.dev/github.com/CloudyKit/jet/v4@v4.0.1?tab=doc#RendererFunc) type which implements the interface). When an action evaluates to a value implementinng this interface, it will not be rendered using [fastprinter](https://github.com/CloudyKit/fastprinter), but by calling its Render() function instead.
+Jet exports a [`Renderer`](https://pkg.go.dev/github.com/CloudyKit/jet/v5?tab=doc#Renderer) interface (and [`RendererFunc`](https://pkg.go.dev/github.com/CloudyKit/jet/v5?tab=doc#RendererFunc) type which implements the interface). When an action evaluates to a value implementinng this interface, it will not be rendered using [fastprinter](https://github.com/CloudyKit/fastprinter), but by calling its Render() function instead.
 
 #### writeJson
 
