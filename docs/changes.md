@@ -2,12 +2,13 @@
 
 ## v5
 
-- `_` discard syntax in assignments
+When updating from version 4 to version 5, there is a breaking changes:
 
-    Version 5 adds Go-like discard syntax in assignments: assigning anything to `_` will make jet skip the assignment. Jet will still always evaluate the corresponding right-hand side of the assignment statement, i.e. you can use `_` to call a function but throw away its return value.
+- `_` became a reserved symbol
+
+    Version 5 uses `_` for two new features: it adds Go-like discard syntax in assignments (assigning anything to `_` will make jet skip the assignment) and to denote the [argument slot for the piped value](./syntax.md#piped-argument-slot). When assigning to `_`, Jet will still always evaluate the corresponding right-hand side of the assignment statement, i.e. you can use `_` to call a function but throw away its return value.
 
     When you assign (and/or use) a variable called `_` in your code, you will have to rename this variable.
-
 
 ## v4
 
