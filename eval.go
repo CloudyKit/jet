@@ -319,8 +319,9 @@ func (st *Runtime) executeLetList(set *SetNode) {
 		}
 	} else {
 		for i := 0; i < len(set.Left); i++ {
+			value := st.evalPrimaryExpressionGroup(set.Right[i])
 			if set.Left[i].Type() != NodeUnderscore {
-				st.variables[set.Left[i].(*IdentifierNode).Ident] = st.evalPrimaryExpressionGroup(set.Right[i])
+				st.variables[set.Left[i].(*IdentifierNode).Ident] = value
 			}
 		}
 	}
