@@ -162,8 +162,13 @@ func TestEvalActionNode(t *testing.T) {
 		"José Santos", "email@example.com",
 	})
 
+	data.Set("print", fmt.Sprint)
+	data.Set("printf", fmt.Sprintf)
+
 	RunJetTest(t, nil, nil, "actionNode", `hello {{"world"}}`, `hello world`)
 	RunJetTest(t, data, nil, "actionNode_func", `hello {{lower: "WORLD"}}`, `hello world`)
+	RunJetTest(t, data, nil, "actionNode_func_variadic", `{{ print("hello world") }}`, `hello world`)
+	RunJetTest(t, data, nil, "actionNode_func_variadic2", `{{ printf("hello %s", "world") }}`, `hello world`)
 	RunJetTest(t, data, nil, "actionNode_funcPipe", `hello {{lower: "WORLD" |upper}}`, `hello WORLD`)
 	RunJetTest(t, data, nil, "actionNode_funcPipe_parens", `{{ "foo" | repeat(2) }}`, `foofoo`)
 	RunJetTest(t, data, nil, "actionNode_funcPipe_parens2", `hello {{lower ( "WORLD" ) |upper}}`, `hello WORLD`)

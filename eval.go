@@ -1278,8 +1278,7 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 		}
 	}
 
-	slot, i := 0, 0
-	var term reflect.Value
+	slot := 0 // index in argument values (evaluated expressions combined with piped argument if applicable)
 
 	if !args.HasPipeSlot && pipedArg != nil {
 		in := fnType.In(slot)
@@ -1290,8 +1289,11 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 		slot++
 	}
 
-	for i < len(args.Exprs) {
+	i := 0 // index in parsed argument expression list
+
+	for slot < numArgsRequired {
 		in := fnType.In(slot)
+		var term reflect.Value
 		if args.Exprs[i].Type() == NodeUnderscore {
 			term = *pipedArg
 		} else {
@@ -1308,6 +1310,7 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 	if isVariadic {
 		in := fnType.In(numArgsRequired).Elem()
 		for i < len(args.Exprs) {
+			var term reflect.Value
 			if args.Exprs[i].Type() == NodeUnderscore {
 				term = *pipedArg
 			} else {
