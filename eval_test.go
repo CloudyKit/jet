@@ -166,6 +166,7 @@ func TestEvalActionNode(t *testing.T) {
 	data.Set("printf", fmt.Sprintf)
 
 	RunJetTest(t, nil, nil, "actionNode", `hello {{"world"}}`, `hello world`)
+	RunJetTest(t, nil, nil, "actionNode_trim", `hello {{- " world" -}} !`, `hello world!`)
 	RunJetTest(t, data, nil, "actionNode_func", `hello {{lower: "WORLD"}}`, `hello world`)
 	RunJetTest(t, data, nil, "actionNode_func_variadic", `{{ print("hello world") }}`, `hello world`)
 	RunJetTest(t, data, nil, "actionNode_func_variadic2", `{{ printf("hello %s", "world") }}`, `hello world`)
