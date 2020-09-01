@@ -9,6 +9,8 @@
 {{ url("") |pipe |pipe }}
 {{ url("","").Field |pipe }}
 {{ url("","").Method("") |pipe }}
+{{ "" }} {{ . }} {{ nil }}
+{{ "" -}} {{ . }} {{- nil}}
 ===
 {{.}}
 {{singleValue}}
@@ -21,3 +23,5 @@
 {{url("") | pipe | pipe}}
 {{url("", "").Field | pipe}}
 {{url("", "").Method("") | pipe}}
+{{""}} {{.}} {{nil}}
+{{""}}{{.}}{{nil}}

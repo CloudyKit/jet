@@ -50,7 +50,10 @@ func lexerTestCaseCustomDelimiters(t *testing.T, leftDelim, rightDelim, input st
 
 func TestLexer(t *testing.T) {
 	lexerTestCase(t, `{{}}`, itemLeftDelim, itemRightDelim)
+	lexerTestCase(t, `{{-  -}}`, itemLeftDelim, itemRightDelim)
+	lexerTestCase(t, ` {{-  -}} `, itemLeftDelim, itemRightDelim)
 	lexerTestCase(t, `{{ line }}`, itemLeftDelim, itemIdentifier, itemRightDelim)
+	lexerTestCase(t, ` {{- line -}} `, itemLeftDelim, itemIdentifier, itemRightDelim)
 	lexerTestCase(t, `{{ . }}`, itemLeftDelim, itemIdentifier, itemRightDelim)
 	lexerTestCase(t, `{{ .Field }}`, itemLeftDelim, itemField, itemRightDelim)
 	lexerTestCase(t, `{{ "value" }}`, itemLeftDelim, itemString, itemRightDelim)
