@@ -47,7 +47,29 @@
   - [extends](#extends)
   - [import](#import)
 
-## Comments
+## Delimiters
+
+Template delimiters are `{{` and `}}`.  Delimiters can use `.` to output the execution context, and they can also contain many different literals, expressions, and declarations.
+
+    hello {{ . }} <!-- with context of "world", outputs "hello world" -->
+
+Jet can also be configured to use alternative delimiters, such as `[[` and `]]`.
+
+    hello [[ . ]] <!-- equivalent to the above -->
+
+### Whitespace Trimming
+
+By default, all text outside of template delimiters is copied verbatim when the template is parsed and executed, including whitespace.
+
+    foo {{ "bar" }} baz <!-- outputs "foo bar baz" -->
+
+To aid in formatting template source code, Jet can be instructed to trim whitepsace preceding and following delimiters using the `{{- ` and ` -}}` syntax.  (This could be `[[- ` and ` -]]` with alternate delimiters, for example.)  Note the space character adjacent to the dash which must be present.
+
+    foo {{- "bar" -}} baz <!-- outputs "foobarbaz" -->
+
+For this trimming, whitespace is defined as: spaces, horizontal tabs, carriage returns, and newlines.
+
+### Comments
 
 Comments begin with `{*` and end with `*}` and will simply be dropped during template parsing.
 
