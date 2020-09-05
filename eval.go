@@ -1556,25 +1556,28 @@ func getRanger(v reflect.Value) Ranger {
 		return v.Interface().(Ranger)
 	}
 	k := tuP.Kind()
-	switch k {
-	case reflect.Ptr, reflect.Interface:
-		v = v.Elem()
-		k = v.Kind()
-		fallthrough
-	case reflect.Slice, reflect.Array:
-		sliceranger := pool_sliceRanger.Get().(*sliceRanger)
-		sliceranger.i = -1
-		sliceranger.len = v.Len()
-		sliceranger.v = v
-		return sliceranger
-	case reflect.Map:
-		mapranger := pool_mapRanger.Get().(*mapRanger)
-		*mapranger = mapRanger{v: v, keys: v.MapKeys(), len: v.Len()}
-		return mapranger
-	case reflect.Chan:
-		chanranger := pool_chanRanger.Get().(*chanRanger)
-		*chanranger = chanRanger{v: v}
-		return chanranger
+	for {
+		switch k {
+		case reflect.Ptr, reflect.Interface:
+			v = v.Elem()
+			k = v.Kind()
+			continue
+		case reflect.Slice, reflect.Array:
+			sliceranger := pool_sliceRanger.Get().(*sliceRanger)
+			sliceranger.i = -1
+			sliceranger.len = v.Len()
+			sliceranger.v = v
+			return sliceranger
+		case reflect.Map:
+			mapranger := pool_mapRanger.Get().(*mapRanger)
+			*mapranger = mapRanger{v: v, keys: v.MapKeys(), len: v.Len()}
+			return mapranger
+		case reflect.Chan:
+			chanranger := pool_chanRanger.Get().(*chanRanger)
+			*chanranger = chanRanger{v: v}
+			return chanranger
+		}
+		break
 	}
 	panic(fmt.Errorf("type %s is not rangeable", tuP))
 }
