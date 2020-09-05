@@ -285,12 +285,20 @@ func TestEvalRangeNode(t *testing.T) {
 		{"Joel Silva", "joelsilva@gmail.com"},
 		{"Luis Santana", "luis.santana@gmail.com"},
 	})
+	ages := map[string]int{
+		"Mario Santos": 25,
+		"Joel Silva":   35,
+		"Luis Santana": 45,
+	}
+	data.Set("ages", &ages)
 
 	const resultString = `<h1>Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	RunJetTest(t, data, nil, "Range_Expression", `{{range users}}<h1>{{.Name}}<small>{{.Email}}</small></h1>{{end}}`, resultString)
 	RunJetTest(t, data, nil, "Range_ExpressionValue", `{{range user:=users}}<h1>{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString)
 	var resultString2 = `<h1>0: Mario Santos<small>mario@gmail.com</small></h1><h1>Joel Silva<small>joelsilva@gmail.com</small></h1><h1>2: Luis Santana<small>luis.santana@gmail.com</small></h1>`
 	RunJetTest(t, data, nil, "Range_ExpressionValueIf", `{{range i, user:=users}}<h1>{{if i == 0 || i == 2}}{{i}}: {{end}}{{user.Name}}<small>{{user.Email}}</small></h1>{{end}}`, resultString2)
+	var resultString3 = `<ul><li>Mario Santos is 25 years old.</li><li>Joel Silva is 35 years old.</li><li>Luis Santana is 45 years old.</li></ul>`
+	RunJetTest(t, data, nil, "Range_ExpressionInterfaceMapValue", `<ul>{{range name, age:=ages}}<li>{{name}} is {{age}} years old.</li>{{end}}</ul>`, resultString3)
 }
 
 func TestEvalDefaultFuncs(t *testing.T) {
