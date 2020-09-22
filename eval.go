@@ -1258,8 +1258,6 @@ func (st *Runtime) evalPipelineExpression(node *PipeNode) (value reflect.Value, 
 	return
 }
 
-var argValues = [24]reflect.Value{}
-
 func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *reflect.Value) ([]reflect.Value, error) {
 	numArgs := len(args.Exprs)
 	if !args.HasPipeSlot && pipedArg != nil {
@@ -1278,6 +1276,7 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 		}
 	}
 
+	argValues := make([]reflect.Value, numArgs)
 	slot := 0 // index in argument values (evaluated expressions combined with piped argument if applicable)
 
 	if !args.HasPipeSlot && pipedArg != nil {
@@ -1325,7 +1324,7 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 		}
 	}
 
-	return argValues[:slot], nil
+	return argValues, nil
 }
 
 func isUint(kind reflect.Kind) bool {
