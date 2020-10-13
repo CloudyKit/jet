@@ -1,6 +1,8 @@
 # Syntax Reference
 
-- [Comments](#comments)
+- [Delimiters](#delimiters)
+  - [Whitespace Trimming](#whitespace-trimming)
+  - [Comments](#comments)
 - [Variables](#variables)
   - [Initialization](#initialization)
   - [Assignment](#assignment)
