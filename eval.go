@@ -477,7 +477,10 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 				expression = st.evalPrimaryExpressionGroup(node.Expression)
 			}
 
-			ranger, cleanup := getRanger(expression)
+			ranger, cleanup, err := getRanger(expression)
+			if err != nil {
+				node.error(err)
+			}
 			if !ranger.ProvidesIndex() {
 				if len(node.Set.Left) > 1 {
 					// two-vars assignment with ranger that doesn't provide an index
@@ -591,6 +594,9 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value) {
 	var templatePath string
 	name := st.evalPrimaryExpressionGroup(node.Name)
+	if !name.IsValid() {
+		node.errorf("evaluating name of template to include: name is not a valid value")
+	}
 	if name.Type().Implements(stringerType) {
 		templatePath = name.String()
 	} else if name.Kind() == reflect.String {
@@ -872,6 +878,9 @@ func (st *Runtime) evalComparativeExpression(node *ComparativeExprNode) reflect.
 }
 
 func toInt(v reflect.Value) int64 {
+	if !v.IsValid() {
+		panic(fmt.Errorf("invalid value can't be converted to int64"))
+	}
 	kind := v.Kind()
 	if isInt(kind) {
 		return v.Int()
@@ -895,6 +904,9 @@ func toInt(v reflect.Value) int64 {
 }
 
 func toUint(v reflect.Value) uint64 {
+	if !v.IsValid() {
+		panic(fmt.Errorf("invalid value can't be converted to uint64"))
+	}
 	kind := v.Kind()
 	if isUint(kind) {
 		return v.Uint()
@@ -918,6 +930,9 @@ func toUint(v reflect.Value) uint64 {
 }
 
 func toFloat(v reflect.Value) float64 {
+	if !v.IsValid() {
+		panic(fmt.Errorf("invalid value can't be converted to float64"))
+	}
 	kind := v.Kind()
 	if isFloat(kind) {
 		return v.Float()
@@ -1000,10 +1015,12 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 }
 
 func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value {
-
 	isAdditive := node.Operator.typ == itemAdd
 	if node.Left == nil {
 		right := st.evalPrimaryExpressionGroup(node.Right)
+		if !right.IsValid() {
+			node.errorf("right side of additive expression is invalid value")
+		}
 		kind := right.Kind()
 		// todo: optimize
 		if isInt(kind) {
@@ -1029,6 +1046,12 @@ func (st *Runtime) evalAdditiveExpression(node *AdditiveExprNode) reflect.Value 
 	}
 
 	left, right := st.evalPrimaryExpressionGroup(node.Left), st.evalPrimaryExpressionGroup(node.Right)
+	if !left.IsValid() {
+		node.errorf("left side of additive expression is invalid value")
+	}
+	if !right.IsValid() {
+		node.errorf("right side of additive expression is invalid value")
+	}
 	kind := left.Kind()
 	// if the left value is not a float and the right is, we need to promote the left value to a float before the calculation
 	// this is necessary for expressions like 4+1.23
@@ -1152,6 +1175,9 @@ func (st *Runtime) evalCallExpression(baseExpr reflect.Value, args CallArgs) (re
 }
 
 func (st *Runtime) evalPipeCallExpression(baseExpr reflect.Value, args CallArgs, pipedArg *reflect.Value) (reflect.Value, error) {
+	if !baseExpr.IsValid() {
+		return reflect.Value{}, errors.New("base of call expression is invalid value")
+	}
 	if funcType.AssignableTo(baseExpr.Type()) {
 		return baseExpr.Interface().(Func)(Arguments{runtime: st, args: args, pipedVal: pipedArg}), nil
 	}
@@ -1171,6 +1197,9 @@ func (st *Runtime) evalPipeCallExpression(baseExpr reflect.Value, args CallArgs,
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
+	if !term.IsValid() {
+		node.errorf("base expression of command node is invalid value")
+	}
 	if node.Exprs != nil {
 		if term.Kind() == reflect.Func {
 			if term.Type() == safeWriterType {
@@ -1231,6 +1260,9 @@ func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...re
 
 func (st *Runtime) evalCommandPipeExpression(node *CommandNode, value reflect.Value) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
+	if !term.IsValid() {
+		node.errorf("base expression of command pipe node is invalid value")
+	}
 	if term.Kind() != reflect.Func {
 		node.BaseExpr.errorf("pipe command %q must be a function, but is %s", node.BaseExpr, term.Type())
 	}
@@ -1268,11 +1300,11 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 	if isVariadic {
 		numArgsRequired--
 		if numArgs < numArgsRequired {
-			return nil, fmt.Errorf("need at least %d arguments, but have %d", numArgsRequired, numArgs)
+			return nil, fmt.Errorf("%s needs at least %d arguments, but have %d", fnType, numArgsRequired, numArgs)
 		}
 	} else {
 		if numArgs != numArgsRequired {
-			return nil, fmt.Errorf("need %d arguments, but have %d", numArgsRequired, numArgs)
+			return nil, fmt.Errorf("%s needs %d arguments, but have %d", fnType, numArgsRequired, numArgs)
 		}
 	}
 
@@ -1281,6 +1313,9 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 
 	if !args.HasPipeSlot && pipedArg != nil {
 		in := fnType.In(slot)
+		if !(*pipedArg).IsValid() {
+			return nil, fmt.Errorf("piped first argument for %s is not a valid value", fnType)
+		}
 		if !(*pipedArg).Type().AssignableTo(in) {
 			*pipedArg = (*pipedArg).Convert(in)
 		}
@@ -1298,6 +1333,9 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 		} else {
 			term = st.evalPrimaryExpressionGroup(args.Exprs[i])
 		}
+		if !term.IsValid() {
+			return nil, fmt.Errorf("argument for position %d in %s is not a valid value", slot, fnType)
+		}
 		if !term.Type().AssignableTo(in) {
 			term = term.Convert(in)
 		}
@@ -1314,6 +1352,9 @@ func (st *Runtime) evaluateArgs(fnType reflect.Type, args CallArgs, pipedArg *re
 				term = *pipedArg
 			} else {
 				term = st.evalPrimaryExpressionGroup(args.Exprs[i])
+			}
+			if !term.IsValid() {
+				return nil, fmt.Errorf("argument for position %d in %s is not a valid value", slot, fnType)
 			}
 			if !term.Type().AssignableTo(in) {
 				term = term.Convert(in)
@@ -1569,7 +1610,7 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 			return reflect.Value{}, fmt.Errorf("nil pointer evaluating %s.%s", v.Type(), index)
 		}
 	}
-	return reflect.Value{}, fmt.Errorf("can't evaluate index %s (%s) in type %s", index, index.Type(), v.Type())
+	return reflect.Value{}, fmt.Errorf("can't evaluate index %s (%s) in type %s", index, getTypeString(index), getTypeString(v))
 }
 
 // from Go's text/template's funcs.go:
@@ -1587,7 +1628,7 @@ func indexArg(index reflect.Value, cap int) (int, error) {
 	case reflect.Invalid:
 		return 0, fmt.Errorf("cannot index slice/array/string with nil")
 	default:
-		return 0, fmt.Errorf("cannot index slice/array/string with type %s", index.Type())
+		return 0, fmt.Errorf("cannot index slice/array/string with type %s", getTypeString(index))
 	}
 	if int(x) < 0 || int(x) >= cap {
 		return 0, fmt.Errorf("index out of range: %d", x)

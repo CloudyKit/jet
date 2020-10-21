@@ -17,6 +17,7 @@ package jet
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html"
 	"io"
 	"io/ioutil"
@@ -62,6 +63,9 @@ func init() {
 			a.RequireNumOfArguments("len", 1, 1)
 
 			expression := a.Get(0)
+			if !expression.IsValid() {
+				a.Panicf("len(): argument is not a valid value")
+			}
 			if expression.Kind() == reflect.Ptr || expression.Kind() == reflect.Interface {
 				expression = expression.Elem()
 			}
@@ -81,7 +85,7 @@ func init() {
 			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
 			// If template exists but returns an error then panic instead of failing silently
 			if t != nil && err != nil {
-				panic(err)
+				panic(fmt.Errorf("including %s: %w", a.Get(0).String(), err))
 			}
 			if err != nil {
 				return hiddenFalse
@@ -110,7 +114,7 @@ func init() {
 			a.RequireNumOfArguments("exec", 1, 2)
 			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
 			if err != nil {
-				panic(err)
+				panic(fmt.Errorf("exec(%s, %v): %w", a.Get(0), a.Get(1), err))
 			}
 
 			a.runtime.newScope()
@@ -185,6 +189,9 @@ var newMap = Func(func(a Arguments) reflect.Value {
 
 	for i := 0; i < a.NumOfArguments(); i += 2 {
 		key := a.Get(i)
+		if !key.IsValid() {
+			a.Panicf("map(): key argument at position %d is not a valid value!", i)
+		}
 		if !key.Type().ConvertibleTo(stringType) {
 			a.Panicf("map(): can't use %+v as string key: %s is not convertible to string", key, key.Type())
 		}

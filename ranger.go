@@ -1,6 +1,7 @@
 package jet
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -130,23 +131,26 @@ var (
 	}
 )
 
-func getRanger(v reflect.Value) (r Ranger, cleanup func()) {
+func getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
+	if !v.IsValid() {
+		return nil, nil, errors.New("can't range over invalid value")
+	}
 	t := v.Type()
 	if t.Implements(rangerType) {
-		return v.Interface().(Ranger), func() { /* no cleanup needed */ }
+		return v.Interface().(Ranger), func() { /* no cleanup needed */ }, nil
 	}
 
 	v, isNil := indirect(v)
 	if isNil {
-		panic(fmt.Errorf("cannot range over nil pointer/interface (%s)", t))
+		return nil, nil, fmt.Errorf("cannot range over nil pointer/interface (%s)", t)
 	}
 
 	pool, ok := poolsByKind[v.Kind()]
 	if !ok {
-		panic(fmt.Errorf("value %v (type %s) is not rangeable", v, t))
+		return nil, nil, fmt.Errorf("value %v (type %s) is not rangeable", v, t)
 	}
 
 	pr := pool.Get().(pooledRanger)
 	pr.Setup(v)
-	return pr, func() { pool.Put(pr) }
+	return pr, func() { pool.Put(pr) }, nil
 }
