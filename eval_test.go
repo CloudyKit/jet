@@ -744,6 +744,7 @@ func TestRanger(t *testing.T) {
 
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, nil)
 		if err != nil {
@@ -754,6 +755,7 @@ func BenchmarkSimpleAction(b *testing.B) {
 
 func BenchmarkSimpleActionNoAlloc(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("noAllocFn")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		t.Execute(ww, nil, nil)
 	}
@@ -761,6 +763,7 @@ func BenchmarkSimpleActionNoAlloc(b *testing.B) {
 
 func BenchmarkRangeSimple(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("rangeOverUsers")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, &users)
 		if err != nil {
@@ -771,6 +774,7 @@ func BenchmarkRangeSimple(b *testing.B) {
 
 func BenchmarkRangeSimpleSet(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("rangeOverUsers_Set")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil, &users)
 		if err != nil {
@@ -781,6 +785,7 @@ func BenchmarkRangeSimpleSet(b *testing.B) {
 
 func BenchmarkSimpleActionStd(b *testing.B) {
 	t := stdSet.Lookup("actionNode_dummy")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil)
 		if err != nil {
@@ -791,6 +796,7 @@ func BenchmarkSimpleActionStd(b *testing.B) {
 
 func BenchmarkSimpleActionStdNoAlloc(b *testing.B) {
 	t := stdSet.Lookup("noAllocFn")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, nil)
 		if err != nil {
@@ -801,6 +807,7 @@ func BenchmarkSimpleActionStdNoAlloc(b *testing.B) {
 
 func BenchmarkRangeSimpleStd(b *testing.B) {
 	t := stdSet.Lookup("rangeOverUsers")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, &users)
 		if err != nil {
@@ -811,6 +818,7 @@ func BenchmarkRangeSimpleStd(b *testing.B) {
 
 func BenchmarkRangeSimpleSetStd(b *testing.B) {
 	t := stdSet.Lookup("rangeOverUsers_Set")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, &users)
 		if err != nil {
@@ -822,6 +830,7 @@ func BenchmarkRangeSimpleSetStd(b *testing.B) {
 func BenchmarkNewBlockYield(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("BenchNewBlock")
 	b.SetParallelism(10000)
+	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			err := t.Execute(ww, nil, nil)
@@ -834,9 +843,9 @@ func BenchmarkNewBlockYield(b *testing.B) {
 }
 
 func BenchmarkDynamicFunc(b *testing.B) {
-
 	var variables = VarMap{}.Set("dummy", dummy)
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, variables, nil)
 		if err != nil {
@@ -850,6 +859,7 @@ func BenchmarkJetFunc(b *testing.B) {
 		return reflect.ValueOf(dummy(a.Get(0).String()))
 	})
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := t.Execute(ww, variables, nil)
 		if err != nil {
