@@ -1197,10 +1197,7 @@ func (st *Runtime) evalPipeCallExpression(baseExpr reflect.Value, args CallArgs,
 
 func (st *Runtime) evalCommandExpression(node *CommandNode) (reflect.Value, bool) {
 	term := st.evalPrimaryExpressionGroup(node.BaseExpr)
-	if !term.IsValid() {
-		node.errorf("base expression of command node is invalid value")
-	}
-	if node.Exprs != nil {
+	if term.IsValid() && node.Exprs != nil {
 		if term.Kind() == reflect.Func {
 			if term.Type() == safeWriterType {
 				st.evalSafeWriter(term, node)
