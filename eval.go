@@ -606,7 +606,7 @@ func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value)
 	}
 
 	st.set.tmx.RLock()
-	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath)
+	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath, true)
 	st.set.tmx.RUnlock()
 	if err != nil {
 		node.error(err)

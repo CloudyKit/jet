@@ -174,7 +174,7 @@ func (t *Template) recover(errp *error) {
 	return
 }
 
-func (s *Set) parse(name, text string) (t *Template, err error) {
+func (s *Set) parse(name, text string, cacheAfterParsing bool) (t *Template, err error) {
 	t = &Template{
 		Name:         name,
 		ParseName:    name,
@@ -188,7 +188,7 @@ func (s *Set) parse(name, text string) (t *Template, err error) {
 	lexer.setDelimiters(s.leftDelim, s.rightDelim)
 	lexer.run()
 	t.startParse(lexer)
-	t.parseTemplate()
+	t.parseTemplate(cacheAfterParsing)
 	t.stopParse()
 
 	if t.extends != nil {
@@ -215,7 +215,7 @@ func (t *Template) expectString(context string) string {
 
 // parse is the top-level parser for a template, essentially the same
 // It runs to EOF.
-func (t *Template) parseTemplate() (next Node) {
+func (t *Template) parseTemplate(cacheAfterParsing bool) (next Node) {
 	t.Root = t.newList(t.peek().pos)
 	// {{ extends|import stringLiteral }}
 	for t.peek().typ != itemEOF {
@@ -234,12 +234,12 @@ func (t *Template) parseTemplate() (next Node) {
 						t.errorf("Unexpected extends clause: the 'extends' clause should come before all import clauses")
 					}
 					var err error
-					t.extends, err = t.set.getSiblingTemplate(s, t.Name)
+					t.extends, err = t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing)
 					if err != nil {
 						t.error(err)
 					}
 				} else {
-					tt, err := t.set.getSiblingTemplate(s, t.Name)
+					tt, err := t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing)
 					if err != nil {
 						t.error(err)
 					}
