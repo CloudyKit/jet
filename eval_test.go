@@ -742,6 +742,12 @@ func TestRanger(t *testing.T) {
 	RunJetTest(t, nil, nil, "ints_ranger", `{{ range i := ints(0, 10) }}{{ (i == 0 ? "" : ", ") + i }}{{ end }}`, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
 }
 
+func TestWhitespaceControl(t *testing.T) {
+	set := NewHTMLSet("./testData/whitespaceControl")
+	RunJetTestWithSet(t, set, nil, nil, "simple", "", "beforeACTIONafter")
+	RunJetTestWithSet(t, set, nil, nil, "multiple", "", "beforeACTIONafter")
+}
+
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
 	b.ResetTimer()

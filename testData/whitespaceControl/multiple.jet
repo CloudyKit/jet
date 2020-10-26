@@ -1,0 +1,8 @@
+before
+
+    {{- "ACTION" -}}
+
+{{- asd := "produces no output" -}}
+
+
+      after
