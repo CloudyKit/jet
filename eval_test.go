@@ -19,16 +19,15 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 )
 
 var (
-	JetTestingSet = NewSet(nil, "")
+	JetTestingLoader = NewInMemLoader()
+	JetTestingSet    = NewSetLoader(nil, JetTestingLoader)
 
 	ww    io.Writer = (*devNull)(nil)
 	users           = []*User{
@@ -84,32 +83,24 @@ func init() {
 	}
 
 	JetTestingSet.AddGlobal("dummy", dummy)
-	JetTestingSet.LoadTemplate("actionNode_dummy", `hello {{dummy("WORLD")}}`)
-	JetTestingSet.LoadTemplate("noAllocFn", `hello {{ "José" }} {{1}} {{ "José" }}`)
-	JetTestingSet.LoadTemplate("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
-	JetTestingSet.LoadTemplate("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
-
-	JetTestingSet.LoadTemplate("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
+	JetTestingLoader.Set("actionNode_dummy", `hello {{dummy("WORLD")}}`)
+	JetTestingLoader.Set("noAllocFn", `hello {{ "José" }} {{1}} {{ "José" }}`)
+	JetTestingLoader.Set("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
+	JetTestingLoader.Set("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
+	JetTestingLoader.Set("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
 }
 
 func RunJetTest(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
-	RunJetTestWithSet(t, JetTestingSet, variables, context, testName, testContent, testExpected)
+	if testContent != "" {
+		JetTestingLoader.Set(testName, testContent)
+	}
+	RunJetTestWithSet(t, JetTestingSet, variables, context, testName, testExpected)
 }
 
-func RunJetTestWithSet(t *testing.T, set *Set, variables VarMap, context interface{}, testName, testContent, testExpected string) {
-	var (
-		tt  *Template
-		err error
-	)
-
-	if testContent != "" {
-		tt, err = set.LoadTemplate(testName, testContent)
-	} else {
-		tt, err = set.GetTemplate(testName)
-	}
-
+func RunJetTestWithSet(t *testing.T, set *Set, variables VarMap, context interface{}, testName, testExpected string) {
+	tt, err := set.GetTemplate(testName)
 	if err != nil {
-		t.Errorf("Parsing error: %s %s %s", err.Error(), testName, testContent)
+		t.Errorf("Error parsing templates for test %s: %v", testName, err)
 		return
 	}
 	RunJetTestWithTemplate(t, tt, variables, context, testExpected)
@@ -280,7 +271,7 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 	RunJetTest(t, data, nil, "Block_Import", `{{import "Block_simple"}}{{yield hello() "Buddy"}}`, `Hello Buddy`)
 	RunJetTest(t, data, nil, "Block_Import", `{{import "Block_simple"}}{{yield hello() "Buddy"}}`, `Hello Buddy`)
 
-	JetTestingSet.LoadTemplate("Block_ImportInclude1", `{{yield hello() "Buddy"}}`)
+	JetTestingLoader.Set("Block_ImportInclude1", `{{yield hello() "Buddy"}}`)
 	RunJetTest(t, data, nil, "Block_ImportInclude", `{{ import "Block_simple"}}{{include "Block_ImportInclude1"}}`, `Hello Buddy`)
 	RunJetTest(t, data, nil,
 		"Block_Content",
@@ -288,12 +279,12 @@ func TestEvalBlockYieldIncludeNode(t *testing.T) {
 		"\n<div class=\"col-md-12 col-md-offset-0\"></div>\n\t\t\n\t\t\n<div class=\"row 12\">\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t</div>\n\t\t\n\t\t\n<div class=\"header\">\n\t\n<div class=\"row 12\">\n\t\t\n<div class=\"col-md-6 col-md-offset-0\">\n\n<h1>Hey</h1>\n\t\t\n\t\t</div>\n\t\t\n\t</div>\n\t\t\n</div>\n\t\t",
 	)
 
-	JetTestingSet.LoadTemplate("BlockContentLib", "{{block col(columns)}}\n    <div class=\"col {{columns}}\">{{yield content}}</div>\n{{end}}\n{{block row(cols=\"\")}}\n    <div class=\"row\">\n        {{if len(cols) > 0}}\n            {{yield col(columns=cols) content}}{{yield content}}{{end}}\n        {{else}}\n            {{yield content}}\n        {{end}}\n    </div>\n{{end}}")
+	JetTestingLoader.Set("BlockContentLib", "{{block col(columns)}}\n    <div class=\"col {{columns}}\">{{yield content}}</div>\n{{end}}\n{{block row(cols=\"\")}}\n    <div class=\"row\">\n        {{if len(cols) > 0}}\n            {{yield col(columns=cols) content}}{{yield content}}{{end}}\n        {{else}}\n            {{yield content}}\n        {{end}}\n    </div>\n{{end}}")
 	RunJetTest(t, nil, nil, "BlockContentParam",
 		`{{import "BlockContentLib"}}{{yield row(cols="12") content}}{{cols}}{{end}}`,
 		"\n    <div class=\"row\">\n        \n            \n    <div class=\"col 12\">12</div>\n\n        \n    </div>\n")
 
-	JetTestingSet.LoadTemplate("BlockContentLib2", `
+	JetTestingLoader.Set("BlockContentLib2", `
 		{{block col(
 			columns,
 		)}}
@@ -584,7 +575,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "<nil>")
 
 	var set = NewSet(nil, "./testData")
-	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`)
+	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -624,19 +615,22 @@ func TestEvalBuiltinExpression(t *testing.T) {
 }
 
 func TestEvalAutoescape(t *testing.T) {
-	set := NewHTMLSet("")
-	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`, "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")
-	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`, "<h1><h1>Hello Buddy!</h1></h1>")
+	l := NewInMemLoader()
+	set := NewSetLoader(template.HTMLEscape, l)
+	l.Set("Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`)
+	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test1", "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")
+	l.Set("Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`)
+	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test2", "<h1><h1>Hello Buddy!</h1></h1>")
 }
 
 func TestFileResolve(t *testing.T) {
 	set := NewHTMLSet("./testData/resolve")
-	RunJetTestWithSet(t, set, nil, nil, "simple", "", "simple")
-	RunJetTestWithSet(t, set, nil, nil, "simple.jet", "", "simple.jet")
-	RunJetTestWithSet(t, set, nil, nil, "extension", "", "extension.jet.html")
-	RunJetTestWithSet(t, set, nil, nil, "extension.jet.html", "", "extension.jet.html")
-	RunJetTestWithSet(t, set, nil, nil, "./sub/subextend", "", "simple - simple.jet - extension.jet.html")
-	RunJetTestWithSet(t, set, nil, nil, "./sub/extend", "", "simple - simple.jet - extension.jet.html")
+	RunJetTestWithSet(t, set, nil, nil, "simple", "simple")
+	RunJetTestWithSet(t, set, nil, nil, "simple.jet", "simple.jet")
+	RunJetTestWithSet(t, set, nil, nil, "extension", "extension.jet.html")
+	RunJetTestWithSet(t, set, nil, nil, "extension.jet.html", "extension.jet.html")
+	RunJetTestWithSet(t, set, nil, nil, "./sub/subextend", "simple - simple.jet - extension.jet.html")
+	RunJetTestWithSet(t, set, nil, nil, "./sub/extend", "simple - simple.jet - extension.jet.html")
 	//for key, _ := range set.templates {
 	//	t.Log(key)
 	//}
@@ -644,10 +638,10 @@ func TestFileResolve(t *testing.T) {
 
 func TestIncludeIfNotExists(t *testing.T) {
 	set := NewHTMLSet("./testData/includeIfNotExists")
-	RunJetTestWithSet(t, set, nil, nil, "existent", "", "Hi, i exist!!")
-	RunJetTestWithSet(t, set, nil, nil, "notExistent", "", "")
-	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
-	RunJetTestWithSet(t, set, nil, "World", "wcontext", "", "Hi, Buddy!\nHi, World!")
+	RunJetTestWithSet(t, set, nil, nil, "existent", "Hi, i exist!!")
+	RunJetTestWithSet(t, set, nil, nil, "notExistent", "")
+	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
+	RunJetTestWithSet(t, set, nil, "World", "wcontext", "Hi, Buddy!\nHi, World!")
 
 	// Check if includeIfExists helper bubbles up runtime errors of included templates
 	tt, err := set.GetTemplate("includeBroken")
@@ -661,49 +655,26 @@ func TestIncludeIfNotExists(t *testing.T) {
 	}
 }
 
-func TestSet_Parse(t *testing.T) {
-	set := NewHTMLSet("./testData/resolve")
-
-	var c int64 = 100
-
-	group := &sync.WaitGroup{}
-	for i, l := int64(0), c; i < l; i++ {
-		(func() {
-			template, _ := set.Parse("TestTemplate", `{{extends "sub/extend"}}`)
-			RunJetTestWithTemplate(t, template, nil, nil, "simple - simple.jet - extension.jet.html")
-			if len(set.templates) > 0 {
-				t.Fail()
-			}
-			group.Add(1)
-			runtime.SetFinalizer(template, func(ob interface{}) {
-				group.Done()
-			})
-		})()
-	}
-	runtime.GC()
-	group.Wait()
-}
-
 func TestExecReturn(t *testing.T) {
 	set := NewHTMLSet("./testData/execReturn")
-	RunJetTestWithSet(t, set, nil, nil, "simple", "", "\n\n... some content that will be discarded when this template runs inside exec() ...\n\n")
-	RunJetTestWithSet(t, set, nil, nil, "test_simple", "", "foo\n")
-	RunJetTestWithSet(t, set, nil, nil, "in_if", "", "\n\n\n")
-	RunJetTestWithSet(t, set, nil, nil, "test_in_if", "", "from inside if branch\n")
+	RunJetTestWithSet(t, set, nil, nil, "simple", "\n\n... some content that will be discarded when this template runs inside exec() ...\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_simple", "foo\n")
+	RunJetTestWithSet(t, set, nil, nil, "in_if", "\n\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_in_if", "from inside if branch\n")
 	context := map[string]interface{}{"arr": []string{"foo", "bar"}}
-	RunJetTestWithSet(t, set, nil, context, "in_range", "", "\n0: foo\n\n\n")
-	RunJetTestWithSet(t, set, nil, context, "test_in_range", "", "from inside if branch inside range\n")
-	RunJetTestWithSet(t, set, nil, nil, "included", "", "... some content that will be discarded when this template runs inside exec() ...\n\n")
-	RunJetTestWithSet(t, set, nil, nil, "in_include", "", "bla bla\n... some content that will be discarded when this template runs inside exec() ...\n\n\nfoo\n")
-	RunJetTestWithSet(t, set, nil, nil, "test_in_include", "", "from inside included template\n")
+	RunJetTestWithSet(t, set, nil, context, "in_range", "\n0: foo\n\n\n")
+	RunJetTestWithSet(t, set, nil, context, "test_in_range", "from inside if branch inside range\n")
+	RunJetTestWithSet(t, set, nil, nil, "included", "... some content that will be discarded when this template runs inside exec() ...\n\n")
+	RunJetTestWithSet(t, set, nil, nil, "in_include", "bla bla\n... some content that will be discarded when this template runs inside exec() ...\n\n\nfoo\n")
+	RunJetTestWithSet(t, set, nil, nil, "test_in_include", "from inside included template\n")
 }
 
 func TestTryCatch(t *testing.T) {
 	set := NewHTMLSet("./testData/tryCatch")
-	RunJetTestWithSet(t, set, nil, nil, "try", "", "before try without panic ...\n\nsome content\n\nfoo\n\nafter try without panic ...\nbefore panic ...\n\nafter panic ...")
-	RunJetTestWithSet(t, set, nil, nil, "try_catch", "", "before panic ...\n\nan error occured!\n\nafter panic ...")
-	RunJetTestWithSet(t, set, nil, nil, "try_catch_err", "", "before panic ...\n\nan error occured: Jet Runtime Error (&#34;try_catch_err.jet&#34;:3): identifier &#34;undefined_identifier_that_causes_panic&#34; not available in current (map[]) or parent scope, global, or default variables\n\nafter panic ...")
-	RunJetTestWithSet(t, set, nil, nil, "try_include", "", "before broken include ...\n\nafter broken include ...")
+	RunJetTestWithSet(t, set, nil, nil, "try", "before try without panic ...\n\nsome content\n\nfoo\n\nafter try without panic ...\nbefore panic ...\n\nafter panic ...")
+	RunJetTestWithSet(t, set, nil, nil, "try_catch", "before panic ...\n\nan error occured!\n\nafter panic ...")
+	RunJetTestWithSet(t, set, nil, nil, "try_catch_err", "before panic ...\n\nan error occured: Jet Runtime Error (&#34;/try_catch_err.jet&#34;:3): identifier &#34;undefined_identifier_that_causes_panic&#34; not available in current (map[]) or parent scope, global, or default variables\n\nafter panic ...")
+	RunJetTestWithSet(t, set, nil, nil, "try_include", "before broken include ...\n\nafter broken include ...")
 }
 
 func TestBuiltinCollectionFuncs(t *testing.T) {
@@ -744,8 +715,8 @@ func TestRanger(t *testing.T) {
 
 func TestWhitespaceControl(t *testing.T) {
 	set := NewHTMLSet("./testData/whitespaceControl")
-	RunJetTestWithSet(t, set, nil, nil, "simple", "", "beforeACTIONafter")
-	RunJetTestWithSet(t, set, nil, nil, "multiple", "", "beforeACTIONafter")
+	RunJetTestWithSet(t, set, nil, nil, "simple", "beforeACTIONafter")
+	RunJetTestWithSet(t, set, nil, nil, "multiple", "beforeACTIONafter")
 }
 
 func BenchmarkSimpleAction(b *testing.B) {

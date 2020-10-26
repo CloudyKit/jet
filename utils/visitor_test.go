@@ -3,15 +3,20 @@ package utils
 import (
 	"reflect"
 	"testing"
+	"text/template"
 
 	"github.com/CloudyKit/jet/v5"
 )
 
-var Set = jet.NewHTMLSet("")
+var (
+	Loader = jet.NewInMemLoader()
+	Set    = jet.NewSetLoader(template.HTMLEscape, Loader)
+)
 
 func TestVisitor(t *testing.T) {
 	var collectedIdentifiers []string
-	var mTemplate, _ = Set.LoadTemplate("_testing", "{{ ident1 }}\n{{ ident2(ident3)}}\n{{ if ident4 }}\n    {{ident5}}\n{{else}}\n    {{ident6}}\n{{end}}\n{{ ident7|ident8|ident9+ident10|ident11[ident12]: ident13[ident14:ident15] }}")
+	Loader.Set("_testing", "{{ ident1 }}\n{{ ident2(ident3)}}\n{{ if ident4 }}\n    {{ident5}}\n{{else}}\n    {{ident6}}\n{{end}}\n{{ ident7|ident8|ident9+ident10|ident11[ident12]: ident13[ident14:ident15] }}")
+	mTemplate, _ := Set.GetTemplate("_testing")
 	Walk(mTemplate, VisitorFunc(func(context VisitorContext, node jet.Node) {
 		if node.Type() == jet.NodeIdentifier {
 			collectedIdentifiers = append(collectedIdentifiers, node.String())
@@ -24,7 +29,8 @@ func TestVisitor(t *testing.T) {
 }
 
 func TestSimpleTemplate(t *testing.T) {
-	var mTemplate, err = Set.LoadTemplate("_testing2", "<html><head><title>Thank you!</title></head>\n\n<body>\n\tHello {{userName}},\n\n\tThanks for the order!\n\n\t{{range product := products}}\n\t\t{{product.name}}\n\n\t    {{block productPrice(price=product.Price) product}}\n            {{if price > ExpensiveProduct}}\n                Expensive!!\n            {{end}}\n        {{end}}\n\n\t\t${{product.price / 100}}\n\t{{end}}\n</body>\n</html>")
+	Loader.Set("_testing2", "<html><head><title>Thank you!</title></head>\n\n<body>\n\tHello {{userName}},\n\n\tThanks for the order!\n\n\t{{range product := products}}\n\t\t{{product.name}}\n\n\t    {{block productPrice(price=product.Price) product}}\n            {{if price > ExpensiveProduct}}\n                Expensive!!\n            {{end}}\n        {{end}}\n\n\t\t${{product.price / 100}}\n\t{{end}}\n</body>\n</html>")
+	mTemplate, err := Set.GetTemplate("_testing2")
 	if err != nil {
 		t.Error(err)
 	}

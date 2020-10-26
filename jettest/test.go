@@ -23,36 +23,15 @@ import (
 	"github.com/CloudyKit/jet/v5"
 )
 
-// TestingSet holds a template set for running tests
-var TestingSet = jet.NewSet(nil, "")
-
-// Run runs jet template engine test, template will be loaded and cached in the default set TestingSet
-func Run(t *testing.T, variables jet.VarMap, context interface{}, testName, testContent, testExpected string) {
-	RunWithSet(t, TestingSet, variables, context, testName, testContent, testExpected)
-}
-
-// RunWithSet like Run but accepts a jet.Set as a parameter to be used instead of the default set
-func RunWithSet(t *testing.T, set *jet.Set, variables jet.VarMap, context interface{}, testName, testContent, testExpected string) {
-	var (
-		tt  *jet.Template
-		err error
-	)
-
-	if testContent != "" {
-		tt, err = set.LoadTemplate(testName, testContent)
-	} else {
-		tt, err = set.GetTemplate(testName)
-	}
-
+func RunWithSet(t *testing.T, set *jet.Set, variables jet.VarMap, context interface{}, testName, testExpected string) {
+	tt, err := set.GetTemplate(testName)
 	if err != nil {
-		t.Errorf("Parsing error: %s %s %s", err.Error(), testName, testContent)
+		t.Errorf("Error parsing templates for test %s: %v", testName, err)
 		return
 	}
-
 	RunWithTemplate(t, tt, variables, context, testExpected)
 }
 
-// RunWithTemplate like Run but accepts a jet.Template
 func RunWithTemplate(t *testing.T, tt *jet.Template, variables jet.VarMap, context interface{}, testExpected string) {
 	if testing.RunTests(func(pat, str string) (bool, error) {
 		return true, nil

@@ -26,7 +26,7 @@ func TestTwoLoaders(t *testing.T) {
 	httpFSLoader := httpfs.NewLoader(http.Dir("../../testData"))
 	l := NewLoader(osFSLoader, httpFSLoader)
 	set := jet.NewHTMLSetLoader(l)
-	jettest.RunWithSet(t, set, nil, nil, "resolve/simple.jet", "", "simple.jet")
-	jettest.RunWithSet(t, set, nil, nil, "base.jet", "", "")
-	jettest.RunWithSet(t, set, nil, nil, "simple2", "", "simple2\n")
+	jettest.RunWithSet(t, set, nil, nil, "resolve/simple.jet", "simple.jet")
+	jettest.RunWithSet(t, set, nil, nil, "base.jet", "")
+	jettest.RunWithSet(t, set, nil, nil, "simple2", "simple2\n")
 }

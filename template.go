@@ -19,6 +19,7 @@
 package jet
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -112,6 +113,48 @@ func (s *Set) Delims(left, right string) {
 	s.rightDelim = right
 }
 
+// GetTemplate tries to find (and parse, if not yet parsed) the template at the specified path.
+//
+// For example, GetTemplate("catalog/products.list") with extensions set to []string{"", ".html.jet",".jet"}
+// will try to look for:
+//     1. catalog/products.list
+//     2. catalog/products.list.html.jet
+//     3. catalog/products.list.jet
+// in the set's templates cache, and if it can't find the template it will try to load the same paths via
+// the loader, and, if parsed successfully, cache the template (unless running in development mode).
+func (s *Set) GetTemplate(templatePath string) (t *Template, err error) {
+	s.tmx.Lock()
+	defer s.tmx.Unlock()
+	return s.getSiblingTemplate(templatePath, "/", true)
+}
+
+func (s *Set) getSiblingTemplate(templatePath, siblingPath string, cacheAfterParsing bool) (t *Template, err error) {
+	templatePath = filepath.ToSlash(templatePath)
+	siblingPath = filepath.ToSlash(siblingPath)
+	if !path.IsAbs(templatePath) {
+		siblingDir := path.Dir(siblingPath)
+		templatePath = path.Join(siblingDir, templatePath)
+	}
+	return s.getTemplate(templatePath, cacheAfterParsing)
+}
+
+// same as GetTemplate, but assumes the reader already called s.tmx.RLock(), and
+// doesn't cache a template when found through the loader
+func (s *Set) getTemplate(templatePath string, cacheAfterParsing bool) (t *Template, err error) {
+	if !s.developmentMode {
+		t, found := s.getTemplateFromCache(templatePath)
+		if found {
+			return t, nil
+		}
+	}
+
+	t, err = s.getTemplateFromLoader(templatePath, cacheAfterParsing)
+	if err == nil && cacheAfterParsing && !s.developmentMode {
+		s.templates[templatePath] = t
+	}
+	return t, err
+}
+
 func (s *Set) getTemplateFromCache(templatePath string) (t *Template, ok bool) {
 	// check path with all possible extensions in cache
 	for _, extension := range s.extensions {
@@ -123,78 +166,18 @@ func (s *Set) getTemplateFromCache(templatePath string) (t *Template, ok bool) {
 	return nil, false
 }
 
-func (s *Set) getTemplateFromLoader(templatePath string) (t *Template, err error) {
+func (s *Set) getTemplateFromLoader(templatePath string, cacheAfterParsing bool) (t *Template, err error) {
 	// check path with all possible extensions in loader
 	for _, extension := range s.extensions {
 		canonicalPath := templatePath + extension
 		if _, found := s.loader.Exists(canonicalPath); found {
-			return s.loadFromFile(canonicalPath)
+			return s.loadFromFile(canonicalPath, cacheAfterParsing)
 		}
 	}
 	return nil, fmt.Errorf("template %s could not be found", templatePath)
 }
 
-// GetTemplate tries to find (and load, if not yet loaded) the template at the specified path.
-//
-// for example, GetTemplate("catalog/products.list") with extensions set to []string{"", ".html.jet",".jet"}
-// will try to look for:
-//     1. catalog/products.list
-//     2. catalog/products.list.html.jet
-//     3. catalog/products.list.jet
-// in the set's templates cache, and if it can't find the template it will try to load the same paths via
-// the loader, and, if parsed successfully, cache the template.
-func (s *Set) GetTemplate(templatePath string) (t *Template, err error) {
-	if !s.developmentMode {
-		s.tmx.RLock()
-		t, found := s.getTemplateFromCache(templatePath)
-		if found {
-			s.tmx.RUnlock()
-			return t, nil
-		}
-		s.tmx.RUnlock()
-	}
-
-	t, err = s.getTemplateFromLoader(templatePath)
-	if err == nil && !s.developmentMode {
-		// load template into cache
-		s.tmx.Lock()
-		s.templates[t.Name] = t
-		s.tmx.Unlock()
-	}
-	return t, err
-}
-
-// same as GetTemplate, but assumes the reader already called s.tmx.RLock(), and
-// doesn't cache a template when found through the loader
-func (s *Set) getTemplate(templatePath string) (t *Template, err error) {
-	if !s.developmentMode {
-		t, found := s.getTemplateFromCache(templatePath)
-		if found {
-			return t, nil
-		}
-	}
-
-	return s.getTemplateFromLoader(templatePath)
-}
-
-func (s *Set) getSiblingTemplate(templatePath, siblingPath string) (t *Template, err error) {
-	if !path.IsAbs(filepath.ToSlash(templatePath)) {
-		siblingDir := filepath.Dir(siblingPath)
-		templatePath = filepath.Join(siblingDir, templatePath)
-	}
-	return s.getTemplate(templatePath)
-}
-
-// Parse parses the template without adding it to the set's templates cache.
-func (s *Set) Parse(templatePath, content string) (*Template, error) {
-	s.tmx.RLock()
-	t, err := s.parse(templatePath, content)
-	s.tmx.RUnlock()
-
-	return t, err
-}
-
-func (s *Set) loadFromFile(templatePath string) (template *Template, err error) {
+func (s *Set) loadFromFile(templatePath string, cacheAfterParsing bool) (template *Template, err error) {
 	f, err := s.loader.Open(templatePath)
 	if err != nil {
 		return nil, err
@@ -204,33 +187,21 @@ func (s *Set) loadFromFile(templatePath string) (template *Template, err error) 
 	if err != nil {
 		return nil, err
 	}
-	return s.parse(templatePath, string(content))
+	return s.parse(templatePath, string(content), cacheAfterParsing)
 }
 
-func (s *Set) LoadTemplate(templatePath, content string) (*Template, error) {
-	if s.developmentMode {
-		s.tmx.RLock()
-		defer s.tmx.RUnlock()
-		return s.parse(templatePath, content)
+func (s *Set) Parse(templatePath, contents string) (template *Template, err error) {
+	templatePath = filepath.ToSlash(templatePath)
+	switch path.Base(templatePath) {
+	case ".", "/":
+		return nil, errors.New("template path has no base name")
 	}
+	// make sure it's absolute and clean it
+	templatePath = path.Join("/", templatePath)
 
-	// fast path (t from cache)
 	s.tmx.RLock()
-	if t, found := s.templates[templatePath]; found {
-		s.tmx.RUnlock()
-		return t, nil
-	}
-	s.tmx.RUnlock()
-
-	// not found, parse and cache
-	s.tmx.Lock()
-	defer s.tmx.Unlock()
-
-	t, err := s.parse(templatePath, content)
-	if err == nil {
-		s.templates[templatePath] = t
-	}
-	return t, err
+	defer s.tmx.RUnlock()
+	return s.parse(templatePath, contents, false)
 }
 
 // SetExtensions sets extensions.

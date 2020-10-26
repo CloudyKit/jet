@@ -34,3 +34,27 @@ func TestSetSetExtensions(t *testing.T) {
 		}
 	}
 }
+
+func TestParseDoesNotCache(t *testing.T) {
+	loader := NewInMemLoader()
+	set := NewHTMLSetLoader(loader)
+	_, err := set.Parse("/asd.jet", `{{ foo := "bar" }}{{foo}}`)
+	if err != nil {
+		t.Errorf("parsing template: %v", err)
+		return
+	}
+	if len(set.templates) > 0 {
+		t.Errorf("template is cached in set after Parse()")
+	}
+
+	loader.Set("/something_to_extend.jet", "some content to extend")
+
+	_, err = set.Parse("/includes_template.jet", `{{ extends "/something_to_extend.jet" }}, and more content`)
+	if err != nil {
+		t.Errorf("parsing template: %v", err)
+		return
+	}
+	if len(set.templates) > 0 {
+		t.Errorf("one or more template(s) are cached in set after Parse()")
+	}
+}
