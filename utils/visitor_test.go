@@ -3,14 +3,13 @@ package utils
 import (
 	"reflect"
 	"testing"
-	"text/template"
 
 	"github.com/CloudyKit/jet/v5"
 )
 
 var (
 	Loader = jet.NewInMemLoader()
-	Set    = jet.NewSetLoader(template.HTMLEscape, Loader)
+	Set    = jet.NewSet(Loader)
 )
 
 func TestVisitor(t *testing.T) {

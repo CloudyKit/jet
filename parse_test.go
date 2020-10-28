@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-var parseSet = NewSet(nil, "./testData")
+var parseSet = NewSet(NewOSFileSystemLoader("./testData"), WithSafeWriter(nil))
 
 type ParserTestCase struct {
 	*testing.T
@@ -127,8 +127,11 @@ func TestParseTemplateAssignment(t *testing.T) {
 }
 
 func TestParseTemplateWithCustomDelimiters(t *testing.T) {
-	set := NewSet(nil, "./testData")
-	set.Delims("[[", "]]")
+	set := NewSet(
+		NewOSFileSystemLoader("./testData"),
+		WithSafeWriter(nil),
+		WithDelims("[[", "]]"),
+	)
 	p := ParserTestCase{T: t, set: set}
 	p.TestPrintFile("custom_delimiters.jet")
 }

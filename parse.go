@@ -47,6 +47,45 @@ type Template struct {
 	peekCount int
 }
 
+func (t *Template) String() (template string) {
+	if t.extends != nil {
+		if len(t.Root.Nodes) > 0 && len(t.imports) == 0 {
+			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
+		} else {
+			template += fmt.Sprintf("{{extends %q}}", t.extends.ParseName)
+		}
+	}
+
+	for k, _import := range t.imports {
+		if t.extends == nil && k == 0 {
+			template += fmt.Sprintf("{{import %q}}", _import.ParseName)
+		} else {
+			template += fmt.Sprintf("\n{{import %q}}", _import.ParseName)
+		}
+	}
+
+	if t.extends != nil || len(t.imports) > 0 {
+		if len(t.Root.Nodes) > 0 {
+			template += "\n" + t.Root.String()
+		}
+	} else {
+		template += t.Root.String()
+	}
+	return
+}
+
+func (t *Template) addBlocks(blocks map[string]*BlockNode) {
+	if len(blocks) == 0 {
+		return
+	}
+	if t.processedBlocks == nil {
+		t.processedBlocks = make(map[string]*BlockNode)
+	}
+	for key, value := range blocks {
+		t.processedBlocks[key] = value
+	}
+}
+
 // next returns the next token.
 func (t *Template) next() item {
 	if t.peekCount > 0 {

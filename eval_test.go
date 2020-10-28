@@ -27,7 +27,7 @@ import (
 
 var (
 	JetTestingLoader = NewInMemLoader()
-	JetTestingSet    = NewSetLoader(nil, JetTestingLoader)
+	JetTestingSet    = NewSet(JetTestingLoader, WithSafeWriter(nil))
 
 	ww    io.Writer = (*devNull)(nil)
 	users           = []*User{
@@ -574,7 +574,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	RunJetTest(t, data, nil, "PointerFields_6", `{{ structWithPointerFields2.StringField }}`, "test")
 	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "<nil>")
 
-	var set = NewSet(nil, "./testData")
+	var set = NewSet(NewOSFileSystemLoader("./testData"), WithSafeWriter(nil))
 	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`, false)
 	if err != nil {
 		t.Error(err)
@@ -616,7 +616,7 @@ func TestEvalBuiltinExpression(t *testing.T) {
 
 func TestEvalAutoescape(t *testing.T) {
 	l := NewInMemLoader()
-	set := NewSetLoader(template.HTMLEscape, l)
+	set := NewSet(l)
 	l.Set("Autoescapee_Test1", `<h1>{{"<h1>Hello Buddy!</h1>" }}</h1>`)
 	RunJetTestWithSet(t, set, nil, nil, "Autoescapee_Test1", "<h1>&lt;h1&gt;Hello Buddy!&lt;/h1&gt;</h1>")
 	l.Set("Autoescapee_Test2", `<h1>{{"<h1>Hello Buddy!</h1>" |unsafe }}</h1>`)
@@ -624,7 +624,7 @@ func TestEvalAutoescape(t *testing.T) {
 }
 
 func TestFileResolve(t *testing.T) {
-	set := NewHTMLSet("./testData/resolve")
+	set := NewSet(NewOSFileSystemLoader("./testData/resolve"))
 	RunJetTestWithSet(t, set, nil, nil, "simple", "simple")
 	RunJetTestWithSet(t, set, nil, nil, "simple.jet", "simple.jet")
 	RunJetTestWithSet(t, set, nil, nil, "extension", "extension.jet.html")
@@ -637,7 +637,7 @@ func TestFileResolve(t *testing.T) {
 }
 
 func TestIncludeIfNotExists(t *testing.T) {
-	set := NewHTMLSet("./testData/includeIfNotExists")
+	set := NewSet(NewOSFileSystemLoader("./testData/includeIfNotExists"))
 	RunJetTestWithSet(t, set, nil, nil, "existent", "Hi, i exist!!")
 	RunJetTestWithSet(t, set, nil, nil, "notExistent", "")
 	RunJetTestWithSet(t, set, nil, nil, "ifIncludeIfExits", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")
@@ -656,7 +656,7 @@ func TestIncludeIfNotExists(t *testing.T) {
 }
 
 func TestExecReturn(t *testing.T) {
-	set := NewHTMLSet("./testData/execReturn")
+	set := NewSet(NewOSFileSystemLoader("./testData/execReturn"))
 	RunJetTestWithSet(t, set, nil, nil, "simple", "\n\n... some content that will be discarded when this template runs inside exec() ...\n\n")
 	RunJetTestWithSet(t, set, nil, nil, "test_simple", "foo\n")
 	RunJetTestWithSet(t, set, nil, nil, "in_if", "\n\n\n")
@@ -670,7 +670,7 @@ func TestExecReturn(t *testing.T) {
 }
 
 func TestTryCatch(t *testing.T) {
-	set := NewHTMLSet("./testData/tryCatch")
+	set := NewSet(NewOSFileSystemLoader("./testData/tryCatch"))
 	RunJetTestWithSet(t, set, nil, nil, "try", "before try without panic ...\n\nsome content\n\nfoo\n\nafter try without panic ...\nbefore panic ...\n\nafter panic ...")
 	RunJetTestWithSet(t, set, nil, nil, "try_catch", "before panic ...\n\nan error occured!\n\nafter panic ...")
 	RunJetTestWithSet(t, set, nil, nil, "try_catch_err", "before panic ...\n\nan error occured: Jet Runtime Error (&#34;/try_catch_err.jet&#34;:3): identifier &#34;undefined_identifier_that_causes_panic&#34; not available in current (map[]) or parent scope, global, or default variables\n\nafter panic ...")
@@ -714,7 +714,7 @@ func TestRanger(t *testing.T) {
 }
 
 func TestWhitespaceControl(t *testing.T) {
-	set := NewHTMLSet("./testData/whitespaceControl")
+	set := NewSet(NewOSFileSystemLoader("./testData/whitespaceControl"))
 	RunJetTestWithSet(t, set, nil, nil, "simple", "beforeACTIONafter")
 	RunJetTestWithSet(t, set, nil, nil, "multiple", "beforeACTIONafter")
 }

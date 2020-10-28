@@ -33,20 +33,27 @@ import (
 	"github.com/CloudyKit/jet/v5/loaders/multi"
 )
 
-// Initialize the set with both local files as well as the packaged
-// views generated with `go generate` during the build step.
-var views = jet.NewHTMLSetLoader(multi.NewLoader(
-	jet.NewOSFileSystemLoader("./views"),
-	httpfs.NewLoader(templates.Assets),
-))
+var views *jet.Set
+
+func init() {
+	httpfsLoader, err := httpfs.NewLoader(templates.Assets)
+	if err != nil {
+		panic(err)
+	}
+
+	views = jet.NewSet(
+		multi.NewLoader(
+			jet.NewOSFileSystemLoader("./views"),
+			httpfsLoader,
+		),
+		jet.InDevelopmentMode(), // remove in production
+	)
+}
 
 var runAndExit = flag.Bool("run-and-exit", false, "Run app, request / and exit (used in tests)")
 
 func main() {
 	flag.Parse()
-
-	// remove in production
-	views.SetDevelopmentMode(true)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		view, err := views.GetTemplate("index.jet")

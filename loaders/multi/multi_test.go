@@ -15,17 +15,20 @@ func TestZeroLoaders(t *testing.T) {
 	if _, err := l.Open("does-not-exist.jet"); err == nil {
 		t.Fatal("Open should have returned an error but didn't.")
 	}
-	fullPath, ok := l.Exists(fileName)
+	ok := l.Exists(fileName)
 	if ok {
-		t.Fatalf("Exists called on an empty file system should have returned empty and false but reported the template exists under the full path %q", fullPath)
+		t.Fatal("Exists called on an empty file system should have returned empty and false but reported true")
 	}
 }
 
 func TestTwoLoaders(t *testing.T) {
 	osFSLoader := jet.NewOSFileSystemLoader("./testData")
-	httpFSLoader := httpfs.NewLoader(http.Dir("../../testData"))
+	httpFSLoader, err := httpfs.NewLoader(http.Dir("../../testData"))
+	if err != nil {
+		t.Fatalf("unexpected error from httpfs.NewLoader: %v", err)
+	}
 	l := NewLoader(osFSLoader, httpFSLoader)
-	set := jet.NewHTMLSetLoader(l)
+	set := jet.NewSet(l)
 	jettest.RunWithSet(t, set, nil, nil, "resolve/simple.jet", "simple.jet")
 	jettest.RunWithSet(t, set, nil, nil, "base.jet", "")
 	jettest.RunWithSet(t, set, nil, nil, "simple2", "simple2\n")

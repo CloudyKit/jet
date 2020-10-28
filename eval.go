@@ -76,8 +76,7 @@ type Runtime struct {
 	*scope
 	content func(*Runtime, Expression)
 
-	translator Translator
-	context    reflect.Value
+	context reflect.Value
 }
 
 // Context returns the current context value
@@ -605,9 +604,7 @@ func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value)
 		node.errorf("evaluating name of template to include: unexpected expression type %q", getTypeString(name))
 	}
 
-	st.set.tmx.RLock()
 	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath, true)
-	st.set.tmx.RUnlock()
 	if err != nil {
 		node.error(err)
 		return reflect.Value{}

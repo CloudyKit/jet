@@ -1,9 +1,9 @@
 package httpfs
 
 import (
+	"errors"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/CloudyKit/jet/v5"
 )
@@ -13,27 +13,23 @@ type httpFileSystemLoader struct {
 }
 
 // NewLoader returns an initialized loader serving the passed http.FileSystem.
-func NewLoader(fs http.FileSystem) jet.Loader {
-	return &httpFileSystemLoader{fs: fs}
+func NewLoader(fs http.FileSystem) (jet.Loader, error) {
+	if fs == nil {
+		return nil, errors.New("httpfs: nil http.Filesystem passed to NewLoader")
+	}
+	return &httpFileSystemLoader{fs: fs}, nil
 }
 
-// Open opens the file via the internal http.FileSystem. It is the callers duty to close the file.
+// Open implements Loader.Open() on top of an http.FileSystem.
 func (l *httpFileSystemLoader) Open(name string) (io.ReadCloser, error) {
-	if l.fs == nil {
-		return nil, &os.PathError{Op: "open", Path: name, Err: os.ErrNotExist}
-	}
 	return l.fs.Open(name)
 }
 
-// Exists checks if the template with the given name exists by walking the list of template paths
-// returns string with the full path of the template and bool true if the template file was found
-func (l *httpFileSystemLoader) Exists(name string) (string, bool) {
-	if l.fs == nil {
-		return "", false
-	}
+// Exists implements Loader.Exists() on top of an http.FileSystem by trying to open the file.
+func (l *httpFileSystemLoader) Exists(name string) bool {
 	if f, err := l.Open(name); err == nil {
 		f.Close()
-		return name, true
+		return true
 	}
-	return "", false
+	return false
 }

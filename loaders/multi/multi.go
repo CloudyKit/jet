@@ -42,13 +42,13 @@ func (m *Multi) Open(name string) (io.ReadCloser, error) {
 	return nil, &os.PathError{Op: "open", Path: name, Err: os.ErrNotExist}
 }
 
-// Exists checks all loaders in succession, returning the full path of the template and
-// bool true if the template file was found, otherwise it returns an empty string and false.
-func (m *Multi) Exists(name string) (string, bool) {
+// Exists checks all loaders in succession, returning true if the template file was found or false
+// if no loader can provide the file.
+func (m *Multi) Exists(name string) bool {
 	for _, loader := range m.loaders {
-		if name, ok := loader.Exists(name); ok {
-			return name, true
+		if ok := loader.Exists(name); ok {
+			return true
 		}
 	}
-	return "", false
+	return false
 }
