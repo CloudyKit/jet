@@ -10,19 +10,18 @@ import (
 
 func TestNilHTTPFileSystem(t *testing.T) {
 	const fileName = "does-not-exists.jet"
-	l := NewLoader(nil)
-	if _, err := l.Open(fileName); err == nil {
-		t.Fatal("Open should have returned an error but didn't.")
-	}
-	actualName, ok := l.Exists(fileName)
-	if ok {
-		t.Fatalf("Exists called on an empty file system should have returned empty and false but said the template exists under the name %q", actualName)
+	_, err := NewLoader(nil)
+	if err == nil {
+		t.Fatal("NewLoader with nil http.FileSystem should have returned an error but didn't.")
 	}
 }
 
 func TestHTTPFileSystemResolve(t *testing.T) {
-	fs := http.Dir("testData/includeIfNotExists")
-	set := jet.NewHTMLSetLoader(NewLoader(fs))
+	l, err := NewLoader(http.Dir("testData/includeIfNotExists"))
+	if err != nil {
+		t.Fatalf("unexpected error from NewLoader: %v", err)
+	}
+	set := jet.NewSet(l)
 	jettest.RunWithSet(t, set, nil, nil, "existent", "Hi, i exist!!")
 	jettest.RunWithSet(t, set, nil, nil, "notExistent", "")
 	jettest.RunWithSet(t, set, nil, nil, "ifIncludeIfExits", "Hi, i exist!!\n    Was included!!\n\n\n    Was not included!!\n\n")

@@ -15,20 +15,19 @@
 package jet
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestSetSetExtensions(t *testing.T) {
 	tests := [][]string{
-		{},
 		{".html.jet", ".jet"},
 		{".tmpl", ".html"},
 	}
 
 	for _, extensions := range tests {
-		set := &Set{}
-		set.SetExtensions(extensions)
+		set := NewSet(NewInMemLoader(), WithTemplateNameExtensions(extensions))
 		if !reflect.DeepEqual(extensions, set.extensions) {
 			t.Errorf("expected extensions %v, got %v", extensions, set.extensions)
 		}
@@ -37,24 +36,41 @@ func TestSetSetExtensions(t *testing.T) {
 
 func TestParseDoesNotCache(t *testing.T) {
 	loader := NewInMemLoader()
-	set := NewHTMLSetLoader(loader)
+	set := NewSet(loader)
 	_, err := set.Parse("/asd.jet", `{{ foo := "bar" }}{{foo}}`)
 	if err != nil {
-		t.Errorf("parsing template: %v", err)
-		return
+		t.Fatalf("parsing template: %v", err)
 	}
-	if len(set.templates) > 0 {
-		t.Errorf("template is cached in set after Parse()")
-	}
+	(set.cache).(*cache).m.Range(func(_, _ interface{}) bool {
+		t.Fatalf("template cache is not empty after Parse()")
+		return false
+	})
 
 	loader.Set("/something_to_extend.jet", "some content to extend")
 
 	_, err = set.Parse("/includes_template.jet", `{{ extends "/something_to_extend.jet" }}, and more content`)
 	if err != nil {
-		t.Errorf("parsing template: %v", err)
-		return
+		t.Fatalf("parsing template: %v", err)
 	}
-	if len(set.templates) > 0 {
-		t.Errorf("one or more template(s) are cached in set after Parse()")
+	(set.cache).(*cache).m.Range(func(_, _ interface{}) bool {
+		t.Fatalf("template cache is not empty after Parse()")
+		return false
+	})
+}
+
+func TestGetTemplateConcurrency(t *testing.T) {
+	l := NewInMemLoader()
+	l.Set("foo", "{{if true}}Hi {{ .Name }}!{{end}}")
+	set := NewSet(l)
+
+	for i := 0; i < 100; i++ {
+		t.Run(fmt.Sprintf("CC_%d", i), func(t *testing.T) {
+			t.Parallel()
+
+			_, err := set.GetTemplate("foo")
+			if err != nil {
+				t.Errorf("getting template from set: %v", err)
+			}
+		})
 	}
 }

@@ -28,7 +28,11 @@ import (
 	"github.com/CloudyKit/jet/v5"
 )
 
-var views = jet.NewHTMLSet("./views")
+var views = jet.NewSet(
+	jet.NewOSFileSystemLoader("./views"),
+	jet.InDevelopmentMode(), // remove in production
+
+)
 
 type tTODO struct {
 	Text string
@@ -76,9 +80,6 @@ func (t *tTODO) Render(r *jet.Runtime) {
 }
 
 func main() {
-	// remove in production
-	views.SetDevelopmentMode(true)
-
 	views.AddGlobalFunc("base64", func(a jet.Arguments) reflect.Value {
 		a.RequireNumOfArguments("base64", 1, 1)
 
