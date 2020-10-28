@@ -13,6 +13,8 @@ environment:
   GO111MODULE: on
   matrix:
     - GOVERSION: 113
+    - GOVERSION: 114
+    - GOVERSION: 115
 
 install:
   - set PATH=%GOPATH%\bin;c:\go%GOVERSION%\bin;%PATH%
