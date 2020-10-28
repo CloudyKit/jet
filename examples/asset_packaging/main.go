@@ -30,7 +30,6 @@ import (
 	"github.com/CloudyKit/jet/v5"
 	"github.com/CloudyKit/jet/v5/examples/asset_packaging/assets/templates"
 	"github.com/CloudyKit/jet/v5/loaders/httpfs"
-	"github.com/CloudyKit/jet/v5/loaders/multi"
 )
 
 var views *jet.Set
@@ -42,10 +41,7 @@ func init() {
 	}
 
 	views = jet.NewSet(
-		multi.NewLoader(
-			jet.NewOSFileSystemLoader("./views"),
-			httpfsLoader,
-		),
+		httpfsLoader,
 		jet.InDevelopmentMode(), // remove in production
 	)
 }

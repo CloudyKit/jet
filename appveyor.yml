@@ -27,8 +27,7 @@ build: off
 test_script:
   - go test -v ./...
   - cd examples/asset_packaging/
-  - go run main.go --run-and-exit
-  - go get -u github.com/shurcooL/vfsgen
   - go generate
+  - go run -tags=deploy_build main.go --run-and-exit
   - go build -tags=deploy_build -o bin/app.exe main.go
   - .\bin\app.exe --run-and-exit
