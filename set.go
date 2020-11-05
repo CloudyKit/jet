@@ -59,7 +59,7 @@ func NewSet(loader Loader, opts ...Option) *Set {
 // WithCache returns an option function that sets the cache to use for template parsing results.
 // Use InDevelopmentMode() to disable caching of parsed templates. By default, Jet uses a
 // concurrency-safe in-memory cache that holds templates forever.
-func WithCache(c Cache) func(*Set) {
+func WithCache(c Cache) Option {
 	if c == nil {
 		panic(errors.New("jet: WithCache() must not be called with a nil cache"))
 	}
@@ -70,7 +70,7 @@ func WithCache(c Cache) func(*Set) {
 
 // WithSafeWriter returns an option function that sets the escaping function to use when executing
 // templates. By default, Jet uses a writer that takes care of HTML escaping. Pass nil to disable escaping.
-func WithSafeWriter(w SafeWriter) func(*Set) {
+func WithSafeWriter(w SafeWriter) Option {
 	return func(s *Set) {
 		s.escapee = w
 	}
@@ -78,7 +78,7 @@ func WithSafeWriter(w SafeWriter) func(*Set) {
 
 // WithDelims returns an option function that sets the delimiters to the specified strings.
 // Parsed templates will inherit the settings. Not setting them leaves them at the default: `{{` and `}}`.
-func WithDelims(left, right string) func(*Set) {
+func WithDelims(left, right string) Option {
 	return func(s *Set) {
 		s.leftDelim = left
 		s.rightDelim = right
@@ -89,7 +89,7 @@ func WithDelims(left, right string) func(*Set) {
 // up template names in the cache or loader. Default extensions are `""` (no extension), `".jet"`,
 // `".html.jet"`, `".jet.html"`. Extensions will be tried in the order they are defined in the slice.
 // WithTemplateNameExtensions panics when you pass in a nil or empty slice.
-func WithTemplateNameExtensions(extensions []string) func(*Set) {
+func WithTemplateNameExtensions(extensions []string) Option {
 	if len(extensions) == 0 {
 		panic(errors.New("jet: WithTemplateNameExtensions() must not be called with a nil or empty slice of extensions"))
 	}
@@ -100,7 +100,7 @@ func WithTemplateNameExtensions(extensions []string) func(*Set) {
 
 // InDevelopmentMode returns an option function that toggles development mode on, meaning the cache will
 // always be bypassed and every template lookup will go to the loader.
-func InDevelopmentMode() func(*Set) {
+func InDevelopmentMode() Option {
 	return func(s *Set) {
 		s.developmentMode = true
 	}
