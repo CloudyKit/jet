@@ -12,19 +12,20 @@ Jet is a template engine developed to be easy to use, powerful, dynamic, yet sec
 * very fast execution – Jet can execute templates faster than some pre-compiled template engines
 * very light in terms of allocations and memory footprint
 
-## v4
+## v6
 
-Version 4 brings a lot of bug fixes and improvements as well as [updated documentation](./docs/index.md), but make sure to read through the [breaking changes](./docs/changes.md) before making the jump.
+Version 6 brings major improvements to the Go API. Make sure to read through the [breaking changes](./docs/changes.md) before making the jump.
 
 ## Docs
 
+- [Go API](https://beta.pkg.go.dev/github.com/CloudyKit/jet/v6)
 - [Syntax Reference](./docs/syntax.md)
 - [Built-ins](./docs/builtins.md)
 - [Wiki](https://github.com/CloudyKit/jet/wiki) (some things are out of date)
 
 ## Example application
 
-An example application is available in the repository. Use `go get -u github.com/CloudyKit/jet` or clone the repository into `$GOPATH/github.com/CloudyKit/jet`, then do:
+An example to-do application is available in [examples/todos](./examples/todos). Clone the repository, then (in the repository root) do:
 ```
   $ cd examples/todos; go run main.go
 ```

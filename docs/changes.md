@@ -1,8 +1,36 @@
 # Breaking Changes
 
+## v6
+
+When udpating from version 5 to version 6, there are breaking changes to the Go API:
+
+- Set's LoadTemplate() method was removed
+
+    LoadTemplate() (which used to parse and cache a template while bypassing the Set's Loader) is removed in favor of the [new in-memory Loader](https://godoc.org/github.com/CloudyKit/jet#InMemLoader) where you can add templates on-the-fly (which is also used for tests without template files). Using it together with a file Loader via a MultiLoader restores the previous functionality: having template files accessed via the Loader and purely in-memory templates on top of those. [#182](https://github.com/CloudyKit/jet/pull/182)
+
+- Loader interface changed
+
+    A Loader's Exists() method does not return the path to the template if it was found. Jet doesn't really care about what path the Loader implementation uses to locate the template. Jet expects the Loader to guarantee that the path it tried in Exists() to also work in calls to Open(), when the Exists() call returned true. [#183](https://github.com/CloudyKit/jet/pull/183)
+
+- a new Cache interface was introduced
+
+    Previously, it was impossible to control if and how long a Set caches templates it parsed after fetching them via the Loader. Now, you can pass a custom Cache implementation to have complete control over caching behavior, for example to invalidate a cached template and making a Set re-fetch it via the Loader and re-parse it. [#183](https://github.com/CloudyKit/jet/pull/183)
+
+- new NewSet() with option functions
+
+    The different functions used to create a Set (NewSet, NewSetLoader, NewHTMLSet, NewHTMLSetLoader()) have been removed in favor of a single NewSet() function that requires only a loader and accepts any number of configuration options in the form of option functions. When not passing any options, NewSet() will now use the HTML safe writer by default.
+
+- SetDevelopmentMode(), Delims(), SetExtensions() converted to option functions
+
+    The new InDevelopmentMode(), WithDelims() and WithTemplateNameExtensions() option functions replace the previous functions. This means you can't change these settings after the Set is created, which was very likely not a good idea anyway.
+
+    If you toggle development mode after Set creation, you can now use a custom Cache to configure cache-use on the fly. Since this is all the development mode does anyway, the InDevelopmentMode() option might be removed in a future major version of Jet.
+
+There are no breaking changes to the template language.
+
 ## v5
 
-When updating from version 4 to version 5, there is a breaking changes:
+When updating from version 4 to version 5, there is a breaking change:
 
 - `_` became a reserved symbol
 
