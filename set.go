@@ -11,9 +11,8 @@ import (
 	"text/template"
 )
 
-// Set is responsible to load,invoke parse and cache templates and relations
-// every jet template is associated with one set.
-// create a set with jet.NewSet(escapeeFn) returns a pointer to the Set
+// Set is responsible to load, parse and cache templates.
+// Every Jet template is associated with a Set.
 type Set struct {
 	loader          Loader
 	cache           Cache
@@ -195,21 +194,28 @@ func (s *Set) Parse(templatePath, contents string) (template *Template, err erro
 	return s.parse(templatePath, contents, false)
 }
 
-// AddGlobal add or set a global variable into the Set
+// AddGlobal adds a global variable into the Set,
+// overriding any value previously set under the specified key.
+// It returns the Set it was called on to allow for method chaining.
 func (s *Set) AddGlobal(key string, i interface{}) *Set {
 	s.gmx.Lock()
+	defer s.gmx.Unlock()
 	s.globals[key] = reflect.ValueOf(i)
-	s.gmx.Unlock()
 	return s
 }
 
-func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
-	return s.AddGlobal(key, fn)
-}
-
+// LookupGlobal returns the global variable previously set under the specified key.
+// It returns the nil interface and false if no variable exists under that key.
 func (s *Set) LookupGlobal(key string) (val interface{}, found bool) {
 	s.gmx.RLock()
+	defer s.gmx.RUnlock()
 	val, found = s.globals[key]
-	s.gmx.RUnlock()
 	return
+}
+
+// AddGlobalFunc adds a global function into the Set,
+// overriding any function previously set under the specified key.
+// It returns the Set it was called on to allow for method chaining.
+func (s *Set) AddGlobalFunc(key string, fn Func) *Set {
+	return s.AddGlobal(key, fn)
 }
