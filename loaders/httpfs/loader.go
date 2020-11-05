@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/CloudyKit/jet/v5"
+	"github.com/CloudyKit/jet/v6"
 )
 
 type httpFileSystemLoader struct {

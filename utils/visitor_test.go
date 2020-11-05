@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CloudyKit/jet/v5"
+	"github.com/CloudyKit/jet/v6"
 )
 
 var (

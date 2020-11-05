@@ -25,7 +25,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/CloudyKit/jet/v5"
+	"github.com/CloudyKit/jet/v6"
 )
 
 var views = jet.NewSet(

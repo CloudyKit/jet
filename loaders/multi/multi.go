@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/CloudyKit/jet/v5"
+	"github.com/CloudyKit/jet/v6"
 )
 
 var _ jet.Loader = (*Multi)(nil)

@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CloudyKit/jet/v5"
-	"github.com/CloudyKit/jet/v5/examples/asset_packaging/assets/templates"
-	"github.com/CloudyKit/jet/v5/loaders/httpfs"
+	"github.com/CloudyKit/jet/v6"
+	"github.com/CloudyKit/jet/v6/examples/asset_packaging/assets/templates"
+	"github.com/CloudyKit/jet/v6/loaders/httpfs"
 )
 
 var views *jet.Set
