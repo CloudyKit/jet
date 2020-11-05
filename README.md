@@ -18,7 +18,7 @@ Version 6 brings major improvements to the Go API. Make sure to read through the
 
 ## Docs
 
-- [Go API](https://beta.pkg.go.dev/github.com/CloudyKit/jet/v6)
+- [Go API](https://beta.pkg.go.dev/github.com/CloudyKit/jet/v6#section-documentation)
 - [Syntax Reference](./docs/syntax.md)
 - [Built-ins](./docs/builtins.md)
 - [Wiki](https://github.com/CloudyKit/jet/wiki) (some things are out of date)
