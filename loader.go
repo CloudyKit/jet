@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 )
 
 // Loader is a minimal interface required for loading templates.
@@ -42,7 +43,6 @@ import (
 // `/bar.html.jet` and `/bar.jet.html` (in that order). To avoid unneccessary lookups, use the full file name in your templates (so the first lookup
 // is always a hit, or override this list of extensions using Set.SetExtensions().
 type Loader interface {
-
 	// Exists returns whether or not a template exists under the requested path.
 	Exists(templatePath string) bool
 
@@ -84,10 +84,11 @@ func (l *OSFileSystemLoader) Open(templatePath string) (io.ReadCloser, error) {
 }
 
 // InMemLoader is a simple in-memory loader storing template contents in a simple map.
-// It is not safe for concurrent use.
 // InMemLoader normalizes paths passed to its methods by converting any input path to a slash-delimited path,
 // turning it into an absolute path by prepending a "/" if neccessary, and cleaning it (see path.Clean()).
+// It is safe for concurrent use.
 type InMemLoader struct {
+	lock  sync.RWMutex
 	files map[string][]byte
 }
 
@@ -109,6 +110,8 @@ func (l *InMemLoader) normalize(templatePath string) string {
 // Open returns a template's contents, or an error if no template was added under this path using Set().
 func (l *InMemLoader) Open(templatePath string) (io.ReadCloser, error) {
 	templatePath = l.normalize(templatePath)
+	l.lock.RLock()
+	defer l.lock.RUnlock()
 	f, ok := l.files[templatePath]
 	if !ok {
 		return nil, fmt.Errorf("%s does not exist", templatePath)
@@ -120,6 +123,8 @@ func (l *InMemLoader) Open(templatePath string) (io.ReadCloser, error) {
 // Exists returns whether or not a template is indexed under this path.
 func (l *InMemLoader) Exists(templatePath string) bool {
 	templatePath = l.normalize(templatePath)
+	l.lock.RLock()
+	defer l.lock.RUnlock()
 	_, ok := l.files[templatePath]
 	return ok
 }
@@ -127,11 +132,15 @@ func (l *InMemLoader) Exists(templatePath string) bool {
 // Set adds a template to the loader.
 func (l *InMemLoader) Set(templatePath, contents string) {
 	templatePath = l.normalize(templatePath)
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	l.files[templatePath] = []byte(contents)
 }
 
 // Delete removes whatever contents are stored under the given path.
 func (l *InMemLoader) Delete(templatePath string) {
 	templatePath = l.normalize(templatePath)
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	delete(l.files, templatePath)
 }
