@@ -560,7 +560,7 @@ the following invocation
 
 will produce
 
-    <strong>Batman</Batman>
+    <strong>Batman</strong>
 
 ### content
 
