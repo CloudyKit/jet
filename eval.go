@@ -75,16 +75,18 @@ type Resolver interface {
 	Resolve(name string) (reflect.Value, error)
 }
 
+type ResolverFunc func(name string) (reflect.Value, error)
+
 // defaultResolver wraps and delegates to Runtime, fulfilling the Resolver interface.
 //
 // Runtime declares the resolve function which checks context, variables, globals,
 // and default variables.
 type defaultResolver struct {
-	*Runtime
+	f ResolverFunc
 }
 
 func (r *defaultResolver) Resolve(name string) (reflect.Value, error) {
-	return r.Runtime.resolve(name)
+	return r.f(name)
 }
 
 // Runtime this type holds the state of the execution of an template
@@ -102,7 +104,7 @@ type Runtime struct {
 // DefaultResolver returns the default resolver for Jet, which checks
 // the context, variables, globals, and default variables in that order.
 func (r *Runtime) DefaultResolver() Resolver {
-	return &defaultResolver{Runtime: r}
+	return &defaultResolver{f: r.defaultResolve}
 }
 
 // Context returns the current context value
