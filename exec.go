@@ -40,9 +40,12 @@ func (scope VarMap) SetWriter(name string, v SafeWriter) VarMap {
 	return scope
 }
 
-func (t *Template) ExecuteWith(r Resolver, w io.Writer, variables VarMap, data interface{}) (err error) {
+func (t *Template) Runtime() *Runtime {
 	st := pool_State.Get().(*Runtime)
-	st.WithResolver(r)
+	return st
+}
+
+func (t *Template) ExecuteWith(st *Runtime, w io.Writer, variables VarMap, data interface{}) (err error) {
 	return t.execute(st, w, variables, data)
 }
 
