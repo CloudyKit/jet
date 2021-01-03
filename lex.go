@@ -287,7 +287,14 @@ func (l *lexer) run() {
 // state functions
 func lexText(l *lexer) stateFn {
 	for {
-		if i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0]); i == -1 {
+		// without breaking the API, this seems like a reasonable workaround to correctly parse comments
+		i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0])  // index of suspected left delimiter
+		ic := strings.IndexByte(l.input[l.pos:], leftComment[0]) // index of suspected left comment marker
+		if ic > -1 && ic < i {                                   // use whichever is lower for future lexing
+			i = ic
+		}
+		// if no tokn is found, skip till the end of template
+		if i == -1 {
 			l.pos = Pos(len(l.input))
 			break
 		} else {
