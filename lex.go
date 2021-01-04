@@ -293,7 +293,7 @@ func lexText(l *lexer) stateFn {
 		if ic > -1 && ic < i {                                   // use whichever is lower for future lexing
 			i = ic
 		}
-		// if no tokn is found, skip till the end of template
+		// if no token is found, skip till the end of template
 		if i == -1 {
 			l.pos = Pos(len(l.input))
 			break
