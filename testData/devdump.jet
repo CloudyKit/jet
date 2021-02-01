@@ -1,0 +1,14 @@
+{{- x1:="a string" }}
+{{- x2 := 1 }}
+{{- b1 := true }}
+{{- b2 := false }}
+{{- s1 := slice("foo", "bar", "baz", "duq")}}
+{{- m := map("foo", 123, "bar", 456) }}
+{{ dump() }}
+===
+x1=a string
+x2=1
+b1=true
+b2=false
+s1=[foo bar baz duq]
+m=map[bar:456 foo:123]
