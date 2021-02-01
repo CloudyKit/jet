@@ -25,6 +25,8 @@ import (
 	"reflect"
 	"strings"
 	"text/template"
+
+	"github.com/CloudyKit/fastprinter"
 )
 
 var defaultVariables map[string]reflect.Value
@@ -150,6 +152,20 @@ func init() {
 				panic(errors.New("invalid range for ints ranger: 'from' must be smaller than 'to'"))
 			}
 			return reflect.ValueOf(&intsRanger{from: from, to: to})
+		})),
+		"dump": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
+			runtime := a.runtime
+			vars := runtime.variables
+			var sb strings.Builder
+			sb.WriteString("--dump start\n")
+			for k, v := range vars {
+				sb.WriteString(k)
+				sb.WriteString("=")
+				fastprinter.PrintValue(&sb, v)
+				sb.WriteString("\n")
+			}
+			sb.WriteString("--dump end\n")
+			return reflect.ValueOf(sb.String())
 		})),
 	}
 }

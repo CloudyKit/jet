@@ -1,17 +1,19 @@
 # Built-ins
 
-- [Functions](#functions)
-  - [From Go](#from-go)
-  - [len](#len)
-  - [isset](#isset)
-  - [exec](#exec)
-  - [ints](#ints)
-- [SafeWriter](#safewriter)
-  - [safeHtml](#safehtml)
-  - [safeJs](#safejs)
-  - [raw/unsafe](#rawunsafe)
-- [Renderer](#renderer)
-    - [writeJson](#writejson)
+- [Built-ins](#built-ins)
+  - [Functions](#functions)
+    - [From Go](#from-go)
+    - [len](#len)
+    - [isset](#isset)
+    - [exec](#exec)
+    - [ints](#ints)
+    - [dump](#dump)
+  - [SafeWriter](#safewriter)
+    - [safeHtml](#safehtml)
+    - [safeJs](#safejs)
+    - [raw/unsafe](#rawunsafe)
+  - [Renderer](#renderer)
+      - [writeJson](#writejson)
 
 ## Functions
 
@@ -50,6 +52,10 @@ It panics if you pass a value of any type other than string, array, slice, map, 
 ### ints
 
 `ints()` takes two integers as lower and upper limit and returns a Ranger producing all the integers between them, including the lower and excluding the upper limit. It panics when the arguments can't be converted to integers or when the upper limit is not strictly greater than the lower limit.
+
+### dump
+
+`dump` takes no parameters, and can be used to "debug" a template. It dumps content of all variables defined inside the template, in the current scope.
 
 ## SafeWriter
 
