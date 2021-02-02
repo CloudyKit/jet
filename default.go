@@ -155,16 +155,32 @@ func init() {
 		})),
 		"dump": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
 			runtime := a.runtime
-			vars := runtime.variables
 			var sb strings.Builder
-			sb.WriteString("--dump start\n")
-			for k, v := range vars {
+
+			// Template inputs
+			vars := runtime.scope.parent.variables
+			sb.WriteString("--dump start: template inputs\n")
+			for _, k := range vars.SortedKeys() {
+				sb.WriteString("\t")
 				sb.WriteString(k)
 				sb.WriteString("=")
-				fastprinter.PrintValue(&sb, v)
+				fastprinter.PrintValue(&sb, vars[k])
 				sb.WriteString("\n")
 			}
-			sb.WriteString("--dump end\n")
+			sb.WriteString("--dump end: template inputs\n")
+
+			// Template local variables
+			vars = runtime.variables
+			sb.WriteString("--dump start: local variables\n")
+			for _, k := range vars.SortedKeys() {
+				sb.WriteString("\t")
+				sb.WriteString(k)
+				sb.WriteString("=")
+				fastprinter.PrintValue(&sb, vars[k])
+				sb.WriteString("\n")
+			}
+			sb.WriteString("--dump end: local variables\n")
+
 			return reflect.ValueOf(sb.String())
 		})),
 	}
