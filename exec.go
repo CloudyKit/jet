@@ -21,9 +21,20 @@ package jet
 import (
 	"io"
 	"reflect"
+	"sort"
 )
 
 type VarMap map[string]reflect.Value
+
+// SortedKeys returns a sorted slice of VarMap keys
+func (scope VarMap) SortedKeys() []string {
+	keys := make([]string, 0, len(scope))
+	for k := range scope {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 func (scope VarMap) Set(name string, v interface{}) VarMap {
 	scope[name] = reflect.ValueOf(v)
