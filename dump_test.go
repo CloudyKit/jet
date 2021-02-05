@@ -52,8 +52,11 @@ func TestDump(t *testing.T) {
 		t.FailNow()
 	}
 
-	// split outcome to two parts
-	rslt := strings.Split(b.String(), "===\n")
+	// normalize EOL convention and
+	// split outcome to two parts; this is necessary, because the original code
+	// was developed on windows (SORRY !!!!)
+	aux := strings.ReplaceAll(b.String(), "\r\n", "\n")
+	rslt := strings.Split(aux, "===\n")
 	if len(rslt) != 2 {
 		t.Log("expected to get two parts, did you include separator in the template?")
 		t.FailNow()
