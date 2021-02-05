@@ -14,7 +14,7 @@
 {{ dump(1,"m") }}
 ------------------------------------- dump named
 {{ dump("mainMenu", "m") }}
-
+done
 ===
 1
 2
@@ -62,3 +62,4 @@ dump: err: you sent more then one argument, and some of them aren't strings, do 
 	m:=map[foo:123] // map[string]interface {}
 
 
+done
