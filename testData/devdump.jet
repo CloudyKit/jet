@@ -61,5 +61,4 @@ dump: err: you sent more then one argument, and some of them aren't strings, do 
 	block mainMenu(type="text",label="main"), from /devdump.jet
 	m:=map[foo:123] // map[string]interface {}
 
-
 done
