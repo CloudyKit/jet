@@ -35,13 +35,18 @@ func TestDump(t *testing.T) {
 	aMap := make(map[string]interface{})
 	aMap["aMap-10"] = 10 // only one member, because map is unsorted; test could fail for no apparent reason.
 	vars.Set("inputMap", aMap)
-
 	// SLICE
 	aSlice := []string{"sliceMember1", "sliceMember2"}
 	vars.Set("aSlice", aSlice)
 
+	// prepare dummy context
+	ctx := struct {
+		Name    string
+		Surname string
+	}{Name: "John", Surname: "Doe"}
+
 	// execute template
-	err = tmplt.Execute(&b, vars, nil)
+	err = tmplt.Execute(&b, vars, ctx)
 	if err != nil {
 		t.Log(err)
 		t.FailNow()
@@ -53,11 +58,12 @@ func TestDump(t *testing.T) {
 		t.Log("expected to get two parts, did you include separator in the template?")
 		t.FailNow()
 	}
-
+	//t.Log(rslt[0])
 	// compare what we got with what we wanted
 	got := strings.Split(rslt[0], "\n")
 	want := strings.Split(rslt[1], "\n")
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("\ngot :%q\nwant:%q", got, want)
+		//t.Errorf("\ngot :%s\nwant:%s", rslt[0], rslt[1])
+		t.Errorf("\ngot :%q\nwant:%q\nAS TEXT\ngot\n%swant\n%s", got, want, rslt[0], rslt[1])
 	}
 }

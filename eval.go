@@ -21,6 +21,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -96,6 +97,15 @@ type scope struct {
 	parent    *scope
 	variables VarMap
 	blocks    map[string]*BlockNode
+}
+
+func (s scope) sortedBlocks() []string {
+	r := make([]string, 0, len(s.blocks))
+	for k := range s.blocks {
+		r = append(r, k)
+	}
+	sort.Strings(r)
+	return r
 }
 
 // YieldBlock yields a block in the current context, will panic if the context is not available

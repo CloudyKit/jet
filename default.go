@@ -25,8 +25,6 @@ import (
 	"reflect"
 	"strings"
 	"text/template"
-
-	"github.com/CloudyKit/fastprinter"
 )
 
 var defaultVariables map[string]reflect.Value
@@ -154,34 +152,35 @@ func init() {
 			return reflect.ValueOf(&intsRanger{from: from, to: to})
 		})),
 		"dump": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
-			runtime := a.runtime
-			var sb strings.Builder
-
-			// Template inputs
-			vars := runtime.scope.parent.variables
-			sb.WriteString("--dump start: template inputs\n")
-			for _, k := range vars.SortedKeys() {
-				sb.WriteString("\t")
-				sb.WriteString(k)
-				sb.WriteString("=")
-				fastprinter.PrintValue(&sb, vars[k])
-				sb.WriteString("\n")
+			a.RequireNumOfArguments("dump", 0, -1)
+			noOfArgs := a.NumOfArguments()
+			// no arguments were provided, dump all; do not recurse over parents
+			if noOfArgs == 0 {
+				return dumpAll(a, 0)
 			}
-			sb.WriteString("--dump end: template inputs\n")
-
-			// Template local variables
-			vars = runtime.variables
-			sb.WriteString("--dump start: local variables\n")
-			for _, k := range vars.SortedKeys() {
-				sb.WriteString("\t")
-				sb.WriteString(k)
-				sb.WriteString("=")
-				fastprinter.PrintValue(&sb, vars[k])
-				sb.WriteString("\n")
+			//// some arguments were provided, grab them
+			args := make([]reflect.Value, noOfArgs)
+			ids := make([]string, noOfArgs)
+			for i := 0; i < a.NumOfArguments(); i++ {
+				args[i] = a.Get(i)
 			}
-			sb.WriteString("--dump end: local variables\n")
 
-			return reflect.ValueOf(sb.String())
+			// did we use a dump(int) in our template?
+			if len(args) == 1 && args[0].Kind() == reflect.Float64 {
+				return dumpAll(a, int(args[0].Float()))
+			}
+
+			// at this moment, all arguments should be strings, otherwise we have a problem
+			for _, arg := range args {
+				if arg.Kind() != reflect.String {
+					// TODO: maybe this should panic?
+					return reflect.ValueOf("dump: err: you sent more then one argument, and some of them aren't strings, do not know what to do.")
+				}
+				ids = append(ids, arg.String())
+			}
+
+			return dumpIdentified(a.runtime, ids)
+
 		})),
 	}
 }
