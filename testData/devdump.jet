@@ -1,21 +1,64 @@
-{{- x1:="a string" }}
-{{- x2 := 1 }}
-{{- b1 := true }}
-{{- b2 := false }}
-{{- s1 := slice("foo", "bar", "baz", "duq")}}
-{{- m := map("foo", 123) }}
-{{- dump() }}
+1{{- x1:="a string" }}
+2{{- x2 := 1 }}
+3{{- b1 := true }}
+4{{- b2 := false }}
+5{{- s1 := slice("foo", "bar", "baz", "duq")}}
+6{{- m := map("foo", 123) }}
+7{{- mainMenu := "a variable, not a block!" }}
+8{{ block mainMenu(type="text", label="main") }}inside a block{{ end }}
+------------------------------------- dump without parameters
+{{ dump() }}
+------------------------------------- dump with depth of 2
+{{ dump(2) }}
+------------------------------------- dump with erroneous use
+{{ dump(1,"m") }}
+------------------------------------- dump named
+{{ dump("mainMenu", "m") }}
+
 ===
---dump start: template inputs
-	aSlice=[sliceMember1 sliceMember2]
-	inputMap=map[aMap-10:10]
---dump end: template inputs
---dump start: local variables
-	b1=true
-	b2=false
-	m=map[foo:123]
-	s1=[foo bar baz duq]
-	x1=a string
-	x2=1
---dump end: local variables
+1
+2
+3
+4
+5
+6
+7
+8inside a block
+------------------------------------- dump without parameters
+Runtime.context:
+	struct { Name string; Surname string } {"John" "Doe"}
+Runtime.variables:
+	b1:=true // bool
+	b2:=false // bool
+	m:=map[foo:123] // map[string]interface {}
+	mainMenu:=a variable, not a block! // string
+	s1:=[foo bar baz duq] // []interface {}
+	x1:=a string // string
+	x2:=1 // float64
+Runtime.set.globals:
+Runtime.blocks:
+	block mainMenu(type="text",label="main"), from /devdump.jet
+
+------------------------------------- dump with depth of 2
+Runtime.context:
+	struct { Name string; Surname string } {"John" "Doe"}
+Runtime.variables:
+	b1:=true // bool
+	b2:=false // bool
+	m:=map[foo:123] // map[string]interface {}
+	mainMenu:=a variable, not a block! // string
+	s1:=[foo bar baz duq] // []interface {}
+	x1:=a string // string
+	x2:=1 // float64
+Runtime.set.globals:
+Runtime.blocks:
+	block mainMenu(type="text",label="main"), from /devdump.jet
+
+------------------------------------- dump with erroneous use
+dump: err: you sent more then one argument, and some of them aren't strings, do not know what to do.
+------------------------------------- dump named
+	mainMenu:=a variable, not a block! // string
+	block mainMenu(type="text",label="main"), from /devdump.jet
+	m:=map[foo:123] // map[string]interface {}
+
 
