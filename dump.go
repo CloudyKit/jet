@@ -18,28 +18,23 @@ func dumpAll(a Arguments, depth int) reflect.Value {
 	var vars VarMap
 
 	ctx := a.runtime.context
-	fmt.Fprintln(&b, "Runtime.context:")
-	fmt.Fprintf(&b, "\t%s %q\n", ctx.Type(), ctx)
+	fmt.Fprintln(&b, "Context:")
+	fmt.Fprintf(&b, "\t%s %#v\n", ctx.Type(), ctx)
 
-	fmt.Fprintln(&b, "Runtime.variables:")
-	vars = a.runtime.variables
-	for _, name := range vars.SortedKeys() {
-		val := vars[name]
-		//fmt.Fprintf(&b, "\t%s: %s=%v\n", val.Type(), name, val)
-		fmt.Fprintf(&b, "\t%s:=%v // %s\n", name, val, val.Type())
-	}
+	dumpScopeVars(&b, a.runtime.scope, 0)
+	dumpScopeVarsToDepth(&b, a.runtime.parent, depth)
 
-	dumpScope(&b, a.runtime.parent, depth, 0)
-
-	fmt.Fprintln(&b, "Runtime.set.globals:")
 	vars = a.runtime.set.globals
-	for _, name := range vars.SortedKeys() {
+	for i, name := range vars.SortedKeys() {
+		if i == 0 {
+			fmt.Fprintln(&b, "Globals:")
+		}
 		val := vars[name]
-		fmt.Fprintf(&b, "\t%s:=%v // %s\n", name, val, val.Type())
+		fmt.Fprintf(&b, "\t%s:=%#v // %s\n", name, val, val.Type())
 	}
 
 	blockKeys := a.runtime.scope.sortedBlocks()
-	fmt.Fprintln(&b, "Runtime.blocks:")
+	fmt.Fprintln(&b, "Blocks:")
 	for _, k := range blockKeys {
 		block := a.runtime.blocks[k]
 		dumpBlock(&b, block)
@@ -48,19 +43,38 @@ func dumpAll(a Arguments, depth int) reflect.Value {
 	return reflect.ValueOf(b.String())
 }
 
-func dumpScope(w io.Writer, scope *scope, maxDepth, curDepth int) {
-	if maxDepth >= curDepth || scope == nil {
-		return
+// dumpScopeVarsToDepth prints all variables in the scope, and all parent scopes,
+// to the limit of maxDepth.
+func dumpScopeVarsToDepth(w io.Writer, scope *scope, maxDepth int) {
+	for i := 1; i <= maxDepth; i++ {
+		if scope == nil {
+			break // do not panic if something bad happens
+		}
+		dumpScopeVars(w, scope, i)
+		scope = scope.parent
 	}
-	tabs := strings.Repeat("\t", curDepth+1)
-	fmt.Fprintf(w, "%sRuntime.parent.variables, depth=%d\n", tabs, curDepth)
-	vars := scope.variables
-	for _, k := range vars.SortedKeys() {
-		fmt.Fprintf(w, "%s%s=%q\n", tabs, k, vars[k])
-	}
-	dumpScope(w, scope.parent, maxDepth, curDepth+1)
 }
 
+// dumpScopeVars prints all variables in the scope.
+func dumpScopeVars(w io.Writer, scope *scope, lvl int) {
+	if scope == nil {
+		return // do not panic if something bad happens
+	}
+	tabs := strings.Repeat("\t", lvl) // delimiter
+	if lvl == 0 {
+		fmt.Fprint(w, "Variables in scope:\n")
+	} else {
+		fmt.Fprintf(w, "%sVariables in scope %d level(s) up:\n", tabs, lvl)
+	}
+	vars := scope.variables
+	for _, k := range vars.SortedKeys() {
+		fmt.Fprintf(w, "\t%s%s=%#v\n", tabs, k, vars[k])
+	}
+}
+
+// dumpIdentified accepts a runtime and slice of names.
+// Then, it prints all variables and blocks in the runtime, with names equal to one of the names
+// in the slice.
 func dumpIdentified(rnt *Runtime, ids []string) reflect.Value {
 	var b bytes.Buffer
 	for _, id := range ids {
@@ -71,20 +85,14 @@ func dumpIdentified(rnt *Runtime, ids []string) reflect.Value {
 	return reflect.ValueOf(b.String())
 }
 
+// dumpFindBlock finds the block by name, prints the header of the block, and name of the template in which it was defined.
 func dumpFindBlock(w io.Writer, rnt *Runtime, name string) {
 	if block, ok := rnt.scope.blocks[name]; ok {
 		dumpBlock(w, block)
 	}
 }
 
-func dumpFindVar(w io.Writer, rnt *Runtime, name string) {
-	val, err := rnt.resolve(name)
-	if err != nil {
-		return
-	}
-	fmt.Fprintf(w, "\t%s:=%v // %s\n", name, val, val.Type())
-}
-
+// dumpBlock prints header of the block, and template in which the block was first defined.
 func dumpBlock(w io.Writer, block *BlockNode) {
 	if block == nil {
 		return
@@ -92,6 +100,11 @@ func dumpBlock(w io.Writer, block *BlockNode) {
 	fmt.Fprintf(w, "\tblock %s(%s), from %s\n", block.Name, block.Parameters.String(), block.TemplatePath)
 }
 
-func fPrintVar(w io.Writer, name string, val reflect.Value) {
-
+// dumpFindBlock finds the variable by name, and prints the variable, if it is in the runtime.
+func dumpFindVar(w io.Writer, rnt *Runtime, name string) {
+	val, err := rnt.resolve(name)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(w, "\t%s:=%#v // %s\n", name, val, val.Type())
 }

@@ -25,40 +25,41 @@ done
 7
 8inside a block
 ------------------------------------- dump without parameters
-Runtime.context:
-	struct { Name string; Surname string } {"John" "Doe"}
-Runtime.variables:
-	b1:=true // bool
-	b2:=false // bool
-	m:=map[foo:123] // map[string]interface {}
-	mainMenu:=a variable, not a block! // string
-	s1:=[foo bar baz duq] // []interface {}
-	x1:=a string // string
-	x2:=1 // float64
-Runtime.set.globals:
-Runtime.blocks:
+Context:
+	struct { Name string; Surname string } struct { Name string; Surname string }{Name:"John", Surname:"Doe"}
+Variables in scope:
+	b1=true
+	b2=false
+	m=map[string]interface {}{"foo":123}
+	mainMenu="a variable, not a block!"
+	s1=[]interface {}{"foo", "bar", "baz", "duq"}
+	x1="a string"
+	x2=1
+Blocks:
 	block mainMenu(type="text",label="main"), from /devdump.jet
 
 ------------------------------------- dump with depth of 2
-Runtime.context:
-	struct { Name string; Surname string } {"John" "Doe"}
-Runtime.variables:
-	b1:=true // bool
-	b2:=false // bool
-	m:=map[foo:123] // map[string]interface {}
-	mainMenu:=a variable, not a block! // string
-	s1:=[foo bar baz duq] // []interface {}
-	x1:=a string // string
-	x2:=1 // float64
-Runtime.set.globals:
-Runtime.blocks:
+Context:
+	struct { Name string; Surname string } struct { Name string; Surname string }{Name:"John", Surname:"Doe"}
+Variables in scope:
+	b1=true
+	b2=false
+	m=map[string]interface {}{"foo":123}
+	mainMenu="a variable, not a block!"
+	s1=[]interface {}{"foo", "bar", "baz", "duq"}
+	x1="a string"
+	x2=1
+	Variables in scope 1 level(s) up:
+		aSlice=[]string{"sliceMember1", "sliceMember2"}
+		inputMap=map[string]interface {}{"aMap-10":10}
+Blocks:
 	block mainMenu(type="text",label="main"), from /devdump.jet
 
 ------------------------------------- dump with erroneous use
 dump: err: you sent more then one argument, and some of them aren't strings, do not know what to do.
 ------------------------------------- dump named
-	mainMenu:=a variable, not a block! // string
+	mainMenu:="a variable, not a block!" // string
 	block mainMenu(type="text",label="main"), from /devdump.jet
-	m:=map[foo:123] // map[string]interface {}
+	m:=map[string]interface {}{"foo":123} // map[string]interface {}
 
 done
