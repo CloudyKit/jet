@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 )
 
 // dumpAll returns
@@ -60,15 +59,14 @@ func dumpScopeVars(w io.Writer, scope *scope, lvl int) {
 	if scope == nil {
 		return // do not panic if something bad happens
 	}
-	tabs := strings.Repeat("\t", lvl) // delimiter
 	if lvl == 0 {
-		fmt.Fprint(w, "Variables in scope:\n")
+		fmt.Fprint(w, "Variables in current scope:\n")
 	} else {
-		fmt.Fprintf(w, "%sVariables in scope %d level(s) up:\n", tabs, lvl)
+		fmt.Fprintf(w, "Variables in scope %d level(s) up:\n", lvl)
 	}
 	vars := scope.variables
 	for _, k := range vars.SortedKeys() {
-		fmt.Fprintf(w, "\t%s%s=%#v\n", tabs, k, vars[k])
+		fmt.Fprintf(w, "\t%s=%#v\n", k, vars[k])
 	}
 }
 

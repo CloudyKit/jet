@@ -27,7 +27,7 @@ done
 ------------------------------------- dump without parameters
 Context:
 	struct { Name string; Surname string } struct { Name string; Surname string }{Name:"John", Surname:"Doe"}
-Variables in scope:
+Variables in current scope:
 	b1=true
 	b2=false
 	m=map[string]interface {}{"foo":123}
@@ -41,7 +41,7 @@ Blocks:
 ------------------------------------- dump with depth of 2
 Context:
 	struct { Name string; Surname string } struct { Name string; Surname string }{Name:"John", Surname:"Doe"}
-Variables in scope:
+Variables in current scope:
 	b1=true
 	b2=false
 	m=map[string]interface {}{"foo":123}
@@ -49,9 +49,9 @@ Variables in scope:
 	s1=[]interface {}{"foo", "bar", "baz", "duq"}
 	x1="a string"
 	x2=1
-	Variables in scope 1 level(s) up:
-		aSlice=[]string{"sliceMember1", "sliceMember2"}
-		inputMap=map[string]interface {}{"aMap-10":10}
+Variables in scope 1 level(s) up:
+	aSlice=[]string{"sliceMember1", "sliceMember2"}
+	inputMap=map[string]interface {}{"aMap-10":10}
 Blocks:
 	block mainMenu(type="text",label="main"), from /devdump.jet
 
