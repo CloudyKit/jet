@@ -66,7 +66,6 @@ func TestDump(t *testing.T) {
 	got := strings.Split(rslt[0], "\n")
 	want := strings.Split(rslt[1], "\n")
 	if !reflect.DeepEqual(got, want) {
-		//t.Errorf("\ngot :%s\nwant:%s", rslt[0], rslt[1])
 		t.Errorf("\ngot :%q\nwant:%q\nAS TEXT\ngot\n%swant\n%s", got, want, rslt[0], rslt[1])
 	}
 }
