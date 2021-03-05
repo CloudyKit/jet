@@ -11,7 +11,7 @@
 ------------------------------------- dump with depth of 2
 {{ dump(2) }}
 ------------------------------------- dump with erroneous use
-{{ dump(1,"m") }}
+{{ try }} {{ dump(1,"m") }} {{ catch err }} {{- err.Error() -}} {{ end }}
 ------------------------------------- dump named
 {{ dump("mainMenu", "m") }}
 done
@@ -56,7 +56,7 @@ Blocks:
 	block mainMenu(type="text",label="main"), from /devdump.jet
 
 ------------------------------------- dump with erroneous use
-dump: err: you sent more then one argument, and some of them aren't strings, do not know what to do.
+dump: expected argument 0 to be a string, but got a float64
 ------------------------------------- dump named
 	mainMenu:="a variable, not a block!" // string
 	block mainMenu(type="text",label="main"), from /devdump.jet

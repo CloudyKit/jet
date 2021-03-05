@@ -74,10 +74,7 @@ func (a *Arguments) RequireNumOfArguments(funcname string, min, max int) {
 // NumOfArguments returns the number of arguments
 func (a *Arguments) NumOfArguments() int {
 	num := len(a.args.Exprs)
-	if a.args.HasPipeSlot {
-		return num
-	}
-	if a.pipedVal != nil {
+	if a.pipedVal != nil && !a.args.HasPipeSlot {
 		return num + 1
 	}
 	return num

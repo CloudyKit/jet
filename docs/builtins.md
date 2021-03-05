@@ -1,19 +1,18 @@
 # Built-ins
 
-- [Built-ins](#built-ins)
-  - [Functions](#functions)
-    - [From Go](#from-go)
-    - [len](#len)
-    - [isset](#isset)
-    - [exec](#exec)
-    - [ints](#ints)
-    - [dump](#dump)
-  - [SafeWriter](#safewriter)
-    - [safeHtml](#safehtml)
-    - [safeJs](#safejs)
-    - [raw/unsafe](#rawunsafe)
-  - [Renderer](#renderer)
-      - [writeJson](#writejson)
+- [Functions](#functions)
+  - [From Go](#from-go)
+  - [len](#len)
+  - [isset](#isset)
+  - [exec](#exec)
+  - [ints](#ints)
+  - [dump](#dump)
+- [SafeWriter](#safewriter)
+  - [safeHtml](#safehtml)
+  - [safeJs](#safejs)
+  - [raw/unsafe](#rawunsafe)
+- [Renderer](#renderer)
+    - [writeJson](#writejson)
 
 ## Functions
 
@@ -55,15 +54,15 @@ It panics if you pass a value of any type other than string, array, slice, map, 
 
 ### dump
 
-`dump` is meant to support template development, and can be used to print out variables, blocks, context, and globals that are available to the template.
+`dump` is meant to aid in template development, and can be used to print out variables, blocks, context, and globals that are available to the template.
 The function can be used in three forms:
 
-`dump()` used without parameters will printout context, variables, globals, and blocks (in this order) in current scope, without accessing any parent.
+`dump()` used without parameters will print out context, variables, globals, and blocks (in this order) in the current scope, without accessing any parent.
 
-`dump(levels)` - where `levels` is an **integer** - is the same as `dump()`, and additionally will recurse over context parents to the maximum of `levels`.
-For example, `dump(1)` will additionaly print out all variables accessible to the parent of current context.
+`dump(levels)` - where `levels` is an **integer** - is the same as `dump()`, but will additionally recurse over context parents to the maximum depth of `levels`.
+For example, `dump(1)` will additionaly print out all variables accessible in the direct parent of the current context.
 
-`dump("name1","name2", ....)` will try to find the variable or block with the given name(s) in the current runtime.
+`dump("name1", "name2", ...)` will search for the variable and/or block with the given name(s) in any scope (current and all parents) of the current runtime.
 
 ## SafeWriter
 

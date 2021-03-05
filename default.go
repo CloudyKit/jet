@@ -152,35 +152,28 @@ func init() {
 			return reflect.ValueOf(&intsRanger{from: from, to: to})
 		})),
 		"dump": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
-			a.RequireNumOfArguments("dump", 0, -1)
-			noOfArgs := a.NumOfArguments()
-			// no arguments were provided, dump all; do not recurse over parents
-			if noOfArgs == 0 {
+			switch numArgs := a.NumOfArguments(); numArgs {
+			case 0:
+				// no arguments were provided, dump all; do not recurse over parents
 				return dumpAll(a, 0)
-			}
-			//// some arguments were provided, grab them
-			args := make([]reflect.Value, noOfArgs)
-			ids := make([]string, noOfArgs)
-			for i := 0; i < a.NumOfArguments(); i++ {
-				args[i] = a.Get(i)
-			}
-
-			// did we use a dump(int) in our template?
-			if len(args) == 1 && args[0].Kind() == reflect.Float64 {
-				return dumpAll(a, int(args[0].Float()))
-			}
-
-			// at this moment, all arguments should be strings, otherwise we have a problem
-			for _, arg := range args {
-				if arg.Kind() != reflect.String {
-					// TODO: maybe this should panic?
-					return reflect.ValueOf("dump: err: you sent more then one argument, and some of them aren't strings, do not know what to do.")
+			case 1:
+				if arg := a.Get(0); arg.Kind() == reflect.Float64 {
+					// dump all, maybe walk into parents
+					return dumpAll(a, int(arg.Float()))
 				}
-				ids = append(ids, arg.String())
+				fallthrough
+			default:
+				// one or more arguments were provided, grab them and check they are all strings
+				ids := make([]string, numArgs)
+				for i := range ids {
+					arg := a.Get(i)
+					if arg.Kind() != reflect.String {
+						panic(fmt.Errorf("dump: expected argument %d to be a string, but got a %T", i, arg.Interface()))
+					}
+					ids = append(ids, arg.String())
+				}
+				return dumpIdentified(a.runtime, ids)
 			}
-
-			return dumpIdentified(a.runtime, ids)
-
 		})),
 	}
 }
