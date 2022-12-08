@@ -268,7 +268,7 @@ func (st *Runtime) executeSet(left Expression, right reflect.Value) {
 	lef := len(fields) - 1
 	for i := 0; i < lef; i++ {
 		var err error
-		value, err = resolveIndex(value, reflect.ValueOf(fields[i]))
+		value, err = resolveIndex(value, reflect.Value{}, fields[i])
 		if err != nil {
 			left.errorf("%v", err)
 		}
@@ -683,7 +683,7 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 		base := st.evalPrimaryExpressionGroup(node.Base)
 		index := st.evalPrimaryExpressionGroup(node.Index)
 
-		resolved, err := resolveIndex(base, index)
+		resolved, err := resolveIndex(base, index, "")
 		if err != nil {
 			node.error(err)
 		}
@@ -752,7 +752,7 @@ func (st *Runtime) isSet(node Node) (ok bool) {
 		base := st.evalPrimaryExpressionGroup(node.Base)
 		index := st.evalPrimaryExpressionGroup(node.Index)
 
-		resolved, err := resolveIndex(base, index)
+		resolved, err := resolveIndex(base, index, "")
 		return err == nil && notNil(resolved)
 	case NodeIdentifier:
 		value, err := st.resolve(node.String())
@@ -762,7 +762,7 @@ func (st *Runtime) isSet(node Node) (ok bool) {
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
 			var err error
-			resolved, err = resolveIndex(resolved, reflect.ValueOf(node.Ident[i]))
+			resolved, err = resolveIndex(resolved, reflect.Value{}, node.Ident[i])
 			if err != nil || !notNil(resolved) {
 				return false
 			}
@@ -1144,7 +1144,7 @@ func (st *Runtime) evalBaseExpressionGroup(node Node) reflect.Value {
 		node := node.(*FieldNode)
 		resolved := st.context
 		for i := 0; i < len(node.Ident); i++ {
-			field, err := resolveIndex(resolved, reflect.ValueOf(node.Ident[i]))
+			field, err := resolveIndex(resolved, reflect.Value{}, node.Ident[i])
 			if err != nil {
 				node.errorf("%v", err)
 			}
@@ -1226,7 +1226,7 @@ func (st *Runtime) evalChainNodeExpression(node *ChainNode) (reflect.Value, erro
 	resolved := st.evalPrimaryExpressionGroup(node.Node)
 
 	for i := 0; i < len(node.Field); i++ {
-		field, err := resolveIndex(resolved, reflect.ValueOf(node.Field[i]))
+		field, err := resolveIndex(resolved, reflect.Value{}, node.Field[i])
 		if err != nil {
 			return reflect.Value{}, err
 		}
@@ -1546,7 +1546,17 @@ func indirectEface(v reflect.Value) reflect.Value {
 }
 
 // mostly copied from text/template's evalField() (exec.go):
-func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
+//
+// The index to use to access v can be specified in either index or indexAsStr.
+// Which parameter is filled depends on the call path up to when a particular
+// call to resolveIndex is made and whether that call site already has access
+// to a reflect.Value for the index or just a string identifier.
+//
+// While having both options makes the implementation of this function more
+// complex, it improves the memory allocation story for the most common
+// execution paths when executing a template, such as when accessing a field
+// element.
+func resolveIndex(v, index reflect.Value, indexAsStr string) (reflect.Value, error) {
 	if !v.IsValid() {
 		return reflect.Value{}, fmt.Errorf("there is no field or method '%s' in %s (%s)", index, v, getTypeString(v))
 	}
@@ -1558,14 +1568,35 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("nil pointer evaluating %s.%s", v.Type(), index)
 	}
 
+	// Handle the caller passing either index or indexAsStr.
+	indexIsStr := indexAsStr != ""
+	indexAsValue := func() reflect.Value { return index }
+	if indexIsStr {
+		// indexAsStr was specified, so make the indexAsValue function
+		// obtain the corresponding reflect.Value. This is only used in
+		// some code paths, and since it causes an allocation, a
+		// function is used instead of always extracting the
+		// reflect.Value.
+		indexAsValue = func() reflect.Value {
+			return reflect.ValueOf(indexAsStr)
+		}
+	} else {
+		// index was specified, so extract the string value if the index
+		// is in fact a string.
+		indexIsStr = index.Kind() == reflect.String
+		if indexIsStr {
+			indexAsStr = index.String()
+		}
+	}
+
 	// Unless it's an interface, need to get to a value of type *T to guarantee
 	// we see all methods of T and *T.
-	if index.Kind() == reflect.String {
+	if indexIsStr {
 		ptr := v
 		if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Ptr && ptr.CanAddr() {
 			ptr = ptr.Addr()
 		}
-		if method := ptr.MethodByName(index.String()); method.IsValid() {
+		if method := ptr.MethodByName(indexAsStr); method.IsValid() {
 			return method, nil
 		}
 	}
@@ -1577,35 +1608,58 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 	//  - if v is (still) a pointer, indexing will fail but we check for nil to get a useful error
 	switch v.Kind() {
 	case reflect.Array, reflect.Slice, reflect.String:
-		x, err := indexArg(index, v.Len())
+		indexVal := indexAsValue()
+		x, err := indexArg(indexVal, v.Len())
 		if err != nil {
 			return reflect.Value{}, err
 		}
 		return indirectEface(v.Index(x)), nil
 	case reflect.Struct:
-		if index.Kind() != reflect.String {
-			return reflect.Value{}, fmt.Errorf("can't use %s (%s, not string) as field name in struct type %s", index, index.Type(), v.Type())
+		if !indexIsStr {
+			return reflect.Value{}, fmt.Errorf("can't use %s (%s, not string) as field name in struct type %s", index, indexAsValue().Type(), v.Type())
 		}
-		tField, ok := v.Type().FieldByName(index.String())
+		typ := v.Type()
+		key := indexAsStr
+
+		// Fast path: use the struct cache to avoid allocations.
+		cachedStructsMutex.RLock()
+		cache, ok := cachedStructsFieldIndex[typ]
+		cachedStructsMutex.RUnlock()
+		if !ok {
+			cachedStructsMutex.Lock()
+			if cache, ok = cachedStructsFieldIndex[typ]; !ok {
+				cache = make(map[string][]int)
+				buildCache(typ, cache, nil)
+				cachedStructsFieldIndex[typ] = cache
+			}
+			cachedStructsMutex.Unlock()
+		}
+		if id, ok := cache[key]; ok {
+			return v.FieldByIndex(id), nil
+		}
+
+		// Slow path: use reflect directly
+		tField, ok := typ.FieldByName(key)
 		if ok {
 			field := v.FieldByIndex(tField.Index)
 			if tField.PkgPath != "" { // field is unexported
-				return reflect.Value{}, fmt.Errorf("%s is an unexported field of struct type %s", index.String(), v.Type())
+				return reflect.Value{}, fmt.Errorf("%s is an unexported field of struct type %s", indexAsStr, v.Type())
 			}
 			return indirectEface(field), nil
 		}
-		return reflect.Value{}, fmt.Errorf("can't use %s as field name in struct type %s", index, v.Type())
+		return reflect.Value{}, fmt.Errorf("can't use %s as field name in struct type %s", indexAsStr, v.Type())
 	case reflect.Map:
 		// If it's a map, attempt to use the field name as a key.
-		if !index.Type().ConvertibleTo(v.Type().Key()) {
-			return reflect.Value{}, fmt.Errorf("can't use %s (%s) as key for map of type %s", index, index.Type(), v.Type())
+		indexVal := indexAsValue()
+		if !indexVal.Type().ConvertibleTo(v.Type().Key()) {
+			return reflect.Value{}, fmt.Errorf("can't use %s (%s) as key for map of type %s", indexAsStr, indexVal.Type(), v.Type())
 		}
-		index = index.Convert(v.Type().Key()) // noop in most cases, but not expensive
-		return indirectEface(v.MapIndex(index)), nil
+		index = indexVal.Convert(v.Type().Key()) // noop in most cases, but not expensive
+		return indirectEface(v.MapIndex(indexVal)), nil
 	case reflect.Ptr:
 		etyp := v.Type().Elem()
-		if etyp.Kind() == reflect.Struct && index.Kind() == reflect.String {
-			if _, ok := etyp.FieldByName(index.String()); !ok {
+		if etyp.Kind() == reflect.Struct && indexIsStr {
+			if _, ok := etyp.FieldByName(indexAsStr); !ok {
 				// If there's no such field, say "can't evaluate"
 				// instead of "nil pointer evaluating".
 				break
@@ -1615,7 +1669,7 @@ func resolveIndex(v, index reflect.Value) (reflect.Value, error) {
 			return reflect.Value{}, fmt.Errorf("nil pointer evaluating %s.%s", v.Type(), index)
 		}
 	}
-	return reflect.Value{}, fmt.Errorf("can't evaluate index %s (%s) in type %s", index, getTypeString(index), getTypeString(v))
+	return reflect.Value{}, fmt.Errorf("can't evaluate index %s (%s) in type %s", index, indexAsStr, getTypeString(v))
 }
 
 // from Go's text/template's funcs.go:
