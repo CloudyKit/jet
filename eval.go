@@ -491,11 +491,12 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 				node.error(err)
 			}
 			if !ranger.ProvidesIndex() {
-				if len(node.Set.Left) > 1 {
+				if isSet && len(node.Set.Left) > 1 {
 					// two-vars assignment with ranger that doesn't provide an index
 					node.error(errors.New("two-var range over ranger that does not provide an index"))
+				} else if isSet {
+					keyVarSlot, valVarSlot = -1, 0
 				}
-				keyVarSlot, valVarSlot = -1, 0
 			}
 
 			indexValue, rangeValue, end := ranger.Range()
