@@ -11,7 +11,15 @@ import (
 // Implementing this interface means the ranger will be used when it's
 // encountered on the right hand side of a range's "let" expression.
 type Ranger interface {
+	// Range calls should return a key, a value and a done bool to indicate
+	// whether there are more values to be generated.
+	//
+	// When the done flag is true, then the loop ends.
 	Range() (reflect.Value, reflect.Value, bool)
+
+	// ProvidesIndex should return true if keys are produced during Range()
+	// calls. This call should be idempotent across Range() calls (i.e.
+	// its return value must not change during an iteration).
 	ProvidesIndex() bool
 }
 
