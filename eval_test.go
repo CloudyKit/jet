@@ -88,6 +88,7 @@ func init() {
 	JetTestingLoader.Set("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
 	JetTestingLoader.Set("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
 	JetTestingLoader.Set("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
+	JetTestingLoader.Set("BenchCustomRanger", "{{range .}}{{.Name}}{{end}}")
 }
 
 func RunJetTest(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
@@ -884,5 +885,88 @@ func BenchmarkJetFunc(b *testing.B) {
 		if err != nil {
 			b.Error(err.Error())
 		}
+	}
+}
+
+// customBenchRanger satisfies the Ranger interface for custom benchmarks.
+type customBenchRanger struct {
+	i, n int
+	key  reflect.Value
+	data reflect.Value
+}
+
+var _ Ranger = (*customBenchRanger)(nil)
+
+func (cbr *customBenchRanger) ProvidesIndex() bool {
+	return false
+}
+
+func (cbr *customBenchRanger) Range() (_ reflect.Value, v reflect.Value, done bool) {
+	if cbr.i >= cbr.n {
+		done = true
+		return
+	}
+
+	v = cbr.data
+	cbr.i += 1
+	return
+}
+
+// BenchmarkCustomRanger benchmarks the overhead in doing one iteration of
+// a custom ranger.
+func BenchmarkCustomRanger(b *testing.B) {
+	data := reflect.ValueOf(struct {
+		Name string
+	}{Name: "John Doe"})
+	execCtx := &customBenchRanger{data: data, n: b.N}
+
+	t, _ := JetTestingSet.GetTemplate("BenchCustomRanger")
+	b.ResetTimer()
+	err := t.Execute(ww, nil, execCtx)
+	if err != nil {
+		b.Error(err.Error())
+	}
+}
+
+// BenchmarkFieldAccess benchmarks executing a template that accesses fields
+// in the current context.
+//
+// This measures the overhead from adding one additional field access to a
+// template.
+func BenchmarkFieldAccess(b *testing.B) {
+	// This benchmark is disabled from normal execution due to being
+	// limited by the parsing performance of this package. When the
+	// benchmark len grows greater than about 100K, parsing performance is
+	// degraded and this benchmark takes a long time to setup.
+	//
+	// To test this, comment out the following line and run this specific
+	// benchmark with
+	//   go test -run Bench -bench BenchmarkFieldAcces -benchtime 0.02s
+	b.Skip("Can only run manually with -benchtime 0.02s")
+
+	const numFields = 3 // Must match the structure below.
+	tmplBuilder := new(strings.Builder)
+	for i := 0; i < b.N; i++ {
+		fmt.Fprintf(tmplBuilder, "{{ .Field%d }} ", i%numFields+1)
+	}
+
+	loader := NewInMemLoader()
+	loader.Set("BenchFields", tmplBuilder.String())
+	set := NewSet(loader, WithSafeWriter(nil))
+	testCtx := struct {
+		Field1 string
+		Field2 int
+		Field3 float64
+	}{
+		Field1: "secret",
+		Field2: 42,
+		Field3: 3.1415,
+	}
+	t, _ := set.GetTemplate("BenchFields")
+
+	b.ResetTimer()
+	err := t.Execute(ww, nil, testCtx)
+	if err != nil {
+		b.Error(err.Error())
 	}
 }
