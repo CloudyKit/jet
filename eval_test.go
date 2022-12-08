@@ -684,6 +684,35 @@ func TestBuiltinCollectionFuncs(t *testing.T) {
 	RunJetTest(t, nil, nil, "array_builtin", `{{ m := array( "foo", "bar", "asd", 123)}}{{m}}`, "[foo bar asd 123]")
 }
 
+// customTestRanger satisfies the Ranger interface for custom tests.
+type customTestRanger struct {
+	providesIndex bool
+	data          []string
+	i             int
+}
+
+var _ Ranger = (*customTestRanger)(nil)
+
+func (ctr *customTestRanger) ProvidesIndex() bool {
+	return ctr.providesIndex
+}
+
+func (ctr *customTestRanger) Range() (k reflect.Value, v reflect.Value, done bool) {
+	if ctr.i >= len(ctr.data) {
+		// Reset ctr.i for the next test.
+		ctr.i = 0
+		done = true
+		return
+	}
+
+	if ctr.providesIndex {
+		k = reflect.ValueOf(ctr.i)
+	}
+	v = reflect.ValueOf(ctr.data[ctr.i])
+	ctr.i += 1
+	return
+}
+
 func TestRanger(t *testing.T) {
 	c := make(chan string)
 	go func() {
@@ -702,15 +731,28 @@ func TestRanger(t *testing.T) {
 	)
 	data.Set("s", []string{"asd", "foo", "bar"})
 	data.Set("c", c)
+	data.Set("ci", &customTestRanger{
+		providesIndex: true,
+		data:          []string{"asd", "foo", "bar"},
+	})
+	data.Set("cu", &customTestRanger{
+		providesIndex: false,
+		data:          []string{"asd", "foo", "bar"},
+	})
 	RunJetTest(t, data, nil, "slice_ranger", `{{ range s }}{{.}},{{ end }}`, "asd,foo,bar,")
-	RunJetTest(t, data, nil, "slice_ranger_value", `{{ range v := s }}{{v}},{{ end }}`, "0,1,2,")
-	RunJetTest(t, data, nil, "slice_ranger_value_context", `{{ range v := s }}{{.}},{{ end }}`, "asd,foo,bar,")
+	RunJetTest(t, data, nil, "slice_ranger_index", `{{ range k := s }}{{k}},{{ end }}`, "0,1,2,")
+	RunJetTest(t, data, nil, "slice_ranger_index_context", `{{ range k := s }}{{k}}:{{.}},{{ end }}`, "0:asd,1:foo,2:bar,")
 	RunJetTest(t, data, nil, "slice_ranger_index_value", `{{ range i, v := s }}{{i}}:{{v}},{{ end }}`, "0:asd,1:foo,2:bar,")
 	RunJetTest(t, data, nil, "map_ranger", `{{ range m }}{{.}},{{ end }}`, "123,")
 	RunJetTest(t, data, nil, "map_ranger_key_context", `{{ range k := m }}{{k}}:{{.}},{{ end }}`, "asd:123,")
 	RunJetTest(t, data, nil, "map_ranger_key_value", `{{ range k, v := m }}{{k}}:{{v}},{{ end }}`, "asd:123,")
 	RunJetTest(t, data, nil, "chan_ranger", `{{ range v := c }}{{v}}{{ end }}`, "0123456789")
 	RunJetTest(t, nil, nil, "ints_ranger", `{{ range i := ints(0, 10) }}{{ (i == 0 ? "" : ", ") + i }}{{ end }}`, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
+	RunJetTest(t, data, nil, "custom_indexed_ranger", `{{ range ci }}{{.}},{{ end  }}`, "asd,foo,bar,")
+	RunJetTest(t, data, nil, "custom_indexed_ranger_key_context", `{{ range k := ci }}{{k}}:{{.}},{{ end  }}`, "0:asd,1:foo,2:bar,")
+	RunJetTest(t, data, nil, "custom_indexed_ranger_key_value", `{{ range k, v := ci }}{{k}}:{{v}},{{ end  }}`, "0:asd,1:foo,2:bar,")
+	RunJetTest(t, data, nil, "custom_unindexed_ranger", `{{ range cu }}{{.}},{{ end  }}`, "asd,foo,bar,")
+	RunJetTest(t, data, nil, "custom_unindexed_ranger_value", `{{ range v := cu }}{{v}},{{ end  }}`, "asd,foo,bar,")
 }
 
 func TestWhitespaceControl(t *testing.T) {
