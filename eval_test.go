@@ -89,6 +89,7 @@ func init() {
 	JetTestingLoader.Set("rangeOverUsers_Set", `{{range index,user:= . }}{{index}}{{user.Name}}-{{user.Email}}{{end}}`)
 	JetTestingLoader.Set("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
 	JetTestingLoader.Set("BenchCustomRanger", "{{range .}}{{.Name}}{{end}}")
+	JetTestingLoader.Set("BenchIntsRanger", "{{range ints(0, .)}} {{end}}")
 }
 
 func RunJetTest(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
@@ -749,6 +750,7 @@ func TestRanger(t *testing.T) {
 	RunJetTest(t, data, nil, "map_ranger_key_value", `{{ range k, v := m }}{{k}}:{{v}},{{ end }}`, "asd:123,")
 	RunJetTest(t, data, nil, "chan_ranger", `{{ range v := c }}{{v}}{{ end }}`, "0123456789")
 	RunJetTest(t, nil, nil, "ints_ranger", `{{ range i := ints(0, 10) }}{{ (i == 0 ? "" : ", ") + i }}{{ end }}`, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
+	RunJetTest(t, nil, nil, "ints_ranger_index_value", `{{ range k, v := ints(10, 20) }}{{k}}:{{v}} {{ end }}`, "0:10 1:11 2:12 3:13 4:14 5:15 6:16 7:17 8:18 9:19 ")
 	RunJetTest(t, data, nil, "custom_indexed_ranger", `{{ range ci }}{{.}},{{ end  }}`, "asd,foo,bar,")
 	RunJetTest(t, data, nil, "custom_indexed_ranger_key_context", `{{ range k := ci }}{{k}}:{{.}},{{ end  }}`, "0:asd,1:foo,2:bar,")
 	RunJetTest(t, data, nil, "custom_indexed_ranger_key_value", `{{ range k, v := ci }}{{k}}:{{v}},{{ end  }}`, "0:asd,1:foo,2:bar,")
@@ -923,6 +925,17 @@ func BenchmarkCustomRanger(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("BenchCustomRanger")
 	b.ResetTimer()
 	err := t.Execute(ww, nil, execCtx)
+	if err != nil {
+		b.Error(err.Error())
+	}
+}
+
+// BenchmarkIntsRanger benchmarks the performance of doing one additional
+// iteration using the ints ranger.
+func BenchmarkIntsRanger(b *testing.B) {
+	t, _ := JetTestingSet.GetTemplate("BenchIntsRanger")
+	b.ResetTimer()
+	err := t.Execute(ww, nil, b.N)
 	if err != nil {
 		b.Error(err.Error())
 	}
