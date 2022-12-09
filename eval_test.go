@@ -90,6 +90,7 @@ func init() {
 	JetTestingLoader.Set("BenchNewBlock", "{{ block col(md=12,offset=0) }}\n<div class=\"col-md-{{md}} col-md-offset-{{offset}}\">{{ yield content }}</div>\n\t\t{{ end }}\n\t\t{{ block row(md=12) }}\n<div class=\"row {{md}}\">{{ yield content }}</div>\n\t\t{{ content }}\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n<div class=\"col-md-1\"></div>\n\t\t{{ end }}\n\t\t{{ block header() }}\n<div class=\"header\">\n\t{{ yield row() content}}\n\t\t{{ yield col(md=6) content }}\n{{ yield content }}\n\t\t{{end}}\n\t{{end}}\n</div>\n\t\t{{content}}\n<h1>Hey</h1>\n\t\t{{ end }}")
 	JetTestingLoader.Set("BenchCustomRanger", "{{range .}}{{.Name}}{{end}}")
 	JetTestingLoader.Set("BenchIntsRanger", "{{range ints(0, .)}} {{end}}")
+	JetTestingLoader.Set("BenchCustomRender", "{{range k, v := ints(0, .N)}}{{.Field}}{{end}}")
 }
 
 func RunJetTest(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
@@ -936,6 +937,34 @@ func BenchmarkIntsRanger(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("BenchIntsRanger")
 	b.ResetTimer()
 	err := t.Execute(ww, nil, b.N)
+	if err != nil {
+		b.Error(err.Error())
+	}
+}
+
+type customRenderer struct {
+	data []byte
+}
+
+func (cr *customRenderer) Render(r *Runtime) {
+	r.Write(cr.data)
+}
+
+var _ Renderer = (*customRenderer)(nil)
+
+// BenchmarkCustomRender benchmarks executing a template that calls the Render()
+// method of a custom renderer object.
+func BenchmarkCustomRender(b *testing.B) {
+	execCtx := struct {
+		N     int
+		Field *customRenderer
+	}{
+		N:     b.N,
+		Field: &customRenderer{data: []byte("foobar")},
+	}
+	t, _ := JetTestingSet.GetTemplate("BenchCustomRender")
+	b.ResetTimer()
+	err := t.Execute(ww, nil, execCtx)
 	if err != nil {
 		b.Error(err.Error())
 	}
