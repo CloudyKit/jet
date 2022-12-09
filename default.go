@@ -140,7 +140,7 @@ func init() {
 			return result
 		})),
 		"ints": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
-			var from, to int
+			var from, to int64
 			err := a.ParseInto(&from, &to)
 			if err != nil {
 				panic(err)
@@ -149,7 +149,7 @@ func init() {
 			if to <= from {
 				panic(errors.New("invalid range for ints ranger: 'from' must be smaller than 'to'"))
 			}
-			return reflect.ValueOf(&intsRanger{from: from, to: to})
+			return reflect.ValueOf(newIntsRanger(from, to))
 		})),
 		"dump": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
 			switch numArgs := a.NumOfArguments(); numArgs {
