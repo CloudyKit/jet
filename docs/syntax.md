@@ -35,6 +35,7 @@
     - [Slices / Arrays](#slices--arrays)
     - [Maps](#maps)
     - [Channels](#channels)
+    - [Custom](#custom-ranger)
     - [else](#else)
   - [try](#try)
   - [try / catch](#try--catch)
@@ -366,7 +367,7 @@ Use `range` to iterate over data, just like you would in Go, or how you would us
         {{.}}
     {{ end }}
 
-Jet provides built-in rangers for Go slices, arrays, maps, and channels. You can add your own by implementing the Ranger interface. TODO
+Jet provides built-in rangers for Go slices, arrays, maps, and channels. You can add your own by implementing the Ranger interface.
 
 #### Slices / Arrays
 
@@ -410,6 +411,12 @@ When iterating over a channel, you can can have Jet assign the iteration value t
     {{ end }}
 
 It's an error to use channels together with the two-variable syntax.
+
+#### Custom Ranger
+
+Any value that implements the
+[Ranger](https://pkg.go.dev/github.com/CloudyKit/jet/v6#Ranger) interface can be
+used for ranging over values. Look in the package docs for an example.
 
 #### else
 
