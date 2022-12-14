@@ -83,6 +83,11 @@ func init() {
 	}
 
 	JetTestingSet.AddGlobal("dummy", dummy)
+	JetTestingSet.AddGlobalFunc("customFn", func(args Arguments) reflect.Value {
+		args.RequireNumOfArguments("customFn", 1, 1)
+		return args.Get(0)
+	})
+
 	JetTestingLoader.Set("actionNode_dummy", `hello {{dummy("WORLD")}}`)
 	JetTestingLoader.Set("noAllocFn", `hello {{ "José" }} {{1}} {{ "José" }}`)
 	JetTestingLoader.Set("rangeOverUsers", `{{range .}}{{.Name}}-{{.Email}}{{end}}`)
@@ -91,6 +96,8 @@ func init() {
 	JetTestingLoader.Set("BenchCustomRanger", "{{range .}}{{.Name}}{{end}}")
 	JetTestingLoader.Set("BenchIntsRanger", "{{range ints(0, .)}} {{end}}")
 	JetTestingLoader.Set("BenchCustomRender", "{{range k, v := ints(0, .N)}}{{.Field}}{{end}}")
+	JetTestingLoader.Set("BenchCallCustomFn", "{{range ints(0, .N)}}{{customFn(.)}}{{end}}")
+	JetTestingLoader.Set("BenchExecPipeline", "{{range ints(0, .N)}}{{. | customFn}}{{end}}")
 }
 
 func RunJetTest(t *testing.T, variables VarMap, context interface{}, testName, testContent, testExpected string) {
@@ -968,6 +975,32 @@ func BenchmarkCustomRender(b *testing.B) {
 	if err != nil {
 		b.Error(err.Error())
 	}
+}
+
+// BenchmarkCallCustomFn benchmarks executing a template that calls a custom
+// function repeatedly.
+func BenchmarkCallCustomFn(b *testing.B) {
+	t, _ := JetTestingSet.GetTemplate("BenchCallCustomFn")
+	execCtx := struct{ N int }{N: b.N}
+	b.ResetTimer()
+	err := t.Execute(ww, nil, execCtx)
+	if err != nil {
+		b.Error(err.Error())
+	}
+
+}
+
+// BenchmarkExecPipeline benchmarks executing a template that calls a pipeline
+// repeatedly.
+func BenchmarkExecPipeline(b *testing.B) {
+	t, _ := JetTestingSet.GetTemplate("BenchExecPipeline")
+	execCtx := struct{ N int }{N: b.N}
+	b.ResetTimer()
+	err := t.Execute(ww, nil, execCtx)
+	if err != nil {
+		b.Error(err.Error())
+	}
+
 }
 
 // BenchmarkFieldAccess benchmarks executing a template that accesses fields
