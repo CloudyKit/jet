@@ -42,7 +42,7 @@ func init() {
 
 	views = jet.NewSet(
 		httpfsLoader,
-		jet.InDevelopmentMode(), // remove in production
+		jet.DevelopmentMode(true), // remove or set false in production
 	)
 }
 
