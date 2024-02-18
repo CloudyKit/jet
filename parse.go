@@ -792,7 +792,7 @@ func (t *Template) operand(context string) Expression {
 	}
 RESET:
 	if t.peek().typ == itemField {
-		chain := t.newChain(t.peek().pos, node)
+		chain := t.newChain(t.peek().pos, t.lex.lineNumber(), node)
 		for t.peekNonSpace().typ == itemField {
 			chain.Add(t.next().val)
 		}
@@ -803,7 +803,7 @@ RESET:
 		// More complex error cases will have to be handled at execution time.
 		switch node.Type() {
 		case NodeField:
-			node = t.newField(chain.Position(), chain.String())
+			node = t.newField(chain.Position(), t.lex.lineNumber(), chain.String())
 		case NodeBool, NodeString, NodeNumber, NodeNil:
 			t.errorf("unexpected . after term %q", node.String())
 		default:
@@ -1032,7 +1032,7 @@ func (t *Template) term() Node {
 	case itemNil:
 		return t.newNil(token.pos)
 	case itemField:
-		return t.newField(token.pos, token.val)
+		return t.newField(token.pos, t.lex.lineNumber(), token.val)
 	case itemBool:
 		return t.newBool(token.pos, token.val == "true")
 	case itemCharConstant, itemComplex, itemNumber:

@@ -86,12 +86,12 @@ func (t *Template) newNil(pos Pos) *NilNode {
 	return &NilNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeNil, Pos: pos}}
 }
 
-func (t *Template) newField(pos Pos, ident string) *FieldNode {
-	return &FieldNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeField, Pos: pos}, Ident: strings.Split(ident[1:], ".")} //[1:] to drop leading period
+func (t *Template) newField(pos Pos, line int, ident string) *FieldNode {
+	return &FieldNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeField, Pos: pos, Line: line}, Ident: strings.Split(ident[1:], ".")} //[1:] to drop leading period
 }
 
-func (t *Template) newChain(pos Pos, node Node) *ChainNode {
-	return &ChainNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeChain, Pos: pos}, Node: node}
+func (t *Template) newChain(pos Pos, line int, node Node) *ChainNode {
+	return &ChainNode{NodeBase: NodeBase{TemplatePath: t.Name, NodeType: NodeChain, Pos: pos, Line: line}, Node: node}
 }
 
 func (t *Template) newBool(pos Pos, true bool) *BoolNode {
