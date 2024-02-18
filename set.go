@@ -23,6 +23,8 @@ type Set struct {
 	developmentMode bool
 	leftDelim       string
 	rightDelim      string
+	leftComment       string
+	rightComment     string
 }
 
 // Option is the type of option functions that can be used in NewSet().
@@ -81,6 +83,15 @@ func WithDelims(left, right string) Option {
 	return func(s *Set) {
 		s.leftDelim = left
 		s.rightDelim = right
+	}
+}
+
+// WithCommentDelims returns an option function that sets the comment delimiters to the specified strings.
+// Parsed templates will inherit the settings. Not setting them leaves them at the default: `{*` and `*}`.
+func WithCommentDelims(left, right string) Option {
+	return func(s *Set) {
+		s.leftComment = left
+		s.rightComment = right
 	}
 }
 

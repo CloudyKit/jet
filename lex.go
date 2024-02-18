@@ -141,8 +141,8 @@ const eof = -1
 const (
 	defaultLeftDelim  = "{{"
 	defaultRightDelim = "}}"
-	leftComment       = "{*"
-	rightComment      = "*}"
+	defaultLeftComment       = "{*"
+	defaultRightComment      = "*}"
 	leftTrimMarker    = "- "
 	rightTrimMarker   = " -"
 	trimMarkerLen     = Pos(len(leftTrimMarker))
@@ -165,6 +165,8 @@ type lexer struct {
 	lastType       itemType
 	leftDelim      string
 	rightDelim     string
+	leftComment      string
+	rightComment     string
 	trimRightDelim string
 }
 
@@ -174,6 +176,15 @@ func (l *lexer) setDelimiters(leftDelim, rightDelim string) {
 	}
 	if rightDelim != "" {
 		l.rightDelim = rightDelim
+	}
+}
+
+func (l *lexer) setCommentDelimiters(leftDelim, rightDelim string) {
+	if leftDelim != "" {
+		l.leftComment = leftDelim
+	}
+	if rightDelim != "" {
+		l.rightComment = rightDelim
 	}
 }
 
@@ -266,6 +277,8 @@ func lex(name, input string, run bool) *lexer {
 		items:          make(chan item),
 		leftDelim:      defaultLeftDelim,
 		rightDelim:     defaultRightDelim,
+		leftComment:    defaultLeftComment,
+		rightComment:   defaultRightComment,
 		trimRightDelim: rightTrimMarker + defaultRightDelim,
 	}
 	if run {
@@ -289,7 +302,7 @@ func lexText(l *lexer) stateFn {
 	for {
 		// without breaking the API, this seems like a reasonable workaround to correctly parse comments
 		i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0])  // index of suspected left delimiter
-		ic := strings.IndexByte(l.input[l.pos:], leftComment[0]) // index of suspected left comment marker
+		ic := strings.IndexByte(l.input[l.pos:], l.leftComment[0]) // index of suspected left comment marker
 		if ic > -1 && ic < i {                                   // use whichever is lower for future lexing
 			i = ic
 		}
@@ -313,7 +326,7 @@ func lexText(l *lexer) stateFn {
 				l.ignore()
 				return lexLeftDelim
 			}
-			if strings.HasPrefix(l.input[l.pos:], leftComment) {
+			if strings.HasPrefix(l.input[l.pos:], l.leftComment) {
 				if l.pos > l.start {
 					l.emit(itemText)
 				}
@@ -346,12 +359,12 @@ func lexLeftDelim(l *lexer) stateFn {
 
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
-	l.pos += Pos(len(leftComment))
-	i := strings.Index(l.input[l.pos:], rightComment)
+	l.pos += Pos(len(l.leftComment))
+	i := strings.Index(l.input[l.pos:], l.rightComment)
 	if i < 0 {
 		return l.errorf("unclosed comment")
 	}
-	l.pos += Pos(i + len(rightComment))
+	l.pos += Pos(i + len(l.rightComment))
 	l.ignore()
 	return lexText
 }
