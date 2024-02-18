@@ -131,6 +131,7 @@ func TestParseTemplateWithCustomDelimiters(t *testing.T) {
 		NewOSFileSystemLoader("./testData"),
 		WithSafeWriter(nil),
 		WithDelims("[[", "]]"),
+		WithCommentDelims("[*", "*]"),
 	)
 	p := ParserTestCase{T: t, set: set}
 	p.TestPrintFile("custom_delimiters.jet")

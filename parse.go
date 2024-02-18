@@ -225,6 +225,7 @@ func (s *Set) parse(name, text string, cacheAfterParsing bool) (t *Template, err
 
 	lexer := lex(name, text, false)
 	lexer.setDelimiters(s.leftDelim, s.rightDelim)
+	lexer.setCommentDelimiters(s.leftComment, s.rightComment)
 	lexer.run()
 	t.startParse(lexer)
 	t.parseTemplate(cacheAfterParsing)
