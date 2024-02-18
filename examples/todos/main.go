@@ -30,7 +30,7 @@ import (
 
 var views = jet.NewSet(
 	jet.NewOSFileSystemLoader("./views"),
-	jet.InDevelopmentMode(), // remove in production
+	jet.DevelopmentMode(true), // remove or set false in production
 )
 
 type tTODO struct {
