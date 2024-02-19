@@ -97,13 +97,10 @@ func WithTemplateNameExtensions(extensions []string) Option {
 	}
 }
 
-// DEPRECATED
 // InDevelopmentMode returns an option function that toggles development mode on, meaning the cache will
 // always be bypassed and every template lookup will go to the loader.
 func InDevelopmentMode() Option {
-	return func(s *Set) {
-		s.developmentMode = true
-	}
+	return DevelopmentMode(true)
 }
 
 // DevelopmentMode returns an option function that sets development mode on or off. "On" means the cache will
