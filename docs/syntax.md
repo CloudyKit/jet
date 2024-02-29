@@ -404,7 +404,7 @@ The iteration value will then not be used as context (`.`); instead, the parent 
 
 #### Channels
 
-When iterating over a channel, you can can have Jet assign the iteration value to another value in order to keep the parent context, similar to the two-variables syntax for slices and maps:
+When iterating over a channel, you can have Jet assign the iteration value to another value in order to keep the parent context, similar to the two-variables syntax for slices and maps:
 
     {{ range v := c }}
         {{v}}
