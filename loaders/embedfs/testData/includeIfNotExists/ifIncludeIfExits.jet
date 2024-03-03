@@ -1,0 +1,8 @@
+{{ if includeIfExists("exists.jet") }}
+    Was included!!
+{{ end }}
+{{ if includeIfExists("notExists.jet") }}
+    Was included!!
+{{ else }}
+    Was not included!!
+{{ end }}
