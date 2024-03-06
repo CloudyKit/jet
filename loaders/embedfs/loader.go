@@ -3,7 +3,7 @@ package embedfs
 import (
 	"embed"
 	"io"
-	"os"
+	"io/fs"
 	"path/filepath"
 
 	"github.com/CloudyKit/jet/v6"
@@ -29,6 +29,10 @@ func (l *embedFileSystemLoader) Open(name string) (io.ReadCloser, error) {
 
 // Exists implements Loader.Exists() on top of an embed.FS by trying to open the file.
 func (l *embedFileSystemLoader) Exists(name string) bool {
-	_, err := l.fs.Open(filepath.Join(l.dir, filepath.FromSlash(name)))
-	return err == nil && !os.IsNotExist(err)
+	name = filepath.Join(l.dir, filepath.FromSlash(name))
+	stat, err := fs.Stat(l.fs, name)
+	if err == nil && !stat.IsDir() {
+		return true
+	}
+	return false
 }
