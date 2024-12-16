@@ -1634,8 +1634,10 @@ func resolveIndex(v, index reflect.Value, indexAsStr string) (reflect.Value, err
 			}
 			cachedStructsMutex.Unlock()
 		}
+
 		if id, ok := cache[key]; ok {
-			return v.FieldByIndex(id), nil
+			field := v.FieldByIndex(id)
+			return indirectEface(field), nil
 		}
 
 		// Slow path: use reflect directly
