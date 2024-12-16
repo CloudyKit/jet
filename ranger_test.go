@@ -38,15 +38,32 @@ func ExampleRanger() {
 	//
 	// Setup template and rendering.
 	loader := NewInMemLoader()
-	loader.Set("template", "{{range k := ecr }}{{k}}:{{.}}; {{end}}")
+	loader.Set("template",
+		`{{ range k := ecr }}
+{{k}} = {{.}}
+{{- end }}
+{{ range k := struct.RangerEface }}
+{{k}} = {{.}}
+{{- end }}`,
+	)
 	set := NewSet(loader, WithSafeWriter(nil))
 	t, _ := set.GetTemplate("template")
 
-	// Pass a custom ranger instance as the 'ecr' var.
-	vars := VarMap{"ecr": reflect.ValueOf(&exampleCustomRanger{})}
+	// Pass a custom ranger instance as the 'ecr' var, as well as in a struct field with type interface{}.
+	vars := VarMap{
+		"ecr":    reflect.ValueOf(&exampleCustomRanger{}),
+		"struct": reflect.ValueOf(struct{ RangerEface interface{} }{RangerEface: &exampleCustomRanger{}}),
+	}
 
 	// Execute template.
 	_ = t.Execute(os.Stdout, vars, nil)
 
-	// Output: 0:custom ranger 0; 1:custom ranger 1; 2:custom ranger 2;
+	// Output:
+	// 0 = custom ranger 0
+	// 1 = custom ranger 1
+	// 2 = custom ranger 2
+	//
+	// 0 = custom ranger 0
+	// 1 = custom ranger 1
+	// 2 = custom ranger 2
 }
