@@ -549,6 +549,32 @@ func TestApple(t *testing.T) {
 	RunJetTest(t, data, nil, "LookUpApple", `{{apple := GetAppleByName("honeycrisp")}}{{TellFlavor(apple)}}`, "crisp")
 }
 
+func TestEvalStructFieldAccess(t *testing.T) {
+	s := struct {
+		Exported   int
+		unexported int
+	}{
+		Exported:   123,
+		unexported: 234,
+	}
+
+	var data = make(VarMap)
+	data.Set("struct", s)
+
+	RunJetTest(t, data, nil, "StructFieldAccess", `{{ struct.Exported }}`, "123")
+
+	var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
+	tt, err := set.parse("StructFieldAccess_unexported", `{{ struct.unexported }}`, false)
+	if err != nil {
+		t.Error(err)
+	}
+	buff := bytes.NewBuffer(nil)
+	err = tt.Execute(buff, data, nil)
+	if err == nil {
+		t.Error("expected evaluating unexported field of struct to fail with a runtime error but got nil")
+	}
+}
+
 func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	var data = make(VarMap)
 

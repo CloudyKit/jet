@@ -1706,6 +1706,10 @@ func buildCache(typ reflect.Type, cache map[string][]int, parent []int) {
 		index[len(parent)] = i
 
 		field := typ.Field(i)
+		if field.PkgPath != "" {
+			// field is unexported, skip
+			continue
+		}
 		if field.Anonymous {
 			typ := field.Type
 			if typ.Kind() == reflect.Struct {
