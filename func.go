@@ -29,29 +29,57 @@ type Arguments struct {
 
 // IsSet checks whether an argument is set or not. It behaves like the build-in isset function.
 func (a *Arguments) IsSet(argumentIndex int) bool {
-	if argumentIndex < len(a.args.Exprs) {
-		if a.args.Exprs[argumentIndex].Type() == NodeUnderscore {
-			return a.pipedVal != nil
+	if argumentIndex < 0 {
+		return false
+	}
+
+	if a.pipedVal != nil && !a.args.HasPipeSlot {
+		if argumentIndex == 0 {
+			return true
 		}
-		return a.runtime.isSet(a.args.Exprs[argumentIndex])
+		// call has an implicit first argument, so we adjust the
+		// index before looking it up in the parsed a.args slice
+		argumentIndex--
 	}
-	if len(a.args.Exprs) == 0 && argumentIndex == 0 {
-		return a.pipedVal != nil
+
+	if argumentIndex < len(a.args.Exprs) {
+		e := a.args.Exprs[argumentIndex]
+		switch e.Type() {
+		case NodeUnderscore:
+			return a.pipedVal != nil
+		default:
+			return a.runtime.isSet(e)
+		}
 	}
+
 	return false
 }
 
 // Get gets an argument by index.
 func (a *Arguments) Get(argumentIndex int) reflect.Value {
-	if argumentIndex < len(a.args.Exprs) {
-		if a.args.Exprs[argumentIndex].Type() == NodeUnderscore {
+	if argumentIndex < 0 {
+		return reflect.Value{}
+	}
+
+	if a.pipedVal != nil && !a.args.HasPipeSlot {
+		if argumentIndex == 0 {
 			return *a.pipedVal
 		}
-		return a.runtime.evalPrimaryExpressionGroup(a.args.Exprs[argumentIndex])
+		// call has an implicit first argument, so we adjust the
+		// index before looking it up in the parsed a.args slice
+		argumentIndex--
 	}
-	if len(a.args.Exprs) == 0 && argumentIndex == 0 {
-		return *a.pipedVal
+
+	if argumentIndex < len(a.args.Exprs) {
+		e := a.args.Exprs[argumentIndex]
+		switch e.Type() {
+		case NodeUnderscore:
+			return *a.pipedVal
+		default:
+			return a.runtime.evalPrimaryExpressionGroup(e)
+		}
 	}
+
 	return reflect.Value{}
 }
 

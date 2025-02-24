@@ -798,6 +798,26 @@ func TestWhitespaceControl(t *testing.T) {
 	RunJetTestWithSet(t, set, nil, nil, "multiple", "beforeACTIONafter")
 }
 
+func TestCustomFuncInPipeline(t *testing.T) { // https://github.com/CloudyKit/jet/issues/205
+	money := Func(func(a Arguments) reflect.Value {
+		a.RequireNumOfArguments("money", 1, 2)
+		switch a.NumOfArguments() {
+		case 1:
+			return reflect.ValueOf(a.Get(0).String() + "€")
+		case 2:
+			return reflect.ValueOf(a.Get(0).String() + a.Get(1).String())
+		default:
+			panic("unreachable")
+		}
+	})
+
+	data := VarMap{
+		"money": reflect.ValueOf(money),
+	}
+
+	RunJetTest(t, data, nil, "gh-issue-205", `{{ "123" | money }} {{ "123" | money("$") }}`, "123€ 123$")
+}
+
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
 	b.ResetTimer()
