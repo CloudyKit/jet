@@ -71,13 +71,41 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
+// Resolver resolves identifiers to variables, context, and functions.
+type Resolver interface {
+	Resolve(name string) (reflect.Value, error)
+}
+
+type ResolverFunc func(name string) (reflect.Value, error)
+
+// defaultResolver wraps and delegates to Runtime, fulfilling the Resolver interface.
+//
+// Runtime declares the resolve function which checks context, variables, globals,
+// and default variables.
+type defaultResolver struct {
+	f ResolverFunc
+}
+
+func (r *defaultResolver) Resolve(name string) (reflect.Value, error) {
+	return r.f(name)
+}
+
 // Runtime this type holds the state of the execution of an template
 type Runtime struct {
 	*escapeeWriter
 	*scope
 	content func(*Runtime, Expression)
-
 	context reflect.Value
+
+	// customResolver represents a custom Resolver used to interpret and evaluate
+	// templates.
+	customResolver Resolver
+}
+
+// DefaultResolver returns the default resolver for Jet, which checks
+// the context, variables, globals, and default variables in that order.
+func (r *Runtime) DefaultResolver() Resolver {
+	return &defaultResolver{f: r.defaultResolve}
 }
 
 // Context returns the current context value
@@ -149,6 +177,11 @@ func (state *Runtime) setValue(name string, val reflect.Value) error {
 	return fmt.Errorf("could not assign %q = %v because variable %q is uninitialised", name, val, name)
 }
 
+// WithResolver sets a custom resolver for use within this runtime.
+func (state *Runtime) WithResolver(r Resolver) {
+	state.customResolver = r
+}
+
 // LetGlobal sets or initialises a variable in the top-most template scope.
 func (state *Runtime) LetGlobal(name string, val interface{}) {
 	sc := state.scope
@@ -181,8 +214,17 @@ func (state *Runtime) SetOrLet(name string, val interface{}) {
 	}
 }
 
-// Resolve resolves a value from the execution context.
+// resolve resolves a value from the execution context using the custom resolver
+// if provided.
 func (state *Runtime) resolve(name string) (reflect.Value, error) {
+	if state.customResolver == nil {
+		return state.defaultResolve(name)
+	}
+	return state.customResolver.Resolve(name)
+}
+
+// defaultResolve resolves a value from the execution context.
+func (state *Runtime) defaultResolve(name string) (reflect.Value, error) {
 	if name == "." {
 		return state.context, nil
 	}
@@ -233,6 +275,7 @@ func (st *Runtime) recover(err *error) {
 	// reset state scope and context just to be safe (they might not be cleared properly if there was a panic while using the state)
 	st.scope = &scope{}
 	st.context = reflect.Value{}
+	st.customResolver = nil
 	pool_State.Put(st)
 	if recovered := recover(); recovered != nil {
 		var ok bool
