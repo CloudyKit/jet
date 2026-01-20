@@ -75,7 +75,7 @@ func (t *tTODO) Render(r *jet.Runtime) {
 	if !t.Done {
 		done = "no"
 	}
-	r.Write([]byte(fmt.Sprintf("TODO: %s (done: %s)", t.Text, done)))
+	fmt.Fprintf(r, "TODO: %s (done: %s)", t.Text, done)
 }
 
 func main() {
@@ -88,10 +88,10 @@ func main() {
 		return reflect.ValueOf(base64.URLEncoding.EncodeToString(buffer.Bytes()))
 	})
 	var todos = map[string]*tTODO{
-		"example-todo-1": &tTODO{Text: "Add an show todo page to the example project", Done: true},
-		"example-todo-2": &tTODO{Text: "Add an add todo page to the example project"},
-		"example-todo-3": &tTODO{Text: "Add an update todo page to the example project"},
-		"example-todo-4": &tTODO{Text: "Add an delete todo page to the example project", Done: true},
+		"example-todo-1": {Text: "Add an show todo page to the example project", Done: true},
+		"example-todo-2": {Text: "Add an add todo page to the example project"},
+		"example-todo-3": {Text: "Add an update todo page to the example project"},
+		"example-todo-4": {Text: "Add an delete todo page to the example project", Done: true},
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

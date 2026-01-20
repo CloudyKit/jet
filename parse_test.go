@@ -39,8 +39,8 @@ func (t ParserTestCase) ExpectPrintName(name, input, output string) {
 		t.Errorf("%q %s", input, err.Error())
 		return
 	}
-	expected := strings.Replace(template.String(), "\r\n", "\n", -1)
-	output = strings.Replace(output, "\r\n", "\n", -1)
+	expected := strings.ReplaceAll(template.String(), "\r\n", "\n")
+	output = strings.ReplaceAll(output, "\r\n", "\n")
 	if expected != output {
 		t.Errorf("Unexpected tree on %s Got:\n%s\nExpected: \n%s\n", name, expected, output)
 	}

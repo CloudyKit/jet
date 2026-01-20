@@ -108,15 +108,6 @@ func (t *Template) backup2(t1 item) {
 	t.peekCount = 2
 }
 
-// backup3 backs the input stream up three tokens
-// The zeroth token is already there.
-func (t *Template) backup3(t2, t1 item) {
-	// Reverse order: we're pushing back.
-	t.token[1] = t1
-	t.token[2] = t2
-	t.peekCount = 3
-}
-
 // peek returns but does not consume the next token.
 func (t *Template) peek() item {
 	if t.peekCount > 0 {
@@ -210,7 +201,6 @@ func (t *Template) recover(errp *error) {
 		}
 		*errp = e.(error)
 	}
-	return
 }
 
 func (s *Set) parse(name, text string, cacheAfterParsing bool) (t *Template, err error) {
@@ -410,7 +400,7 @@ func (t *Template) parseBlock() Node {
 	var contentList *ListNode
 
 	if end.Type() == nodeContent {
-		contentList, end = t.itemList(nodeEnd)
+		contentList, _ = t.itemList(nodeEnd)
 	}
 
 	block := t.newBlock(name.pos, t.lex.lineNumber(), name.val, bplist, pipe, list, contentList)
@@ -454,14 +444,15 @@ func (t *Template) parseYield() Node {
 			pipe = t.expression("yield", "context")
 			typ = t.peekNonSpace().typ
 		}
-		if typ == itemRightDelim {
+		switch typ {
+		case itemRightDelim:
 			t.expectRightDelim(context)
-		} else if typ == itemContent {
+		case itemContent:
 			// parse content from following nodes (until {{end}})
 			t.nextNonSpace()
 			t.expectRightDelim(context)
 			content, _ = t.itemList(nodeEnd)
-		} else {
+		default:
 			t.unexpected(t.nextNonSpace(), context, "content keyword or closing delimiter")
 		}
 	}
@@ -486,7 +477,9 @@ func (t *Template) parseReturn() Node {
 }
 
 // itemList:
+//
 //	textOrAction*
+//
 // Terminates at any of the given nodes, returned separately.
 func (t *Template) itemList(terminatedBy ...NodeType) (list *ListNode, next Node) {
 	list = t.newList(t.peekNonSpace().pos)
@@ -504,6 +497,7 @@ func (t *Template) itemList(terminatedBy ...NodeType) (list *ListNode, next Node
 }
 
 // textOrAction:
+//
 //	text | action
 func (t *Template) textOrAction() Node {
 	switch token := t.nextNonSpace(); token.typ {
@@ -729,7 +723,7 @@ func (t *Template) pipeline(context string, baseExprMutate Expression) (pipe *Pi
 	pipe = t.newPipeline(pos, t.lex.lineNumber())
 
 	if baseExprMutate == nil {
-		pipe.errorf("parsing pipeline: first expression cannot be nil")
+		pipe.errorf("parsing %s pipeline: first expression cannot be nil", context)
 	}
 	pipe.append(t.command(baseExprMutate))
 
@@ -782,7 +776,9 @@ func (t *Template) command(baseExpr Expression) *CommandNode {
 }
 
 // operand:
+//
 //	term .Field*
+//
 // An operand is a space-separated component of a command,
 // a term possibly followed by field accesses.
 // A nil return means the next item is not an operand.
@@ -924,44 +920,54 @@ func (t *Template) parseControl(allowElseIf bool, context string) (pos Pos, line
 			elseList.append(t.ifControl())
 			// Do not consume the next item - only one {{end}} required.
 		} else {
-			elseList, next = t.itemList(nodeEnd)
+			elseList, _ = t.itemList(nodeEnd)
 		}
 	}
 	return pos, line, set, expression, list, elseList
 }
 
 // If:
+//
 //	{{if expression}} itemList {{end}}
 //	{{if expression}} itemList {{else}} itemList {{end}}
+//
 // If keyword is past.
 func (t *Template) ifControl() Node {
 	return t.newIf(t.parseControl(true, "if"))
 }
 
 // Range:
+//
 //	{{range expression}} itemList {{end}}
 //	{{range expression}} itemList {{else}} itemList {{end}}
+//
 // Range keyword is past.
 func (t *Template) rangeControl() Node {
 	return t.newRange(t.parseControl(false, "range"))
 }
 
 // End:
+//
 //	{{end}}
+//
 // End keyword is past.
 func (t *Template) endControl() Node {
 	return t.newEnd(t.expectRightDelim("end").pos)
 }
 
 // Content:
+//
 //	{{content}}
+//
 // Content keyword is past.
 func (t *Template) contentControl() Node {
 	return t.newContent(t.expectRightDelim("content").pos)
 }
 
 // Else:
+//
 //	{{else}}
+//
 // Else keyword is past.
 func (t *Template) elseControl() Node {
 	// Special case for "else if".
@@ -974,11 +980,13 @@ func (t *Template) elseControl() Node {
 }
 
 // Try-catch:
+//
 //	{{try}}
-//    itemList
-//  {{catch <ident>}}
-//    itemList
-//  {{end}}
+//	  itemList
+//	{{catch <ident>}}
+//	  itemList
+//	{{end}}
+//
 // try keyword is past.
 func (t *Template) parseTry() *TryNode {
 	var recov *catchNode
@@ -993,9 +1001,11 @@ func (t *Template) parseTry() *TryNode {
 }
 
 // catch:
-//  {{catch <ident>}}
-//    itemList
-//  {{end}}
+//
+//	{{catch <ident>}}
+//	  itemList
+//	{{end}}
+//
 // catch keyword is past.
 func (t *Template) parseCatch() *catchNode {
 	line := t.lex.lineNumber()
@@ -1014,12 +1024,14 @@ func (t *Template) parseCatch() *catchNode {
 }
 
 // term:
+//
 //	literal (number, string, nil, boolean)
 //	function (identifier)
 //	.
 //	.Field
 //	variable
 //	'(' expression ')'
+//
 // A term is a simple "expression".
 // A nil return means the next item is not a term.
 func (t *Template) term() Node {

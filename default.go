@@ -219,7 +219,6 @@ var newMap = Func(func(a Arguments) reflect.Value {
 		if !key.Type().ConvertibleTo(stringType) {
 			a.Panicf("map(): can't use %+v as string key: %s is not convertible to string", key, key.Type())
 		}
-		key = key.Convert(stringType)
 		m.SetMapIndex(a.Get(i), a.Get(i+1))
 	}
 

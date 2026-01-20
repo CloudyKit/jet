@@ -57,9 +57,8 @@ func (renderer RendererFunc) Render(r *Runtime) {
 }
 
 type escapeeWriter struct {
-	Writer  io.Writer
-	escapee SafeWriter
-	set     *Set
+	Writer io.Writer
+	set    *Set
 }
 
 func (w *escapeeWriter) Write(b []byte) (int, error) {
@@ -110,9 +109,9 @@ func (s scope) sortedBlocks() []string {
 
 // YieldBlock yields a block in the current context, will panic if the context is not available
 func (st *Runtime) YieldBlock(name string, context interface{}) {
-	block, has := st.getBlock(name)
+	block, found := st.getBlock(name)
 
-	if has == false {
+	if !found {
 		panic(fmt.Errorf("Block %q was not found!!", name))
 	}
 
@@ -126,11 +125,11 @@ func (st *Runtime) YieldBlock(name string, context interface{}) {
 	st.executeList(block.List)
 }
 
-func (st *scope) getBlock(name string) (block *BlockNode, has bool) {
-	block, has = st.blocks[name]
-	for !has && st.parent != nil {
+func (st *scope) getBlock(name string) (block *BlockNode, found bool) {
+	block, found = st.blocks[name]
+	for !found && st.parent != nil {
 		st = st.parent
-		block, has = st.blocks[name]
+		block, found = st.blocks[name]
 	}
 	return
 }
@@ -543,16 +542,16 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 					st.content(st, node.Expression)
 				}
 			} else {
-				block, has := st.getBlock(node.Name)
-				if has == false || block == nil {
+				block, found := st.getBlock(node.Name)
+				if !found || block == nil {
 					node.errorf("unresolved block %q!!", node.Name)
 				}
 				st.executeYieldBlock(block, block.Parameters, node.Parameters, node.Expression, node.Content)
 			}
 		case NodeBlock:
 			node := node.(*BlockNode)
-			block, has := st.getBlock(node.Name)
-			if has == false {
+			block, found := st.getBlock(node.Name)
+			if !found {
 				block = node
 			}
 			st.executeYieldBlock(block, block.Parameters, block.Parameters, block.Expression, block.Content)
@@ -949,7 +948,7 @@ func toFloat(v reflect.Value) float64 {
 	} else if isUint(kind) {
 		return float64(v.Uint())
 	} else if kind == reflect.String {
-		n, e := strconv.ParseFloat(v.String(), 0)
+		n, e := strconv.ParseFloat(v.String(), 64)
 		if e != nil {
 			panic(e)
 		}

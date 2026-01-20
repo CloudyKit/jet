@@ -129,7 +129,7 @@ func RunJetTestWithTemplate(t *testing.T, tt *Template, variables VarMap, contex
 					t.Errorf("Eval error: %q executing %s", err.Error(), tt.Name)
 					return
 				}
-				result := strings.Replace(buf.String(), "\r\n", "\n", -1)
+				result := strings.ReplaceAll(buf.String(), "\r\n", "\n")
 				if result != testExpected {
 					t.Errorf("Result error expected %q got %q on %s", testExpected, result, tt.Name)
 				}

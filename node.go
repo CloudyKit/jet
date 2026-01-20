@@ -188,10 +188,6 @@ type CommandNode struct {
 	CallExprNode
 }
 
-func (c *CommandNode) append(arg Node) {
-	c.Exprs = append(c.Exprs, arg)
-}
-
 func (c *CommandNode) String() string {
 	if c.Exprs == nil {
 		return c.BaseExpr.String()

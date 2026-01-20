@@ -9,7 +9,6 @@ import (
 )
 
 func TestNilHTTPFileSystem(t *testing.T) {
-	const fileName = "does-not-exists.jet"
 	_, err := NewLoader(nil)
 	if err == nil {
 		t.Fatal("NewLoader with nil http.FileSystem should have returned an error but didn't.")

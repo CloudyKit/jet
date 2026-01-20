@@ -33,25 +33,28 @@ func RunWithSet(t *testing.T, set *jet.Set, variables jet.VarMap, context interf
 }
 
 func RunWithTemplate(t *testing.T, tt *jet.Template, variables jet.VarMap, context interface{}, testExpected string) {
-	if testing.RunTests(func(pat, str string) (bool, error) {
-		return true, nil
-	}, []testing.InternalTest{
-		{
-			Name: fmt.Sprintf("\tJetTest(%s)", tt.Name),
-			F: func(t *testing.T) {
-				var buf bytes.Buffer
-				err := tt.Execute(&buf, variables, context)
-				if err != nil {
-					t.Errorf("Eval error: %q executing %s", err.Error(), tt.Name)
-					return
-				}
-				result := strings.Replace(buf.String(), "\r\n", "\n", -1)
-				if result != testExpected {
-					t.Errorf("Result error expected %q got %q on %s", testExpected, result, tt.Name)
-				}
+	ok := testing.RunTests(
+		func(pat, str string) (bool, error) {
+			return true, nil
+		}, []testing.InternalTest{
+			{
+				Name: fmt.Sprintf("\tJetTest(%s)", tt.Name),
+				F: func(t *testing.T) {
+					var buf bytes.Buffer
+					err := tt.Execute(&buf, variables, context)
+					if err != nil {
+						t.Errorf("Eval error: %q executing %s", err.Error(), tt.Name)
+						return
+					}
+					result := strings.ReplaceAll(buf.String(), "\r\n", "\n")
+					if result != testExpected {
+						t.Errorf("Result error expected %q got %q on %s", testExpected, result, tt.Name)
+					}
+				},
 			},
 		},
-	}) == false {
+	)
+	if !ok {
 		t.Fail()
 	}
 }

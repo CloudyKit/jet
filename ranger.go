@@ -141,12 +141,12 @@ var (
 	poolsByKind = map[reflect.Kind]*sync.Pool{
 		reflect.Slice: poolSliceRanger,
 		reflect.Array: poolSliceRanger,
-		reflect.Map: &sync.Pool{
+		reflect.Map: {
 			New: func() interface{} {
 				return new(mapRanger)
 			},
 		},
-		reflect.Chan: &sync.Pool{
+		reflect.Chan: {
 			New: func() interface{} {
 				return new(chanRanger)
 			},
