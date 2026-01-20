@@ -51,11 +51,24 @@ func (scope VarMap) SetWriter(name string, v SafeWriter) VarMap {
 	return scope
 }
 
+func (t *Template) Runtime() *Runtime {
+	st := pool_State.Get().(*Runtime)
+	return st
+}
+
+func (t *Template) ExecuteWith(st *Runtime, w io.Writer, variables VarMap, data interface{}) (err error) {
+	return t.execute(st, w, variables, data)
+}
+
 // Execute executes the template into w.
 func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
 	st := pool_State.Get().(*Runtime)
-	defer st.recover(&err)
+	return t.execute(st, w, variables, data)
+}
 
+// Execute executes the template into w.
+func (t *Template) execute(st *Runtime, w io.Writer, variables VarMap, data interface{}) (err error) {
+	defer st.recover(&err)
 	st.blocks = t.processedBlocks
 	st.variables = variables
 	st.set = t.set
