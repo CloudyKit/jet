@@ -139,13 +139,13 @@ var key = map[string]itemType{
 const eof = -1
 
 const (
-	defaultLeftDelim  = "{{"
-	defaultRightDelim = "}}"
-	defaultLeftComment       = "{*"
-	defaultRightComment      = "*}"
-	leftTrimMarker    = "- "
-	rightTrimMarker   = " -"
-	trimMarkerLen     = Pos(len(leftTrimMarker))
+	defaultLeftDelim    = "{{"
+	defaultRightDelim   = "}}"
+	defaultLeftComment  = "{*"
+	defaultRightComment = "*}"
+	leftTrimMarker      = "- "
+	rightTrimMarker     = " -"
+	trimMarkerLen       = Pos(len(leftTrimMarker))
 )
 
 // stateFn represents the state of the scanner as a function that returns the next state.
@@ -165,8 +165,8 @@ type lexer struct {
 	lastType       itemType
 	leftDelim      string
 	rightDelim     string
-	leftComment      string
-	rightComment     string
+	leftComment    string
+	rightComment   string
 	trimRightDelim string
 }
 
@@ -176,6 +176,7 @@ func (l *lexer) setDelimiters(leftDelim, rightDelim string) {
 	}
 	if rightDelim != "" {
 		l.rightDelim = rightDelim
+		l.trimRightDelim = rightTrimMarker + rightDelim
 	}
 }
 
@@ -301,9 +302,9 @@ func (l *lexer) run() {
 func lexText(l *lexer) stateFn {
 	for {
 		// without breaking the API, this seems like a reasonable workaround to correctly parse comments
-		i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0])  // index of suspected left delimiter
+		i := strings.IndexByte(l.input[l.pos:], l.leftDelim[0])    // index of suspected left delimiter
 		ic := strings.IndexByte(l.input[l.pos:], l.leftComment[0]) // index of suspected left comment marker
-		if ic > -1 && ic < i {                                   // use whichever is lower for future lexing
+		if ic > -1 && ic < i {                                     // use whichever is lower for future lexing
 			i = ic
 		}
 		// if no token is found, skip till the end of template
