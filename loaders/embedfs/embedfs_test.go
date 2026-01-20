@@ -8,7 +8,7 @@ import (
 	"github.com/CloudyKit/jet/v6/jettest"
 )
 
-//go:embed testData/includeIfNotExists/*
+//go:embed testData/*
 var templateFS embed.FS
 
 func TestEmbedFileSystemResolve(t *testing.T) {
