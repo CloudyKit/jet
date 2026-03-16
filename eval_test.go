@@ -818,6 +818,27 @@ func TestCustomFuncInPipeline(t *testing.T) { // https://github.com/CloudyKit/je
 	RunJetTest(t, data, nil, "gh-issue-205", `{{ "123" | money }} {{ "123" | money("$") }}`, "123€ 123$")
 }
 
+func TestDivisionByZero(t *testing.T) {
+	for name, template := range map[string]string{
+		"int division by zero":                   `{{ 5 / 0 }}`,
+		"int division by zero (float promotion)": `{{ 5 / 0.0 }}`,
+		"float division by zero":                 `{{ 5.0 / 0.0 }}`,
+	} {
+		var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
+		tt, err := set.parse(name, template, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = tt.Execute(io.Discard, nil, nil)
+		if err == nil {
+			t.Fatal("expected division by zero to fail with a runtime error, but got nil")
+		}
+		if !strings.Contains(err.Error(), "division by zero") {
+			t.Fatalf("expected runtime error to be about division by zero, but got %q", err.Error())
+		}
+	}
+}
+
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
 	b.ResetTimer()

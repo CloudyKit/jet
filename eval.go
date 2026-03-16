@@ -990,6 +990,9 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
 	case itemDiv:
+		if right.IsZero() {
+			node.Left.errorf("division by zero")
+		}
 		if isInt(kind) {
 			if needFloatPromotion {
 				left = reflect.ValueOf(float64(left.Int()) / right.Float())
