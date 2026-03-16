@@ -839,6 +839,21 @@ func TestDivisionByZero(t *testing.T) {
 	}
 }
 
+func TestRecursiveInclude(t *testing.T) {
+	l := NewInMemLoader()
+	l.Set("recursive_incl_1", `{{ include "./recursive_incl_2" }}`)
+	l.Set("recursive_incl_2", `{{ include "./recursive_incl_1" }}`)
+	var set = NewSet(l, WithSafeWriter(nil))
+	tt, err := set.getTemplate("recursive_incl_1", true)
+	err = tt.Execute(io.Discard, nil, nil)
+	if err == nil {
+		t.Error("expected recursive include to fail with a runtime error, but got nil")
+	}
+	if !strings.Contains(err.Error(), "maximum 'include' depth") {
+		t.Errorf("expected runtime error to be about maximum include depth, but got %q", err.Error())
+	}
+}
+
 func BenchmarkSimpleAction(b *testing.B) {
 	t, _ := JetTestingSet.GetTemplate("actionNode_dummy")
 	b.ResetTimer()

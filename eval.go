@@ -74,7 +74,8 @@ func (w *escapeeWriter) Write(b []byte) (int, error) {
 type Runtime struct {
 	*escapeeWriter
 	*scope
-	content func(*Runtime, Expression)
+	content      func(*Runtime, Expression)
+	includeDepth int
 
 	context reflect.Value
 }
@@ -544,7 +545,7 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 			} else {
 				block, found := st.getBlock(node.Name)
 				if !found || block == nil {
-					node.errorf("unresolved block %q!!", node.Name)
+					node.errorf("unresolved block %q!", node.Name)
 				}
 				st.executeYieldBlock(block, block.Parameters, node.Parameters, node.Expression, node.Content)
 			}
@@ -601,6 +602,12 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 }
 
 func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value) {
+	if st.includeDepth >= 100_000 {
+		node.errorf("maximum 'include' depth (100000) exceeded")
+	}
+	st.includeDepth++
+	defer func() { st.includeDepth-- }()
+
 	var templatePath string
 	name := st.evalPrimaryExpressionGroup(node.Name)
 	if !name.IsValid() {
