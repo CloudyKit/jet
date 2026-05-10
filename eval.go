@@ -575,7 +575,7 @@ func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 	defer func() {
 		r := recover()
 
-		// copy buffered render output to writer only if no panic occured
+		// copy buffered render output to writer only if no panic occurred
 		if r == nil {
 			io.Copy(writer, buf)
 		} else {
