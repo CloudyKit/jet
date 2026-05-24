@@ -446,6 +446,36 @@ func TestEvalSliceExpression(t *testing.T) {
 	RunJetTest(t, nil, []string{"111"}, "SliceExpressionSlice_IfLen", `{{if len(.) > 0}}{{.[0]}}{{end}}`, `111`)
 }
 
+func TestEvalSliceExpressionOutOfRange(t *testing.T) {
+	cases := []string{
+		`{{ .[1:10] }}`,
+		`{{ .[5:6] }}`,
+		`{{ .[-1:1] }}`,
+		`{{ .[2:1] }}`,
+	}
+	for i, content := range cases {
+		name := fmt.Sprintf("SliceOutOfRange_%d", i)
+		loader := NewInMemLoader()
+		loader.Set(name, content)
+		set := NewSet(loader)
+		tpl, err := set.GetTemplate(name)
+		if err != nil {
+			t.Fatalf("%s: parse error: %v", name, err)
+		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("%s: panicked instead of returning error: %v", name, r)
+				}
+			}()
+			var buf bytes.Buffer
+			if err := tpl.Execute(&buf, nil, []string{"a", "b"}); err == nil {
+				t.Errorf("%s: expected error for out-of-range slice, got %q", name, buf.String())
+			}
+		}()
+	}
+}
+
 type StringerType struct {
 	//
 }
