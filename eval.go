@@ -719,6 +719,11 @@ func (st *Runtime) evalPrimaryExpressionGroup(node Expression) reflect.Value {
 			length = baseExpression.Len()
 		}
 
+		// validate bounds so an out-of-range slice yields a template error instead of a runtime panic
+		if index < 0 || length < index || length > baseExpression.Len() {
+			node.errorf("slice bounds out of range [%d:%d] with length %d", index, length, baseExpression.Len())
+		}
+
 		return baseExpression.Slice(index, length)
 	}
 	return st.evalBaseExpressionGroup(node)
