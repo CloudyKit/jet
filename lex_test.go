@@ -104,3 +104,11 @@ func TestLexer_Bug35(t *testing.T) {
 	lexerTestCase(t, `{{if x>y}}blahblah...{{end}}`, itemLeftDelim, itemIf, itemIdentifier, itemGreat, itemIdentifier, itemRightDelim, itemText, itemLeftDelim, itemEnd, itemRightDelim)
 	lexerTestCaseCustomDelimiters(t, "[[", "]]", `[[if x>y]]blahblah...[[end]]`, itemLeftDelim, itemIf, itemIdentifier, itemGreat, itemIdentifier, itemRightDelim, itemText, itemLeftDelim, itemEnd, itemRightDelim)
 }
+
+// An underscore-prefixed identifier whose next rune is multi-byte used to make
+// the lexer rewind by the wrong width, driving l.pos below l.start and
+// panicking with "slice bounds out of range" while slicing out the word.
+func TestLexIdentifierUnderscoreMultibyte(t *testing.T) {
+	lexerTestCase(t, `{{_é}}`, itemLeftDelim, itemIdentifier, itemRightDelim)
+	lexerTestCase(t, `{{ _café }}`, itemLeftDelim, itemIdentifier, itemRightDelim)
+}

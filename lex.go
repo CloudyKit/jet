@@ -203,8 +203,10 @@ func (l *lexer) next() rune {
 
 // peek returns but does not consume the next rune in the input.
 func (l *lexer) peek() rune {
+	w := l.width
 	r := l.next()
 	l.backup()
+	l.width = w
 	return r
 }
 
