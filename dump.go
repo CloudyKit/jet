@@ -18,12 +18,23 @@ func dumpAll(a Arguments, depth int) reflect.Value {
 
 	ctx := a.runtime.context
 	fmt.Fprintln(&b, "Context:")
-	fmt.Fprintf(&b, "\t%s %#v\n", ctx.Type(), ctx)
+	if ctx.IsValid() {
+		fmt.Fprintf(&b, "\t%s %#v\n", ctx.Type(), ctx)
+	} else {
+		fmt.Fprintln(&b, "\t<nil>")
+	}
 
 	dumpScopeVars(&b, a.runtime.scope, 0)
 	dumpScopeVarsToDepth(&b, a.runtime.parent, depth)
 
-	vars = a.runtime.set.globals
+	// globals is guarded by gmx; AddGlobal can run while a template executes.
+	a.runtime.set.gmx.RLock()
+	vars = make(VarMap, len(a.runtime.set.globals))
+	for name, val := range a.runtime.set.globals {
+		vars[name] = val
+	}
+	a.runtime.set.gmx.RUnlock()
+
 	for i, name := range vars.SortedKeys() {
 		if i == 0 {
 			fmt.Fprintln(&b, "Globals:")
