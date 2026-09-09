@@ -1023,12 +1023,25 @@ func (st *Runtime) evalMultiplicativeExpression(node *MultiplicativeExprNode) re
 			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
 	case itemMod:
+		// the divisor is truncated to an integer, so a non-zero fraction is a zero divisor too
 		if isInt(kind) {
-			left = reflect.ValueOf(left.Int() % toInt(right))
+			divisor := toInt(right)
+			if divisor == 0 {
+				node.Left.errorf("modulo by zero")
+			}
+			left = reflect.ValueOf(left.Int() % divisor)
 		} else if isFloat(kind) {
-			left = reflect.ValueOf(int64(left.Float()) % toInt(right))
+			divisor := toInt(right)
+			if divisor == 0 {
+				node.Left.errorf("modulo by zero")
+			}
+			left = reflect.ValueOf(int64(left.Float()) % divisor)
 		} else if isUint(kind) {
-			left = reflect.ValueOf(left.Uint() % toUint(right))
+			divisor := toUint(right)
+			if divisor == 0 {
+				node.Left.errorf("modulo by zero")
+			}
+			left = reflect.ValueOf(left.Uint() % divisor)
 		} else {
 			node.Left.errorf("a non numeric value in multiplicative expression")
 		}
