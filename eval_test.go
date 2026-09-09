@@ -869,6 +869,59 @@ func TestDivisionByZero(t *testing.T) {
 	}
 }
 
+func TestModuloByZero(t *testing.T) {
+	vars := VarMap{"u": reflect.ValueOf(uint(5))}
+
+	for _, tc := range []struct{ name, template string }{
+		{"int modulo by zero", `{{ 5 % 0 }}`},
+		{"int modulo by zero float", `{{ 5 % 0.0 }}`},
+		{"int modulo by fraction", `{{ 5 % 0.5 }}`},
+		{"float modulo by zero", `{{ 5.0 % 0 }}`},
+		{"float modulo by zero float", `{{ 5.0 % 0.0 }}`},
+		{"float modulo by fraction", `{{ 5.0 % 0.5 }}`},
+		{"uint modulo by zero", `{{ u % 0 }}`},
+		{"uint modulo by fraction", `{{ u % 0.5 }}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
+			tt, err := set.parse(tc.name, tc.template, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = tt.Execute(io.Discard, vars, nil)
+			if err == nil {
+				t.Fatal("expected modulo by zero to fail with a runtime error, but got nil")
+			}
+			if !strings.Contains(err.Error(), "modulo by zero") {
+				t.Fatalf("expected runtime error to be about modulo by zero, but got %q", err.Error())
+			}
+		})
+	}
+
+	for _, tc := range []struct{ name, template, expected string }{
+		{"int modulo", `{{ 5 % 2 }}`, "1"},
+		{"int modulo negative divisor", `{{ 5 % -3 }}`, "2"},
+		{"int modulo truncated divisor", `{{ 5 % 2.5 }}`, "1"},
+		{"float modulo", `{{ 5.5 % 2 }}`, "1"},
+		{"uint modulo", `{{ u % 3 }}`, "2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
+			tt, err := set.parse(tc.name, tc.template, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf := new(bytes.Buffer)
+			if err := tt.Execute(buf, vars, nil); err != nil {
+				t.Fatal(err)
+			}
+			if buf.String() != tc.expected {
+				t.Fatalf("expected %q, but got %q", tc.expected, buf.String())
+			}
+		})
+	}
+}
+
 func TestRecursiveInclude(t *testing.T) {
 	l := NewInMemLoader()
 	l.Set("recursive_incl_1", `{{ include "./recursive_incl_2" }}`)
