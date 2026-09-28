@@ -16,10 +16,66 @@ package jet
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
+
+func TestDumpWithNilContext(t *testing.T) {
+	// Execute leaves Runtime.context zero when data is nil, and dump() read
+	// its type unconditionally.
+	loader := NewInMemLoader()
+	loader.Set("dumpnil", "{{ dump() }}")
+	set := NewSet(loader)
+
+	tmplt, err := set.GetTemplate("dumpnil")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b bytes.Buffer
+	if err := tmplt.Execute(&b, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "Context:") {
+		t.Errorf("expected a Context section, got %q", b.String())
+	}
+}
+
+func TestDumpGlobalsWhileAddGlobal(t *testing.T) {
+	// globals is guarded by gmx everywhere else; dump() has to take it too.
+	// Run with -race.
+	loader := NewInMemLoader()
+	loader.Set("dumpglobals", "{{ dump() }}")
+	set := NewSet(loader)
+
+	tmplt, err := set.GetTemplate("dumpglobals")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			set.AddGlobal(fmt.Sprintf("g%d", i), i)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			var b bytes.Buffer
+			if err := tmplt.Execute(&b, nil, map[string]interface{}{"a": 1}); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+	}()
+	wg.Wait()
+}
 
 func TestDump(t *testing.T) {
 	var b bytes.Buffer                                // writer for the template
