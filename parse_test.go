@@ -34,7 +34,7 @@ func (t ParserTestCase) ExpectPrintName(name, input, output string) {
 	if t.set != nil {
 		set = t.set
 	}
-	template, err := set.parse(name, input, false)
+	template, err := set.parse(name, input, false, nil)
 	if err != nil {
 		t.Errorf("%q %s", input, err.Error())
 		return
@@ -55,7 +55,7 @@ func (t ParserTestCase) ExpectError(name, input, errorMessage string) {
 	if t.set != nil {
 		set = t.set
 	}
-	_, err := set.parse(name, input, false)
+	_, err := set.parse(name, input, false, nil)
 	if err == nil {
 		t.Errorf("expected %q but got no error", errorMessage)
 		return

@@ -17,6 +17,7 @@ package jet
 import (
 	"bytes"
 	"fmt"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -203,7 +204,18 @@ func (t *Template) recover(errp *error) {
 	}
 }
 
-func (s *Set) parse(name, text string, cacheAfterParsing bool) (t *Template, err error) {
+func (s *Set) parse(name, text string, cacheAfterParsing bool, parsing map[string]bool) (t *Template, err error) {
+	// Track only the active parse chain, using resolved paths after extension lookup.
+	canonicalName := path.Clean(name)
+	if parsing[canonicalName] {
+		return nil, fmt.Errorf("cyclic template dependency: %s", name)
+	}
+	if parsing == nil {
+		parsing = make(map[string]bool)
+	}
+	parsing[canonicalName] = true
+	defer delete(parsing, canonicalName)
+
 	t = &Template{
 		Name:         name,
 		ParseName:    name,
@@ -218,7 +230,7 @@ func (s *Set) parse(name, text string, cacheAfterParsing bool) (t *Template, err
 	lexer.setCommentDelimiters(s.leftComment, s.rightComment)
 	lexer.run()
 	t.startParse(lexer)
-	t.parseTemplate(cacheAfterParsing)
+	t.parseTemplate(cacheAfterParsing, parsing)
 	t.stopParse()
 
 	if t.extends != nil {
@@ -245,7 +257,7 @@ func (t *Template) expectString(context string) string {
 
 // parse is the top-level parser for a template, essentially the same
 // It runs to EOF.
-func (t *Template) parseTemplate(cacheAfterParsing bool) (next Node) {
+func (t *Template) parseTemplate(cacheAfterParsing bool, parsing map[string]bool) (next Node) {
 	t.Root = t.newList(t.peek().pos)
 	// {{ extends|import stringLiteral }}
 	for t.peek().typ != itemEOF {
@@ -264,12 +276,12 @@ func (t *Template) parseTemplate(cacheAfterParsing bool) (next Node) {
 						t.errorf("Unexpected extends clause: the 'extends' clause should come before all import clauses")
 					}
 					var err error
-					t.extends, err = t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing)
+					t.extends, err = t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing, parsing)
 					if err != nil {
 						t.error(err)
 					}
 				} else {
-					tt, err := t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing)
+					tt, err := t.set.getSiblingTemplate(s, t.Name, cacheAfterParsing, parsing)
 					if err != nil {
 						t.error(err)
 					}
