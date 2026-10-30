@@ -132,21 +132,21 @@ func DevelopmentMode(mode bool) Option {
 // in the set's templates cache, and if it can't find the template it will try to load the same paths via
 // the loader, and, if parsed successfully, cache the template (unless running in development mode).
 func (s *Set) GetTemplate(templatePath string) (t *Template, err error) {
-	return s.getSiblingTemplate(templatePath, "/", true)
+	return s.getSiblingTemplate(templatePath, "/", true, nil)
 }
 
-func (s *Set) getSiblingTemplate(templatePath, siblingPath string, cacheAfterParsing bool) (t *Template, err error) {
+func (s *Set) getSiblingTemplate(templatePath, siblingPath string, cacheAfterParsing bool, parsing map[string]bool) (t *Template, err error) {
 	templatePath = filepath.ToSlash(templatePath)
 	siblingPath = filepath.ToSlash(siblingPath)
 	if !path.IsAbs(templatePath) {
 		siblingDir := path.Dir(siblingPath)
 		templatePath = path.Join(siblingDir, templatePath)
 	}
-	return s.getTemplate(templatePath, cacheAfterParsing)
+	return s.getTemplate(templatePath, cacheAfterParsing, parsing)
 }
 
 // same as GetTemplate, but doesn't cache a template when found through the loader.
-func (s *Set) getTemplate(templatePath string, cacheAfterParsing bool) (t *Template, err error) {
+func (s *Set) getTemplate(templatePath string, cacheAfterParsing bool, parsing map[string]bool) (t *Template, err error) {
 	if !s.developmentMode {
 		t, found := s.getTemplateFromCache(templatePath)
 		if found {
@@ -154,7 +154,7 @@ func (s *Set) getTemplate(templatePath string, cacheAfterParsing bool) (t *Templ
 		}
 	}
 
-	t, err = s.getTemplateFromLoader(templatePath, cacheAfterParsing)
+	t, err = s.getTemplateFromLoader(templatePath, cacheAfterParsing, parsing)
 	if err == nil && cacheAfterParsing && !s.developmentMode {
 		s.cache.Put(templatePath, t)
 	}
@@ -172,18 +172,18 @@ func (s *Set) getTemplateFromCache(templatePath string) (t *Template, ok bool) {
 	return nil, false
 }
 
-func (s *Set) getTemplateFromLoader(templatePath string, cacheAfterParsing bool) (t *Template, err error) {
+func (s *Set) getTemplateFromLoader(templatePath string, cacheAfterParsing bool, parsing map[string]bool) (t *Template, err error) {
 	// check path with all possible extensions in loader
 	for _, extension := range s.extensions {
 		canonicalPath := templatePath + extension
 		if found := s.loader.Exists(canonicalPath); found {
-			return s.loadFromFile(canonicalPath, cacheAfterParsing)
+			return s.loadFromFile(canonicalPath, cacheAfterParsing, parsing)
 		}
 	}
 	return nil, fmt.Errorf("template %s could not be found", templatePath)
 }
 
-func (s *Set) loadFromFile(templatePath string, cacheAfterParsing bool) (template *Template, err error) {
+func (s *Set) loadFromFile(templatePath string, cacheAfterParsing bool, parsing map[string]bool) (template *Template, err error) {
 	f, err := s.loader.Open(templatePath)
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (s *Set) loadFromFile(templatePath string, cacheAfterParsing bool) (templat
 	if err != nil {
 		return nil, err
 	}
-	return s.parse(templatePath, string(content), cacheAfterParsing)
+	return s.parse(templatePath, string(content), cacheAfterParsing, parsing)
 }
 
 // Parse parses `contents` as if it were located at `templatePath`, but won't put the result into the cache.
@@ -208,7 +208,7 @@ func (s *Set) Parse(templatePath, contents string) (template *Template, err erro
 	// make sure it's absolute and clean it
 	templatePath = path.Join("/", templatePath)
 
-	return s.parse(templatePath, contents, false)
+	return s.parse(templatePath, contents, false, nil)
 }
 
 // AddGlobal adds a global variable into the Set,

@@ -15,8 +15,11 @@
 package jet
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -72,5 +75,89 @@ func TestGetTemplateConcurrency(t *testing.T) {
 				t.Errorf("getting template from set: %v", err)
 			}
 		})
+	}
+}
+
+// Limit reads so a regression fails without overflowing the process stack.
+type cycleTestLoader struct {
+	Loader
+	reads int
+}
+
+func (l *cycleTestLoader) Open(name string) (io.ReadCloser, error) {
+	l.reads++
+	if l.reads > 8 {
+		return nil, fmt.Errorf("too many template reads")
+	}
+	return l.Loader.Open(name)
+}
+
+func TestCyclicTemplateDependencies(t *testing.T) {
+	for _, development := range []bool{false, true} {
+		for _, tc := range []struct{ name, first, second string }{
+			{"self import", `{{import "a.jet"}}`, ""},
+			{"mutual import", `{{import "b.jet"}}`, `{{import "a.jet"}}`},
+			{"self extends", `{{extends "a.jet"}}`, ""},
+			{"mutual extends", `{{extends "b.jet"}}`, `{{extends "a.jet"}}`},
+			{"mixed", `{{extends "b.jet"}}`, `{{import "a.jet"}}`},
+			{"extension alias", `{{import "b"}}`, `{{import "./a.jet"}}`},
+		} {
+			t.Run(fmt.Sprintf("%s/development=%t", tc.name, development), func(t *testing.T) {
+				memory := NewInMemLoader()
+				memory.Set("a.jet", tc.first)
+				memory.Set("b.jet", tc.second)
+				loader := &cycleTestLoader{Loader: memory}
+				set := NewSet(loader, DevelopmentMode(development))
+				_, err := set.GetTemplate("a.jet")
+				if err == nil || !strings.Contains(err.Error(), "cyclic template dependency") {
+					t.Fatalf("expected cyclic dependency error, got %v", err)
+				}
+			})
+		}
+	}
+}
+
+func TestSharedTemplateDependencies(t *testing.T) {
+	for _, development := range []bool{false, true} {
+		t.Run(fmt.Sprintf("development=%t", development), func(t *testing.T) {
+			loader := NewInMemLoader()
+			loader.Set("a.jet", `{{import "b.jet"}}{{import "c.jet"}}{{yield shared()}}`)
+			loader.Set("b.jet", `{{import "shared.jet"}}`)
+			loader.Set("c.jet", `{{import "shared.jet"}}`)
+			loader.Set("shared.jet", `{{block shared()}}ok{{end}}`)
+			set := NewSet(loader, DevelopmentMode(development))
+			for i := 0; i < 10; i++ {
+				t.Run(fmt.Sprint(i), func(t *testing.T) {
+					t.Parallel()
+					tpl, err := set.GetTemplate("a.jet")
+					if err != nil {
+						t.Fatal(err)
+					}
+					var output bytes.Buffer
+					if err := tpl.Execute(&output, nil, nil); err != nil {
+						t.Fatal(err)
+					}
+					if output.String() != "ok" {
+						t.Fatalf("unexpected output %q", output.String())
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestParseCyclicTemplateDependencies(t *testing.T) {
+	memory := NewInMemLoader()
+	memory.Set("b.jet", `{{import "a.jet"}}`)
+	memory.Set("a.jet", `{{import "b.jet"}}`)
+	loader := &cycleTestLoader{Loader: memory}
+	set := NewSet(loader)
+	if _, err := set.Parse("a.jet", `{{import "b.jet"}}`); err == nil || !strings.Contains(err.Error(), "cyclic template dependency: /a.jet") {
+		t.Fatalf("expected cyclic dependency error, got %v", err)
+	}
+	// A failed parse must not poison later calls on the same set.
+	memory.Set("b.jet", "ok")
+	if _, err := set.Parse("a.jet", `{{import "b.jet"}}`); err != nil {
+		t.Fatal(err)
 	}
 }

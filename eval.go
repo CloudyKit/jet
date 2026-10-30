@@ -621,7 +621,7 @@ func (st *Runtime) executeInclude(node *IncludeNode) (returnValue reflect.Value)
 		node.errorf("evaluating name of template to include: unexpected expression type %q", getTypeString(name))
 	}
 
-	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath, true)
+	t, err := st.set.getSiblingTemplate(templatePath, node.TemplatePath, true, nil)
 	if err != nil {
 		node.error(err)
 		return reflect.Value{}

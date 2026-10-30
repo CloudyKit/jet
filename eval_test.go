@@ -594,7 +594,7 @@ func TestEvalStructFieldAccess(t *testing.T) {
 	RunJetTest(t, data, nil, "StructFieldAccess", `{{ struct.Exported }}`, "123")
 
 	var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
-	tt, err := set.parse("StructFieldAccess_unexported", `{{ struct.unexported }}`, false)
+	tt, err := set.parse("StructFieldAccess_unexported", `{{ struct.unexported }}`, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -641,7 +641,7 @@ func TestEvalStructFieldPointerExpressions(t *testing.T) {
 	RunJetTest(t, data, nil, "PointerFields_7", `{{ structWithPointerFields2.StructField }}`, "<nil>")
 
 	var set = NewSet(NewOSFileSystemLoader("./testData"), WithSafeWriter(nil))
-	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`, false)
+	tt, err := set.parse("PointerFields_8", `{{ structWithPointerFields2.StructField.StringField }}`, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -855,7 +855,7 @@ func TestDivisionByZero(t *testing.T) {
 		"float division by zero":                 `{{ 5.0 / 0.0 }}`,
 	} {
 		var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
-		tt, err := set.parse(name, template, false)
+		tt, err := set.parse(name, template, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -884,7 +884,7 @@ func TestModuloByZero(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
-			tt, err := set.parse(tc.name, tc.template, false)
+			tt, err := set.parse(tc.name, tc.template, false, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -907,7 +907,7 @@ func TestModuloByZero(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var set = NewSet(NewInMemLoader(), WithSafeWriter(nil))
-			tt, err := set.parse(tc.name, tc.template, false)
+			tt, err := set.parse(tc.name, tc.template, false, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -927,7 +927,7 @@ func TestRecursiveInclude(t *testing.T) {
 	l.Set("recursive_incl_1", `{{ include "./recursive_incl_2" }}`)
 	l.Set("recursive_incl_2", `{{ include "./recursive_incl_1" }}`)
 	var set = NewSet(l, WithSafeWriter(nil))
-	tt, err := set.getTemplate("recursive_incl_1", true)
+	tt, err := set.getTemplate("recursive_incl_1", true, nil)
 	err = tt.Execute(io.Discard, nil, nil)
 	if err == nil {
 		t.Error("expected recursive include to fail with a runtime error, but got nil")
