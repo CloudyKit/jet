@@ -57,17 +57,41 @@ func (renderer RendererFunc) Render(r *Runtime) {
 }
 
 type escapeeWriter struct {
-	Writer io.Writer
-	set    *Set
+	Writer   io.Writer
+	set      *Set
+	writeErr error
+}
+
+// checkedWriter records failures even when a SafeWriter or Renderer ignores them.
+type checkedWriter struct {
+	writer  io.Writer
+	failure *error
+}
+
+func (w checkedWriter) Write(b []byte) (int, error) {
+	if *w.failure != nil {
+		return 0, *w.failure
+	}
+	n, err := w.writer.Write(b)
+	if err == nil && n != len(b) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		*w.failure = err
+	}
+	return n, err
 }
 
 func (w *escapeeWriter) Write(b []byte) (int, error) {
 	if w.set.escapee == nil {
-		w.Writer.Write(b)
-	} else {
-		w.set.escapee(w.Writer, b)
+		return w.Writer.Write(b)
 	}
-	return 0, nil
+	sink := checkedWriter{writer: w.Writer, failure: &w.writeErr}
+	w.set.escapee(sink, b)
+	if w.writeErr != nil {
+		return 0, w.writeErr
+	}
+	return len(b), nil
 }
 
 // Runtime this type holds the state of the execution of an template
@@ -230,19 +254,26 @@ func (state *Runtime) MustResolve(name string) reflect.Value {
 }
 
 func (st *Runtime) recover(err *error) {
-	// reset state scope and context just to be safe (they might not be cleared properly if there was a panic while using the state)
+	recovered := recover()
+	failure := st.writeErr
 	st.scope = &scope{}
+	*st.escapeeWriter = escapeeWriter{}
+	st.content = nil
 	st.context = reflect.Value{}
+	st.includeDepth = 0
 	pool_State.Put(st)
-	if recovered := recover(); recovered != nil {
-		var ok bool
-		if _, ok = recovered.(runtime.Error); ok {
+	if recovered != nil {
+		if _, ok := recovered.(runtime.Error); ok {
 			panic(recovered)
 		}
+		var ok bool
 		*err, ok = recovered.(error)
 		if !ok {
 			panic(recovered)
 		}
+	}
+	if failure != nil {
+		*err = failure
 	}
 }
 
@@ -337,6 +368,8 @@ func (st *Runtime) executeLetList(set *SetNode) {
 }
 
 func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *BlockParameterList, expression Expression, content *ListNode) {
+	previousScope, previousContext, previousContent := st.scope, st.context, st.content
+	defer func() { st.scope, st.context, st.content = previousScope, previousContext, previousContent }()
 
 	needNewScope := len(blockParam.List) > 0 || len(yieldParam.List) > 0
 	if needNewScope {
@@ -368,6 +401,8 @@ func (st *Runtime) executeYieldBlock(block *BlockNode, blockParam, yieldParam *B
 		st.content = func(st *Runtime, expression Expression) {
 			outscope := st.scope
 			outcontent := st.content
+			outcontext := st.context
+			defer func() { st.scope, st.content, st.context = outscope, outcontent, outcontext }()
 
 			st.scope = myscope
 			st.content = mycontent
@@ -463,76 +498,7 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 				st.releaseScope()
 			}
 		case NodeRange:
-			node := node.(*RangeNode)
-			var expression reflect.Value
-
-			isSet := node.Set != nil
-			isLet := false
-			keyVarSlot := 0
-			valVarSlot := -1
-
-			context := st.context
-
-			if isSet {
-				if len(node.Set.Left) > 1 {
-					valVarSlot = 1
-				}
-				expression = st.evalPrimaryExpressionGroup(node.Set.Right[0])
-				if node.Set.Let {
-					isLet = true
-					st.newScope()
-				}
-			} else {
-				expression = st.evalPrimaryExpressionGroup(node.Expression)
-			}
-
-			ranger, cleanup, err := getRanger(expression)
-			if err != nil {
-				node.error(err)
-			}
-			if !ranger.ProvidesIndex() {
-				if isSet && len(node.Set.Left) > 1 {
-					// two-vars assignment with ranger that doesn't provide an index
-					node.error(errors.New("two-var range over ranger that does not provide an index"))
-				} else if isSet {
-					keyVarSlot, valVarSlot = -1, 0
-				}
-			}
-
-			indexValue, rangeValue, end := ranger.Range()
-			if !end {
-				for !end && !returnValue.IsValid() {
-					if isSet {
-						if isLet {
-							if keyVarSlot >= 0 {
-								st.variables[node.Set.Left[keyVarSlot].String()] = indexValue
-							}
-							if valVarSlot >= 0 {
-								st.variables[node.Set.Left[valVarSlot].String()] = rangeValue
-							}
-						} else {
-							if keyVarSlot >= 0 {
-								st.executeSet(node.Set.Left[keyVarSlot], indexValue)
-							}
-							if valVarSlot >= 0 {
-								st.executeSet(node.Set.Left[valVarSlot], rangeValue)
-							}
-						}
-					}
-					if valVarSlot < 0 {
-						st.context = rangeValue
-					}
-					returnValue = st.executeList(node.List)
-					indexValue, rangeValue, end = ranger.Range()
-				}
-			} else if node.ElseList != nil {
-				returnValue = st.executeList(node.ElseList)
-			}
-			cleanup()
-			st.context = context
-			if isLet {
-				st.releaseScope()
-			}
+			returnValue = st.executeRange(node.(*RangeNode))
 		case NodeTry:
 			node := node.(*TryNode)
 			returnValue = st.executeTry(node)
@@ -568,28 +534,110 @@ func (st *Runtime) executeList(list *ListNode) (returnValue reflect.Value) {
 	return returnValue
 }
 
+func (st *Runtime) executeRange(node *RangeNode) (returnValue reflect.Value) {
+	previousScope, previousContext := st.scope, st.context
+	defer func() { st.scope, st.context = previousScope, previousContext }()
+
+	var expression reflect.Value
+
+	isSet := node.Set != nil
+	isLet := false
+	keyVarSlot := 0
+	valVarSlot := -1
+
+	context := st.context
+
+	if isSet {
+		if len(node.Set.Left) > 1 {
+			valVarSlot = 1
+		}
+		expression = st.evalPrimaryExpressionGroup(node.Set.Right[0])
+		if node.Set.Let {
+			isLet = true
+			st.newScope()
+		}
+	} else {
+		expression = st.evalPrimaryExpressionGroup(node.Expression)
+	}
+
+	ranger, cleanup, err := getRanger(expression)
+	if err != nil {
+		node.error(err)
+	}
+	defer cleanup()
+	if !ranger.ProvidesIndex() {
+		if isSet && len(node.Set.Left) > 1 {
+			// two-vars assignment with ranger that doesn't provide an index
+			node.error(errors.New("two-var range over ranger that does not provide an index"))
+		} else if isSet {
+			keyVarSlot, valVarSlot = -1, 0
+		}
+	}
+
+	indexValue, rangeValue, end := ranger.Range()
+	if !end {
+		for !end && !returnValue.IsValid() {
+			if isSet {
+				if isLet {
+					if keyVarSlot >= 0 {
+						st.variables[node.Set.Left[keyVarSlot].String()] = indexValue
+					}
+					if valVarSlot >= 0 {
+						st.variables[node.Set.Left[valVarSlot].String()] = rangeValue
+					}
+				} else {
+					if keyVarSlot >= 0 {
+						st.executeSet(node.Set.Left[keyVarSlot], indexValue)
+					}
+					if valVarSlot >= 0 {
+						st.executeSet(node.Set.Left[valVarSlot], rangeValue)
+					}
+				}
+			}
+			if valVarSlot < 0 {
+				st.context = rangeValue
+			}
+			returnValue = st.executeList(node.List)
+			indexValue, rangeValue, end = ranger.Range()
+		}
+	} else if node.ElseList != nil {
+		returnValue = st.executeList(node.ElseList)
+	}
+	st.context = context
+	if isLet {
+		st.releaseScope()
+	}
+	return returnValue
+}
+
 func (st *Runtime) executeTry(try *TryNode) (returnValue reflect.Value) {
 	writer := st.Writer
+	previousScope, previousContext, previousContent := st.scope, st.context, st.content
 	buf := new(bytes.Buffer)
 
 	defer func() {
 		r := recover()
+		st.Writer = writer
+		st.scope, st.context, st.content = previousScope, previousContext, previousContent
 
+		if st.writeErr != nil {
+			panic(st.writeErr)
+		}
 		// copy buffered render output to writer only if no panic occurred
 		if r == nil {
-			io.Copy(writer, buf)
+			if _, err := io.Copy(writer, buf); err != nil {
+				panic(err)
+			}
 		} else {
 			// st.Writer is already set to its original value since the later defer ran first
 			if try.Catch != nil {
 				if try.Catch.Err != nil {
 					st.newScope()
+					defer st.releaseScope()
 					st.scope.variables[try.Catch.Err.Ident] = reflect.ValueOf(r)
 				}
 				if try.Catch.List != nil {
 					returnValue = st.executeList(try.Catch.List)
-				}
-				if try.Catch.Err != nil {
-					st.releaseScope()
 				}
 			}
 		}
@@ -1277,16 +1325,20 @@ type escapeWriter struct {
 
 func (w *escapeWriter) Write(b []byte) (int, error) {
 	w.safeWriter(w.rawWriter, b)
-	return 0, nil
+	return len(b), nil
 }
 
 func (st *Runtime) evalSafeWriter(term reflect.Value, node *CommandNode, v ...reflect.Value) {
 	sw := &escapeWriter{rawWriter: st.Writer, safeWriter: term.Interface().(SafeWriter)}
 	for i := 0; i < len(v); i++ {
-		fastprinter.PrintValue(sw, v[i])
+		if _, err := fastprinter.PrintValue(sw, v[i]); err != nil {
+			node.error(err)
+		}
 	}
 	for i := 0; i < len(node.Exprs); i++ {
-		fastprinter.PrintValue(sw, st.evalPrimaryExpressionGroup(node.Exprs[i]))
+		if _, err := fastprinter.PrintValue(sw, st.evalPrimaryExpressionGroup(node.Exprs[i])); err != nil {
+			node.error(err)
+		}
 	}
 }
 

@@ -62,8 +62,8 @@ var (
 
 type devNull struct{}
 
-func (*devNull) Write(_ []byte) (int, error) {
-	return 0, nil
+func (*devNull) Write(b []byte) (int, error) {
+	return len(b), nil
 }
 
 func dummy(a string) string {
