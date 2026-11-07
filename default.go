@@ -67,6 +67,7 @@ func init() {
 				a.Panicf("len(): argument is not a valid value")
 			}
 			if expression.Kind() == reflect.Ptr || expression.Kind() == reflect.Interface {
+				a.runtime.checkpoint(1)
 				expression = expression.Elem()
 			}
 
@@ -82,7 +83,7 @@ func init() {
 		})),
 		"includeIfExists": reflect.ValueOf(Func(func(a Arguments) reflect.Value {
 			a.RequireNumOfArguments("includeIfExists", 1, 2)
-			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
+			t, err := a.runtime.loadTemplate(a.Get(0).String(), "", false)
 			// If template exists but returns an error then panic instead of failing silently
 			if t != nil && err != nil {
 				panic(fmt.Errorf("including %s: %w", a.Get(0).String(), err))
@@ -95,10 +96,7 @@ func init() {
 			defer a.runtime.releaseScope()
 
 			a.runtime.blocks = t.processedBlocks
-			root := t.Root
-			if t.extends != nil {
-				root = t.extends.Root
-			}
+			root := a.runtime.templateRoot(t)
 
 			if a.NumOfArguments() > 1 {
 				c := a.runtime.context
@@ -112,7 +110,7 @@ func init() {
 		})),
 		"exec": reflect.ValueOf(Func(func(a Arguments) (result reflect.Value) {
 			a.RequireNumOfArguments("exec", 1, 2)
-			t, err := a.runtime.set.GetTemplate(a.Get(0).String())
+			t, err := a.runtime.loadTemplate(a.Get(0).String(), "", false)
 			if err != nil {
 				panic(fmt.Errorf("exec(%s, %v): %w", a.Get(0), a.Get(1), err))
 			}
@@ -125,10 +123,7 @@ func init() {
 			a.runtime.Writer = ioutil.Discard
 
 			a.runtime.blocks = t.processedBlocks
-			root := t.Root
-			if t.extends != nil {
-				root = t.extends.Root
-			}
+			root := a.runtime.templateRoot(t)
 
 			if a.NumOfArguments() > 1 {
 				c := a.runtime.context

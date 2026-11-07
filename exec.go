@@ -19,6 +19,8 @@
 package jet
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"reflect"
 	"sort"
@@ -53,24 +55,40 @@ func (scope VarMap) SetWriter(name string, v SafeWriter) VarMap {
 
 // Execute executes the template into w.
 func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err error) {
+	return t.execute(nil, w, variables, data, ExecutionOptions{})
+}
+
+// ExecuteContext executes synchronously with cancellation and interpreter limits.
+// It checks before/after native calls and waits for them to return. It does not
+// interrupt blocked callbacks, writers, loaders, channels, or custom rangers.
+// Nil ctx and negative depth are invalid; zero limits are unlimited.
+func (t *Template) ExecuteContext(ctx context.Context, w io.Writer, variables VarMap, data interface{}, opts ExecutionOptions) error {
+	if ctx == nil || opts.MaxDepth < 0 {
+		return fmt.Errorf("%w: context must be non-nil and depth nonnegative", ErrInvalidOptions)
+	}
+	return t.execute(ctx, w, variables, data, opts)
+}
+
+func (t *Template) execute(ctx context.Context, w io.Writer, variables VarMap, data interface{}, opts ExecutionOptions) (err error) {
 	st := pool_State.Get().(*Runtime)
 	defer st.recover(&err)
 
+	st.execution = executionState{ctx: ctx, options: opts, remaining: opts.MaxSteps}
+	st.checkpoint(0)
 	st.blocks = t.processedBlocks
 	st.variables = variables
 	st.set = t.set
 	st.writeErr = nil
-	st.Writer = checkedWriter{writer: w, failure: &st.writeErr}
+	st.rootSink = checkedWriter{writer: w, failure: &st.writeErr}
+	st.Writer = &st.rootSink
 
-	// resolve extended template
-	for t.extends != nil {
-		t = t.extends
-	}
+	root := st.templateRoot(t)
 
 	if data != nil {
 		st.context = reflect.ValueOf(data)
 	}
 
-	st.executeList(t.Root)
+	st.executeList(root)
+	st.checkpoint(0)
 	return
 }

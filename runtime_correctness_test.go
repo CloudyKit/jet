@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"reflect"
 	"testing"
 )
@@ -70,6 +71,69 @@ func TestRuntimeTryRestoresContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.String() != "root" {
+		t.Fatalf("got %q", out.String())
+	}
+}
+
+func TestRuntimeRangerReleasesReferences(t *testing.T) {
+	st := &Runtime{escapeeWriter: new(escapeeWriter)}
+	for _, input := range []interface{}{[]string{"caller"}, map[string]string{"caller": "value"}, make(chan string)} {
+		r, cleanup, err := st.getRanger(reflect.ValueOf(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cleanup()
+		switch r := r.(type) {
+		case *sliceRanger:
+			if r.v.IsValid() {
+				t.Fatal("slice retained")
+			}
+		case *mapRanger:
+			if r.iter != nil {
+				t.Fatal("map retained")
+			}
+		case *chanRanger:
+			if r.v.IsValid() {
+				t.Fatal("channel retained")
+			}
+		}
+	}
+}
+
+func TestRuntimeNestedTryRollback(t *testing.T) {
+	tpl := runtimeTemplate(t, `{{ try }}discard{{ try }}inner{{ missing }}{{ catch }}fallback{{ end }}{{ missing }}{{ catch }}outer{{ end }}after`)
+	var out bytes.Buffer
+	if err := tpl.Execute(&out, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "outerafter" {
+		t.Fatalf("got %q", out.String())
+	}
+}
+
+func TestRuntimeEscaperReentry(t *testing.T) {
+	var active *Runtime
+	l := NewInMemLoader()
+	l.Set("reentry", `{{ block b() }}{{ "inner" }}{{ end }}{{ capture() }}{{ "outer" }}`)
+	set := NewSet(l, WithSafeWriter(func(w io.Writer, p []byte) {
+		if string(p) == "outer" {
+			writer := active.Writer
+			active.Writer = ioutil.Discard
+			active.YieldBlock("b", nil)
+			active.Writer = writer
+		}
+		_, _ = w.Write(p)
+	}))
+	tpl, err := set.GetTemplate("reentry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vars := VarMap{}.SetFunc("capture", func(a Arguments) reflect.Value { active = a.Runtime(); return reflect.Value{} })
+	var out bytes.Buffer
+	if err := tpl.Execute(&out, vars, nil); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "innerouter" {
 		t.Fatalf("got %q", out.String())
 	}
 }

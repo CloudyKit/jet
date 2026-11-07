@@ -161,7 +161,7 @@ var (
 	}
 )
 
-func getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
+func (st *Runtime) getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
 	if !v.IsValid() {
 		return nil, nil, errors.New("can't range over invalid value")
 	}
@@ -170,7 +170,7 @@ func getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
 		return v.Interface().(Ranger), func() { /* no cleanup needed */ }, nil
 	}
 
-	v, isNil := indirect(v)
+	v, isNil := st.indirect(v)
 	if isNil {
 		return nil, nil, fmt.Errorf("cannot range over nil pointer/interface (%s)", t)
 	}
@@ -191,4 +191,11 @@ func getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
 	pr.Setup(v)
 	ready = true
 	return pr, func() { pr.Reset(); pool.Put(pr) }, nil
+}
+
+func (st *Runtime) advanceRanger(r Ranger) (reflect.Value, reflect.Value, bool) {
+	st.beforeCall(reflect.ValueOf(r))
+	key, value, done := r.Range()
+	st.checkpoint(0)
+	return key, value, done
 }
