@@ -134,19 +134,15 @@ func (s scope) sortedBlocks() []string {
 
 // YieldBlock yields a block in the current context, will panic if the context is not available
 func (st *Runtime) YieldBlock(name string, context interface{}) {
+	previousScope, previousContext, previousContent := st.scope, st.context, st.content
+	defer func() { st.scope, st.context, st.content = previousScope, previousContext, previousContent }()
 	block, found := st.getBlock(name)
-
 	if !found {
 		panic(fmt.Errorf("Block %q was not found!!", name))
 	}
-
 	if context != nil {
-		current := st.context
 		st.context = reflect.ValueOf(context)
-		st.executeList(block.List)
-		st.context = current
 	}
-
 	st.executeList(block.List)
 }
 
