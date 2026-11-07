@@ -57,6 +57,7 @@ func newIntsRanger(from, to int64) *intsRanger {
 type pooledRanger interface {
 	Ranger
 	Setup(reflect.Value)
+	Reset()
 }
 
 type sliceRanger struct {
@@ -66,6 +67,8 @@ type sliceRanger struct {
 
 var _ Ranger = &sliceRanger{}
 var _ pooledRanger = &sliceRanger{}
+
+func (r *sliceRanger) Reset() { r.v = reflect.Value{}; r.i = 0 }
 
 func (r *sliceRanger) Setup(v reflect.Value) {
 	r.i = 0
@@ -93,6 +96,8 @@ type mapRanger struct {
 var _ Ranger = &mapRanger{}
 var _ pooledRanger = &mapRanger{}
 
+func (r *mapRanger) Reset() { r.iter = nil; r.hasMore = false }
+
 func (r *mapRanger) Setup(v reflect.Value) {
 	r.iter = v.MapRange()
 	r.hasMore = r.iter.Next()
@@ -116,6 +121,8 @@ type chanRanger struct {
 
 var _ Ranger = &chanRanger{}
 var _ pooledRanger = &chanRanger{}
+
+func (r *chanRanger) Reset() { r.v = reflect.Value{} }
 
 func (r *chanRanger) Setup(v reflect.Value) {
 	r.v = v
@@ -174,6 +181,14 @@ func getRanger(v reflect.Value) (r Ranger, cleanup func(), err error) {
 	}
 
 	pr := pool.Get().(pooledRanger)
+	ready := false
+	defer func() {
+		if !ready {
+			pr.Reset()
+			pool.Put(pr)
+		}
+	}()
 	pr.Setup(v)
-	return pr, func() { pool.Put(pr) }, nil
+	ready = true
+	return pr, func() { pr.Reset(); pool.Put(pr) }, nil
 }

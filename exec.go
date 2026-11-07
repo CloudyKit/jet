@@ -59,7 +59,8 @@ func (t *Template) Execute(w io.Writer, variables VarMap, data interface{}) (err
 	st.blocks = t.processedBlocks
 	st.variables = variables
 	st.set = t.set
-	st.Writer = w
+	st.writeErr = nil
+	st.Writer = checkedWriter{writer: w, failure: &st.writeErr}
 
 	// resolve extended template
 	for t.extends != nil {

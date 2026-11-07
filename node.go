@@ -58,7 +58,7 @@ func (node *NodeBase) line() int {
 }
 
 func (node *NodeBase) error(err error) {
-	node.errorf("%s", err)
+	panic(fmt.Errorf("Jet Runtime Error (%q:%d): %w", filepath.ToSlash(node.TemplatePath), node.Line, err))
 }
 
 func (node *NodeBase) errorf(format string, v ...interface{}) {
